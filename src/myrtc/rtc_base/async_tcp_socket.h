@@ -77,11 +77,12 @@ class AsyncTCPSocketBase : public AsyncPacketSocket {
   std::unique_ptr<AsyncSocket> socket_;
   bool listen_;
   Buffer inbuf_;
-  Buffer outbuf_;
   size_t max_insize_;
-  size_t max_outsize_;
-
+  
   RTC_DISALLOW_COPY_AND_ASSIGN(AsyncTCPSocketBase);
+ protected:
+  Buffer outbuf_;
+  size_t max_outsize_;
 };
 
 // Simulates UDP semantics over TCP.  Send and Recv packet sizes

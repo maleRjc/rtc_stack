@@ -75,6 +75,14 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateServerTcpSocket(
     return NULL;
   }
 
+  if (opts & PacketSocketFactory::OPT_ADDRESS_REUSE) {
+    int reuse = 1;
+    if (socket->GetLocalAddress().family() != PF_UNIX && 
+        socket->SetOption(Socket::OPT_REUSEADDR, reuse) < 0) {
+      RTC_LOG(LS_ERROR) << "set OPT_ADDRESS_REUSE with error " << socket->GetError();
+    }
+  }
+  
   if (BindSocket(socket, local_address, min_port, max_port) < 0) {
     RTC_LOG(LS_ERROR) << "TCP bind failed with error " << socket->GetError();
     delete socket;

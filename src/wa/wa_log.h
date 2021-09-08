@@ -394,7 +394,7 @@ constexpr int WA_LOG_MAX_LOG_LENGTH = 4096;
 #define LOG_ASSERT(expr) \
     do { \
       if (!(expr)) { \
-        ELOG_ERROR("%s:%s Assert failed: %s", __FILE__, __LINE__, #expr); \
+        ELOG_ERROR("%s:%d Assert failed: %s", __FILE__, __LINE__, #expr); \
         assert(false); \
       } \
     } while(0)

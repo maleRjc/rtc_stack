@@ -46,8 +46,8 @@ class RTC_EXPORT PacketSocketFactory {
     OPT_TLS_FAKE = 0x01,      // Fake TLS with a dummy SSL handshake.
     OPT_TLS_INSECURE = 0x08,  // Insecure TLS without certificate validation.
 
-    OPT_RAW = 0x10,  // tcp raw stream
-
+    OPT_RAW = 0x10,   // tcp raw stream
+    OPT_ADDRESS_REUSE = 0x20, // tcp reuse address
     // Deprecated, use OPT_TLS_FAKE.
     OPT_SSLTCP = OPT_TLS_FAKE,
   };

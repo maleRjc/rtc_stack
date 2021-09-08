@@ -82,12 +82,6 @@ AsyncTCPSocketBase::AsyncTCPSocketBase(AsyncSocket* socket,
   if (listen_) {
     if (socket_->Listen(kListenBacklog) < 0) {
       RTC_LOG(LS_ERROR) << "Listen() failed with error " << socket_->GetError();
-    } else {
-      int reuse = 1;
-      if (GetLocalAddress().family() != PF_UNIX && 
-          socket_->SetOption(Socket::OPT_REUSEADDR, reuse) < 0) {
-        RTC_LOG(LS_ERROR) << "set REUSEADDR with error " << socket_->GetError();
-      }
     }
   }
 }
@@ -363,28 +357,24 @@ int AsyncRawTCPSocket::Send(const void* pv,
     return -1;
   }
 
-  // If we are blocking on send, then silently drop this packet
-  if (!IsOutBufferEmpty()) {
-    SetError(EWOULDBLOCK);
-    return -1;
+  size_t append_size = cb;
+  if (outbuf_.size() + cb > max_outsize_) {
+    append_size = max_outsize_ - cb;
   }
 
-  AppendToOutBuffer(pv, cb);
+  AppendToOutBuffer(pv, append_size);
 
   int res = FlushOutBuffer();
-  if (res <= 0) {
-    // drop packet if we made no progress
-    ClearOutBuffer();
+  if (res <= 0) { 
     return res;
   }
 
   rtc::SentPacket sent_packet(options.packet_id, rtc::TimeMillis(),
                               options.info_signaled_after_sent);
-  CopySocketInformationToPacketInfo(cb, *this, false, &sent_packet.info);
+  CopySocketInformationToPacketInfo(append_size, *this, false, &sent_packet.info);
   SignalSentPacket(this, sent_packet);
 
-  // We claim to have sent the whole thing, even if we only sent partial
-  return static_cast<int>(cb);
+  return static_cast<int>(append_size);
 }
 
 void AsyncRawTCPSocket::ProcessInput(char* data, size_t* len) {
