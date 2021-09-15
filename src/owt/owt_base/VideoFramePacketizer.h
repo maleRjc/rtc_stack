@@ -5,11 +5,7 @@
 #ifndef VideoFramePacketizer_h
 #define VideoFramePacketizer_h
 
-
-
-#include <boost/scoped_ptr.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/shared_mutex.hpp>
+#include <memory>
 #include "common/logger.h"
 
 #include "erizo/MediaDefinitions.h"
@@ -80,8 +76,6 @@ private:
     uint16_t m_frameWidth{0};
     uint16_t m_frameHeight{0};
     uint32_t m_ssrc{0};
-
-    boost::shared_mutex m_transportMutex;
 
     uint16_t m_sendFrameCount{0};
     std::shared_ptr<rtc_adapter::RtcAdapter> m_rtcAdapter;

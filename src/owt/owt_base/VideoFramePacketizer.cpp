@@ -60,7 +60,6 @@ bool VideoFramePacketizer::init(VideoFramePacketizer::Config& config)
 
 void VideoFramePacketizer::bindTransport(erizo::MediaSink* sink)
 {
-  boost::unique_lock<boost::shared_mutex> lock(m_transportMutex);
   video_sink_ = sink;
   video_sink_->setVideoSinkSSRC(m_videoSend->ssrc());
   erizo::FeedbackSource* fbSource = video_sink_->getFeedbackSource();
@@ -70,7 +69,6 @@ void VideoFramePacketizer::bindTransport(erizo::MediaSink* sink)
 
 void VideoFramePacketizer::unbindTransport()
 {
-  boost::unique_lock<boost::shared_mutex> lock(m_transportMutex);
   if (video_sink_) {
       video_sink_ = nullptr;
   }
@@ -96,7 +94,6 @@ void VideoFramePacketizer::onAdapterStats(const AdapterStats& stats) {}
 
 void VideoFramePacketizer::onAdapterData(char* data, int len)
 {
-  boost::shared_lock<boost::shared_mutex> lock(m_transportMutex);
   if (!video_sink_) {
       return;
   }

@@ -13,13 +13,11 @@
 
 using JSON_TYPE = nlohmann::json;
 
-namespace wa
-{
+namespace wa {
 
 struct FormatPreference;
 
-struct media_setting
-{
+struct media_setting {
   bool is_audio{false};
   int32_t format;
   std::vector<uint32_t> ssrcs;
@@ -32,8 +30,7 @@ struct media_setting
   int transportcc{-1};
 };
 
-struct SessionInfo
-{
+struct SessionInfo {
   int decode(const JSON_TYPE& session);
   void encode(JSON_TYPE& session);
   std::string ice_ufrag_;
@@ -44,15 +41,13 @@ struct SessionInfo
   std::string setup_;
 };
 
-class MediaDesc
-{
+class MediaDesc {
   DECLARE_LOGGER();
 public:
 
   //UDP RFC 8445
   //TCP RFC 6544
-  struct Candidate
-  {
+  struct Candidate {
     void encode(JSON_TYPE& session);
     void decode(const JSON_TYPE& session);
 
@@ -65,8 +60,7 @@ public:
     std::string type_;
   };
 
-  struct rtpmap
-  {
+  struct rtpmap {
     rtpmap() = default;
 
     rtpmap(const rtpmap&) = default;
@@ -90,8 +84,7 @@ public:
     std::vector<rtpmap> related_;
   };
 
-  struct SSRCGroup
-  {
+  struct SSRCGroup {
     void encode(JSON_TYPE& session);
     void decode(const JSON_TYPE& session);
     // e.g FIX, FEC, SIM.
@@ -100,8 +93,7 @@ public:
     std::vector<uint32_t> ssrcs_;
   };
 
-  struct SSRCInfo
-  {
+  struct SSRCInfo {
     void encode(JSON_TYPE& session);
     uint32_t ssrc_;
     std::string cname_;
@@ -111,8 +103,7 @@ public:
     std::string label_;
   };
 
-  struct RidInfo
-  {
+  struct RidInfo {
     std::string id_;
     std::string direction_;
     std::string params_;
@@ -191,8 +182,7 @@ public:
   std::vector<RidInfo> rids_;
 };
 
-class WaSdpInfo
-{
+class WaSdpInfo {
   DECLARE_LOGGER();
 public:
   WaSdpInfo();
@@ -280,7 +270,7 @@ public:
   bool ice_lite_{false};
 };
 
-}
+} //namespace wa
 
 #endif //!__WA_SDP_PROCESSOR_H__
 

@@ -41,12 +41,10 @@ AudioSendAdapterImpl::~AudioSendAdapterImpl()
 {
     close();
     m_ssrc_generator->ReturnSsrc(m_ssrc);
-    boost::unique_lock<boost::shared_mutex> lock(m_rtpRtcpMutex);
 }
 
 int AudioSendAdapterImpl::onRtcpData(char* data, int len)
 {
-    boost::shared_lock<boost::shared_mutex> lock(m_rtpRtcpMutex);
     m_rtpRtcp->IncomingRtcpPacket(reinterpret_cast<uint8_t*>(data), len);
     return len;
 }
@@ -81,7 +79,6 @@ void AudioSendAdapterImpl::onFrame(const Frame& frame)
     } else {
         int payloadType = getAudioPltype(frame.format);
         if (payloadType != INVALID_PT) {
-            boost::shared_lock<boost::shared_mutex> lock(m_rtpRtcpMutex);
             if (m_rtpRtcp->OnSendingRtpFrame(frame.timeStamp, -1, payloadType, false)) {
                 const uint32_t rtp_timestamp = frame.timeStamp + m_rtpRtcp->StartTimestamp();
                 // TODO: The frame type information is lost.
@@ -143,7 +140,6 @@ bool AudioSendAdapterImpl::setSendCodec(FrameFormat format)
     if (!getAudioCodecInst(m_frameFormat, codec))
         return false;
 
-    boost::shared_lock<boost::shared_mutex> lock(m_rtpRtcpMutex);
     m_rtpRtcp->RegisterSendPayloadFrequency(codec.pltype, codec.plfreq);
     m_senderAudio->RegisterAudioPayload("audio", codec.pltype,
         codec.plfreq, codec.channels, 0);

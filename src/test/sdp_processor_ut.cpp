@@ -16,13 +16,13 @@ static std::string chrome_sdp{"../../../src/test/data/chrome_91.sdp"};
 static std::string chrome_sdp88{"../../../src/test/data/chrome_88.sdp"};
 static std::string chrome_answer{"../../../src/test/data/answer.sdp"};
 
-TEST(WaSdpInfo, init_failed){
+TEST(WaSdpInfo, init_failed) {
   wa::WaSdpInfo sdpinfo;
   int result = sdpinfo.init("");
   EXPECT_EQ(result, wa::wa_e_invalid_param);
 }
 
-TEST(WaSdpInfo, init_88){
+TEST(WaSdpInfo, init_88) {
   std::ifstream fin(chrome_sdp88);
 
   ASSERT_EQ(true, fin.is_open());
@@ -57,7 +57,7 @@ TEST(WaSdpInfo, init_88){
   //sdp_info_comp(out_sdp_info);
 }
 
-TEST(WaSdpInfo, candidate2string){
+TEST(WaSdpInfo, candidate2string) {
   std::ifstream fin(chrome_answer);
   ASSERT_EQ(true, fin.is_open());
   
@@ -101,7 +101,7 @@ TEST(WaSdpInfo, candidate2string){
   EXPECT_EQ(strCandidates, "v=0\r\ns=-\r\na=candidate:1 1 udp 2013266431 192.168.1.156 46462 typ host\r\n");
 }
 
-TEST(WaSdpInfo, init_answer){
+TEST(WaSdpInfo, init_answer) {
   std::ifstream fin(chrome_answer);
   ASSERT_EQ(true, fin.is_open());
   
@@ -373,8 +373,7 @@ TEST(WaSdpInfo, init_answer){
   //std::cout << toAnswer << std::endl;
 }
 
-void session_info_comp(wa::SessionInfo& session_info)
-{
+void session_info_comp(wa::SessionInfo& session_info) {
   EXPECT_EQ(session_info.ice_ufrag_, "Hcw5");
   EXPECT_EQ(session_info.ice_pwd_, "bHaWawVL0Jt/7Tq9+BX0EKJJ");
   EXPECT_EQ(session_info.ice_options_, "trickle");
@@ -385,8 +384,7 @@ void session_info_comp(wa::SessionInfo& session_info)
   EXPECT_EQ(session_info.setup_, "actpass");
 }
 
-void sdp_info_comp(wa::WaSdpInfo& sdpinfo)
-{
+void sdp_info_comp(wa::WaSdpInfo& sdpinfo) {
   EXPECT_EQ(sdpinfo.version_, 0);
   EXPECT_EQ(sdpinfo.username_, "-");
   EXPECT_EQ(sdpinfo.session_id_, 1701150822055760335);
@@ -742,20 +740,16 @@ void sdp_info_comp(wa::WaSdpInfo& sdpinfo)
   EXPECT_EQ(sdpinfo.media_descs_[1].ssrc_groups_[0].ssrcs_[1], 30849494);
 }
 
-TEST(WaSdpInfo, init_ok){
-  std::ifstream fin(chrome_sdp);
-
-  ASSERT_EQ(true, fin.is_open());
-
+int read_sdp_from_string(wa::WaSdpInfo& sdpInfo, const std::string& insdp) {
+  std::ifstream fin(insdp);
+  assert(true == fin.is_open());
   std::string sdp;
   int result = wa::wa_failed;
-  
-  wa::WaSdpInfo sdpinfo;
+
   while(std::getline(fin, sdp)){
     sdp = wa::wa_string_replace(sdp, "\\r\\n", "\r\n");
-    //std::cout<<"sdp: "<< sdp << std::endl;
     try{
-      result = sdpinfo.init(sdp);
+      result = sdpInfo.init(sdp);
       std::cout << "init_ok case: sdpinfo.init succeed." << std::endl;
     }catch(std::exception& ex){
       result = wa::wa_e_parse_offer_failed;
@@ -763,34 +757,22 @@ TEST(WaSdpInfo, init_ok){
     }
   }
 
+  return result;
+}
+
+TEST(WaSdpInfo, init_ok) {
+  wa::WaSdpInfo sdpinfo;
+  int result = read_sdp_from_string(sdpinfo, chrome_sdp);
   ASSERT_EQ(result, wa::wa_ok);
   sdp_info_comp(sdpinfo);
 }
 
-TEST(WaSdpInfo, write){
-  std::ifstream fin(chrome_sdp);
-
-  ASSERT_EQ(true, fin.is_open());
-
-  std::string sdp;
-  int result = wa::wa_failed;
-  
+TEST(WaSdpInfo, write) {
   wa::WaSdpInfo sdpinfo;
-  while(std::getline(fin, sdp)){
-    sdp = wa::wa_string_replace(sdp, "\\r\\n", "\r\n");
-    try{
-      result = sdpinfo.init(sdp);
-      std::cout << "sdpinfo.init succeed." << std::endl;
-    }catch(std::exception& ex){
-      result = wa::wa_e_parse_offer_failed;
-      std::cout << "exception catched :" << ex.what() << std::endl;
-    }
-  }
+  int result = read_sdp_from_string(sdpinfo, chrome_sdp);
   ASSERT_EQ(result, wa::wa_ok);
   
   std::string sdpOut = sdpinfo.toString();
-  //sdpOut = wa::wa_string_replace(sdpOut, "\r\n", "\\r\\n");
-  //std::cout << sdpOut << std::endl;
 
   wa::WaSdpInfo out_sdp_info;
   try{
@@ -802,5 +784,22 @@ TEST(WaSdpInfo, write){
   }
   ASSERT_EQ(result, wa::wa_ok);
   sdp_info_comp(out_sdp_info);
+}
+
+#include "h/rtc_stack_api.h"
+
+TEST(WaSdpInfo, filterVideoPayload) {
+  wa::WaSdpInfo sdpinfo;
+  int result = read_sdp_from_string(sdpinfo, chrome_sdp88);
+  ASSERT_EQ(result, wa::wa_ok);
+ 
+  wa::FormatPreference pre;
+  pre.format_ = wa::p_h264;
+  pre.profile_ = "42001f";
+  result = sdpinfo.filterVideoPayload("1", pre);
+  ASSERT_EQ(result, 127);
+  pre.profile_ = "42e01f";
+  result = sdpinfo.filterVideoPayload("1", pre);
+  ASSERT_EQ(result, 108);
 }
 

@@ -5,9 +5,7 @@
 #ifndef RTC_ADAPTER_VIDEO_SEND_ADAPTER_
 #define RTC_ADAPTER_VIDEO_SEND_ADAPTER_
 
-#include <boost/scoped_ptr.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/shared_mutex.hpp>
+#include <memory>
 
 #include "api/field_trial_based_config.h"
 #include "rtp_rtcp/rtp_rtcp.h"
@@ -60,19 +58,15 @@ private:
 
     bool m_keyFrameArrived;
     std::unique_ptr<webrtc::RateLimiter> m_retransmissionRateLimiter;
-    boost::scoped_ptr<webrtc::RtcpBandwidthObserver> m_bandwidthObserver;
     std::unique_ptr<webrtc::RtpRtcp> m_rtpRtcp;
-    boost::shared_mutex m_rtpRtcpMutex;
 
-    boost::shared_ptr<owt_base::WebRTCTaskRunner> m_taskRunner;
+    std::shared_ptr<owt_base::WebRTCTaskRunner> m_taskRunner;
     owt_base::FrameFormat m_frameFormat;
     uint16_t m_frameWidth;
     uint16_t m_frameHeight;
     webrtc::Random m_random;
     uint32_t m_ssrc;
     owt_base::SsrcGenerator* const m_ssrcGenerator;
-
-    boost::shared_mutex m_transportMutex;
 
     webrtc::Clock* m_clock;
     int64_t m_timeStampOffset;

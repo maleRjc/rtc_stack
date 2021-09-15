@@ -5,9 +5,7 @@
 #ifndef RTC_ADAPTER_AUDIO_SEND_ADAPTER_
 #define RTC_ADAPTER_AUDIO_SEND_ADAPTER_
 
-#include <boost/scoped_ptr.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread/shared_mutex.hpp>
+#include <memory>
 
 #include "api/rtc_event_log.h"
 #include "rtp_rtcp/rtp_rtcp.h"
@@ -47,13 +45,10 @@ private:
     bool setSendCodec(owt_base::FrameFormat format);
     void close();
     void updateSeqNo(uint8_t* rtp);
-
-    boost::shared_mutex m_rtpRtcpMutex;
     std::unique_ptr<webrtc::RtpRtcp> m_rtpRtcp;
 
-    boost::shared_ptr<owt_base::WebRTCTaskRunner> m_taskRunner;
+    std::shared_ptr<owt_base::WebRTCTaskRunner> m_taskRunner;
     owt_base::FrameFormat m_frameFormat;
-    boost::shared_mutex m_transport_mutex;
 
     uint16_t m_lastOriginSeqNo;
     uint16_t m_seqNo;

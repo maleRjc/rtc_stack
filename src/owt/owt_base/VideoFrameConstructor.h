@@ -5,8 +5,7 @@
 #ifndef VideoFrameConstructor_h
 #define VideoFrameConstructor_h
 
-
-#include <boost/scoped_ptr.hpp>
+#include <memory>
 #include "common/logger.h"
 
 #include "erizo/MediaDefinitions.h"
@@ -89,7 +88,6 @@ private:
   uint32_t m_ssrc{0};
 
   erizo::MediaSource* m_transport{nullptr};
-  boost::shared_mutex m_transportMutex;
   std::shared_ptr<SharedJobTimer> m_feedbackTimer;
   uint32_t m_pendingKeyFrameRequests{0};
 

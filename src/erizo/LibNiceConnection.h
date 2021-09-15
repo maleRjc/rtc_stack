@@ -8,7 +8,6 @@
 #ifndef ERIZO_SRC_ERIZO_LIBNICECONNECTION_H_
 #define ERIZO_SRC_ERIZO_LIBNICECONNECTION_H_
 
-#include <boost/thread.hpp>
 #include <string>
 #include <vector>
 #include <queue>

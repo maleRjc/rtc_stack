@@ -14,10 +14,10 @@ TaskRunnerPool& TaskRunnerPool::GetInstance()
     return taskRunnerPool;
 }
 
-boost::shared_ptr<WebRTCTaskRunner> TaskRunnerPool::GetTaskRunner()
+std::shared_ptr<WebRTCTaskRunner> TaskRunnerPool::GetTaskRunner()
 {
     // This function would always be called in Node's main thread
-    boost::shared_ptr<WebRTCTaskRunner> runner = m_taskRunners[m_nextRunner];
+    std::shared_ptr<WebRTCTaskRunner> runner = m_taskRunners[m_nextRunner];
     m_nextRunner = (m_nextRunner + 1) % m_taskRunners.size();
     return runner;
 }
@@ -27,7 +27,7 @@ TaskRunnerPool::TaskRunnerPool()
     , m_taskRunners(kTaskRunnerPoolSize)
 {
     for (size_t i = 0; i < m_taskRunners.size(); i++) {
-        m_taskRunners[i].reset(new WebRTCTaskRunner("TaskRunner"));
+        m_taskRunners[i] = std::make_shared<WebRTCTaskRunner>("TaskRunner");
         m_taskRunners[i]->Start();
     }
 }

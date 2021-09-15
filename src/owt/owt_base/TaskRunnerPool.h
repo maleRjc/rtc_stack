@@ -5,7 +5,7 @@
 #ifndef TaskRunnerPool_h
 #define TaskRunnerPool_h
 
-#include <boost/shared_ptr.hpp>
+#include <memory>
 #include <vector>
 
 #include "owt_base/WebRTCTaskRunner.h"
@@ -19,14 +19,14 @@ namespace owt_base {
 class TaskRunnerPool {
 public:
     static TaskRunnerPool& GetInstance();
-    boost::shared_ptr<WebRTCTaskRunner> GetTaskRunner();
+    std::shared_ptr<WebRTCTaskRunner> GetTaskRunner();
 
 private:
     TaskRunnerPool();
     ~TaskRunnerPool();
 
     int m_nextRunner;
-    std::vector<boost::shared_ptr<WebRTCTaskRunner> > m_taskRunners;
+    std::vector<std::shared_ptr<WebRTCTaskRunner> > m_taskRunners;
 };
 
 } /* namespace owt_base */

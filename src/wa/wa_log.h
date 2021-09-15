@@ -89,7 +89,7 @@ class LogContext {
 #define DEFINE_LOGGER(namespace, logName) \
   log4cxx::LoggerPtr namespace::logger = log4cxx::Logger::getLogger(logName);
 
-#define ELOG_MAX_BUFFER_SIZE 10000
+#define ELOG_MAX_BUFFER_SIZE 10240
 
 #define SPRINTF_ELOG_MSG(buffer, fmt, args...) \
 char buffer[ELOG_MAX_BUFFER_SIZE]; \
@@ -301,25 +301,25 @@ private :
   unsigned char m_hex;
 };
 
-constexpr int WA_LOG_MAX_LOG_LENGTH = 4096;
-
 #define OLOG(logger, str) \
   do { \
-      char formatBuf[WA_LOG_MAX_LOG_LENGTH]; \
-      CRecorder formator(formatBuf, WA_LOG_MAX_LOG_LENGTH); \
+      char formatBuf[ELOG_MAX_BUFFER_SIZE]; \
+      CRecorder formator(formatBuf, ELOG_MAX_BUFFER_SIZE); \
       logger(formator << str); \
   } while (0)
 
+/*
 #define OLOG1_WARN(str) \
   do { \
       char formatBuf[WA_LOG_MAX_LOG_LENGTH]; \
       CRecorder formator(formatBuf, WA_LOG_MAX_LOG_LENGTH); \
       ELOG_WARN(formator << str); \
   } while (0)
+*/
 
 #define OLOG_TRACE(msg) \
     if (logger->isTraceEnabled()) { \
-      OLOG(ELOG_TRACE, __FUNCTION__); \
+      OLOG(ELOG_TRACE, msg); \
     }
 
 #define OLOG_DEBUG(msg) \
@@ -332,16 +332,16 @@ constexpr int WA_LOG_MAX_LOG_LENGTH = 4096;
       OLOG(ELOG_INFO, msg); \
     }
 
-/*    
 #define OLOG_WARN(msg) \
     if (logger->isWarnEnabled()) { \
       OLOG(ELOG_WARN, msg); \
     }
-*/
+/*
 #define OLOG_WARN(msg) \
     if (logger->isWarnEnabled()) { \
       OLOG1_WARN(msg); \
     }
+*/
 
 #define OLOG_ERROR(msg) \
     if (logger->isErrorEnabled()) { \

@@ -34,8 +34,6 @@ private:
     boost::thread m_thread;
 };
 
-// Get a IOService from service pool
-std::shared_ptr<IOService> getIOService();
 
 } /* namespace owt_base */
 

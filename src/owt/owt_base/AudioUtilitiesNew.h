@@ -5,6 +5,7 @@
 #ifndef AudioUtilities_h
 #define AudioUtilities_h
 
+#include <sys/time.h>
 #include "owt_base/MediaFramePipeline.h"
 
 namespace owt_base {

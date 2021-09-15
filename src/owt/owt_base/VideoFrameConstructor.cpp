@@ -68,7 +68,6 @@ void VideoFrameConstructor::maybeCreateReceiveVideo(uint32_t ssrc)
 
 void VideoFrameConstructor::bindTransport(erizo::MediaSource* source, erizo::FeedbackSink* fbSink)
 {
-  boost::unique_lock<boost::shared_mutex> lock(m_transportMutex);
   m_transport = source;
   m_transport->setVideoSink(this);
   m_transport->setEventSink(this);
@@ -77,7 +76,6 @@ void VideoFrameConstructor::bindTransport(erizo::MediaSource* source, erizo::Fee
 
 void VideoFrameConstructor::unbindTransport()
 {
-  boost::unique_lock<boost::shared_mutex> lock(m_transportMutex);
   if (m_transport) {
     setFeedbackSink(nullptr);
     m_transport = nullptr;

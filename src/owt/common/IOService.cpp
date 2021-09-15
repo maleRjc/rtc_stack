@@ -35,17 +35,6 @@ void IOService::post(std::function<void()> task)
     });
 }
 
-std::shared_ptr<IOService> getIOService()
-{
-    boost::mutex::scoped_lock lock(g_serviceMutex);
-    if (g_services.empty()) {
-        for (size_t i = 0; i < kServiceNum; i++) {
-            g_services.push_back(std::make_shared<IOService>());
-        }
-    }
-    int i = std::rand()/((RAND_MAX + 1u)/kServiceNum);
-    return g_services[i];
-}
 
 }
 /* namespace owt_base */

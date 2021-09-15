@@ -13,8 +13,7 @@ DEFINE_LOGGER(WrtcAgentPc, "WrtcAgentPc");
 WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc, 
                                       bool isPublish, const media_setting& setting,
                                       erizo::MediaStream* ms)
-  : pc_(pc), mid_(mid)
-{
+  : pc_(pc), mid_(mid) {
   if (isPublish) {
     if (setting.is_audio) {
       audioFormat_ = setting.format;
@@ -69,8 +68,7 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc,
   }
 }
 
-uint32_t WrtcAgentPc::WebrtcTrack::ssrc(bool isAudio)
-{
+uint32_t WrtcAgentPc::WebrtcTrack::ssrc(bool isAudio) {
   if (isAudio && audioFramePacketizer_) {
     return audioFramePacketizer_->getSsrc();
   } else if (!isAudio && videoFramePacketizer_) {
@@ -79,8 +77,7 @@ uint32_t WrtcAgentPc::WebrtcTrack::ssrc(bool isAudio)
   return 0;
 }
 
-void WrtcAgentPc::WebrtcTrack::addDestination(bool isAudio, owt_base::FrameDestination* dest) 
-{
+void WrtcAgentPc::WebrtcTrack::addDestination(bool isAudio, owt_base::FrameDestination* dest) {
   OLOG_TRACE_THIS("");
   if (isAudio && audioFrameConstructor_) {
     audioFrameConstructor_->addAudioDestination(dest);
@@ -89,8 +86,7 @@ void WrtcAgentPc::WebrtcTrack::addDestination(bool isAudio, owt_base::FrameDesti
   }
 }
 
-void WrtcAgentPc::WebrtcTrack::removeDestination(bool isAudio, owt_base::FrameDestination* dest) 
-{
+void WrtcAgentPc::WebrtcTrack::removeDestination(bool isAudio, owt_base::FrameDestination* dest) {
   if (isAudio && audioFrameConstructor_) {
     audioFrameConstructor_->removeAudioDestination(dest);
   } else if (!isAudio && videoFrameConstructor_) {
@@ -109,8 +105,7 @@ owt_base::FrameDestination* WrtcAgentPc::WebrtcTrack::receiver(bool isAudio)
   return dest;
 }
 
-srs_error_t WrtcAgentPc::WebrtcTrack::trackControl(ETrackCtrl track, bool isIn, bool isOn) 
-{
+srs_error_t WrtcAgentPc::WebrtcTrack::trackControl(ETrackCtrl track, bool isIn, bool isOn) {
   bool trackUpdate = false;
   if (track == e_av || track == e_audio) {
     if (isIn && audioFrameConstructor_) {
@@ -142,8 +137,7 @@ srs_error_t WrtcAgentPc::WebrtcTrack::trackControl(ETrackCtrl track, bool isIn, 
   return result;
 }
 
-void WrtcAgentPc::WebrtcTrack::requestKeyFrame()
-{ 
+void WrtcAgentPc::WebrtcTrack::requestKeyFrame() { 
   if (videoFrameConstructor_) {
     videoFrameConstructor_->RequestKeyFrame();
   }
@@ -156,13 +150,11 @@ WrtcAgentPc::WrtcAgentPc(const TOption& config, WebrtcAgent& mgr)
   : config_(config), 
     id_(config.connectId_), 
     mgr_(mgr),
-    sink_(std::move(config_.call_back_))
-{
+    sink_(std::move(config_.call_back_)) {
   WLOG_DEBUG("WrtcAgentPc ctor %d", this);
 }
 
-WrtcAgentPc::~WrtcAgentPc()
-{
+WrtcAgentPc::~WrtcAgentPc() {
   this->close();
   if(remote_sdp_)
     delete remote_sdp_;
@@ -175,8 +167,7 @@ WrtcAgentPc::~WrtcAgentPc()
 int WrtcAgentPc::init(std::shared_ptr<Worker>& worker, 
                       std::shared_ptr<IOWorker>& ioworker, 
                       const std::vector<std::string>& ipAddresses,
-                      const std::string& stun_addr)
-{
+                      const std::string& stun_addr) {
   worker_ = worker;
   ioworker_ = ioworker;
 
@@ -186,8 +177,8 @@ int WrtcAgentPc::init(std::shared_ptr<Worker>& worker,
   return wa_ok;
 }
 
-void WrtcAgentPc::init_i(const std::vector<std::string>& ipAddresses, const std::string& stun_addr)
-{
+void WrtcAgentPc::init_i(const std::vector<std::string>& ipAddresses, 
+                         const std::string& stun_addr) {
   erizo::IceConfig ice_config;
   ice_config.ip_addresses = ipAddresses;
 
@@ -201,7 +192,7 @@ void WrtcAgentPc::init_i(const std::vector<std::string>& ipAddresses, const std:
   std::istringstream iss(stun_addr.substr(pos2+1));
   iss >> ice_config.stun_port;
   
-  std::vector<erizo::RtpMap> rtp_mappings/*{rtpH264, rtpRed, rtpRtx, rtpUlpfec, rtpOpus}*/;
+  std::vector<erizo::RtpMap> rtp_mappings{rtpH264, rtpRed, rtpRtx, rtpUlpfec, rtpOpus};
   
   std::vector<erizo::ExtMap> ext_mappings;
   for(unsigned int i = 0; i < EXT_MAP_SIZE; ++i){
@@ -213,8 +204,7 @@ void WrtcAgentPc::init_i(const std::vector<std::string>& ipAddresses, const std:
   connection_->init();
 }
 
-void WrtcAgentPc::close()
-{
+void WrtcAgentPc::close() {
   if(connection_)
     connection_->close();
 
@@ -224,8 +214,7 @@ void WrtcAgentPc::close()
 srs_error_t WrtcAgentPc::addTrackOperation(const std::string& mid, 
                                            EMediaType type, 
                                            const std::string& direction, 
-                                           const FormatPreference& prefer)
-{
+                                           const FormatPreference& prefer) {
   srs_error_t ret = srs_success;
   auto found = operation_map_.find(mid);
   if(found != operation_map_.end()){
@@ -243,9 +232,8 @@ srs_error_t WrtcAgentPc::addTrackOperation(const std::string& mid,
   return ret;
 }
 
-void WrtcAgentPc::signalling(const std::string& signal, const std::string& content)
-{
-  std::weak_ptr<WrtcAgentPc> weak_ptr = shared_from_this();
+void WrtcAgentPc::signalling(const std::string& signal, const std::string& content) {
+  std::weak_ptr<WrtcAgentPc> weak_ptr = weak_from_this();
   asyncTask([weak_ptr, signal, content](std::shared_ptr<WrtcAgentPc>){
     auto this_ptr = weak_ptr.lock();
     if (!this_ptr){
@@ -260,8 +248,8 @@ void WrtcAgentPc::signalling(const std::string& signal, const std::string& conte
       result = this_ptr->removeRemoteCandidates(content);
     }
     if (result != srs_success) {
-      WLOG_ERROR("process %s error, code:%d, desc:%s", srs_error_code(result), 
-                 srs_error_desc(result).c_str());
+      WLOG_ERROR("process %s error, code:%d, desc:%s", 
+          signal.c_str(), srs_error_code(result), srs_error_desc(result).c_str());
       delete result;
     }
   });
@@ -269,8 +257,7 @@ void WrtcAgentPc::signalling(const std::string& signal, const std::string& conte
 
 void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus, 
                               const std::string& message, 
-                              const std::string& stream_id)
-{
+                              const std::string& stream_id) {
   WLOG_INFO("message: WebRtcConnection status update, id:%s, status:%d", id_.c_str(), newStatus);
   connection_state_ = newStatus;
   switch(newStatus) {
@@ -281,7 +268,7 @@ void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus,
     case erizo::CONN_CANDIDATE:
       //std::string mess = mess.replace(this.options.privateRegexp, this.options.publicIP);
       callBack(E_CANDIDATE, message);
-      WLOG_INFO("message: candidate, id::%s, c:%s", id_.c_str(), message);
+      WLOG_INFO("message: candidate, id::%s, c:%s", id_.c_str(), message.c_str());
       break;
 
     case erizo::CONN_FAILED:
@@ -304,9 +291,9 @@ void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus,
   }
 }
 
-void WrtcAgentPc::processSendAnswer(const std::string& streamId, const std::string& sdpMsg) 
-{
+void WrtcAgentPc::processSendAnswer(const std::string& streamId, const std::string& sdpMsg) {
   WLOG_INFO("message: processSendAnswer streamId:%s", streamId.c_str());
+  OLOG_INFO(sdpMsg);
   LOG_ASSERT(sdpMsg.length());
   
   if(!sdpMsg.empty()) {
@@ -339,8 +326,7 @@ void WrtcAgentPc::processSendAnswer(const std::string& streamId, const std::stri
 
 using namespace erizo;
 
-srs_error_t WrtcAgentPc::processOffer(const std::string& sdp)
-{
+srs_error_t WrtcAgentPc::processOffer(const std::string& sdp) {
   OLOG_TRACE_THIS("");
   srs_error_t result = srs_success;
   if (!remote_sdp_) {
@@ -398,26 +384,23 @@ srs_error_t WrtcAgentPc::processOffer(const std::string& sdp)
     }
 
   } else {
-    // Later offer not implement
+    // TODO: Later offer not implement
   }
   
   return result;
 }
 
-srs_error_t WrtcAgentPc::addRemoteCandidate(const std::string& candidates)
-{
+srs_error_t WrtcAgentPc::addRemoteCandidate(const std::string& candidates) {
   srs_error_t result = srs_success;
   return result;
 }
 
-srs_error_t WrtcAgentPc::removeRemoteCandidates(const std::string& candidates)
-{
+srs_error_t WrtcAgentPc::removeRemoteCandidates(const std::string& candidates) {
   srs_error_t result = srs_success;
   return result;
 }
 
-srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media) 
-{
+srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media) {
   OLOG_TRACE_THIS("");
   // Check Media MID with saved operation
   auto found = operation_map_.find(media.mid_);
@@ -431,8 +414,9 @@ srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media)
   operation& op = found->second;
   
   if (op.sdp_direction_ != media.direction_) {
-    return srs_error_new(wa_failed, "%s in offer has conflict direction with %s", 
-                         mid.c_str(), op.operation_id_.c_str());
+    return srs_error_new(wa_failed, 
+        "mid[%s] in offer has conflict direction with opid[%s], opd[%s] != md[%s]", 
+        mid.c_str(), op.operation_id_.c_str(), op.sdp_direction_.c_str(), media.direction_.c_str());
   }
 
   std::string media_type{"unknow"};
@@ -467,8 +451,7 @@ srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media)
   return srs_success;
 }
 
-srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) 
-{
+srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
   OLOG_TRACE_THIS("");
   srs_error_t result = srs_success;
   
@@ -546,8 +529,7 @@ srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media)
 }
 
 WrtcAgentPc::WebrtcTrack* WrtcAgentPc::addTrack(
-    const std::string& mid, const media_setting& trackSetting, bool isPublish) 
-{
+    const std::string& mid, const media_setting& trackSetting, bool isPublish) {
   OLOG_TRACE_THIS("");
   ELOG_DEBUG("message: addTrack, connectionId:%s mediaStreamId:%s", id_.c_str(), mid.c_str());
 
@@ -571,8 +553,7 @@ WrtcAgentPc::WebrtcTrack* WrtcAgentPc::addTrack(
   return result;
 }
 
-srs_error_t WrtcAgentPc::removeTrack(const std::string& mid) 
-{
+srs_error_t WrtcAgentPc::removeTrack(const std::string& mid) {
   ELOG_DEBUG("message: removeTrack, connectionId:%s mediaStreamId:%s", id_.c_str(), mid.c_str());
 
   srs_error_t result = nullptr;
@@ -590,18 +571,16 @@ srs_error_t WrtcAgentPc::removeTrack(const std::string& mid)
   return result;
 }
 
-void WrtcAgentPc::setAudioSsrc(const std::string& mid, uint32_t ssrc) 
-{
+void WrtcAgentPc::setAudioSsrc(const std::string& mid, uint32_t ssrc) {
   connection_->getLocalSdpInfo()->audio_ssrc_map[mid] = ssrc;
 }
 
-void WrtcAgentPc::setVideoSsrcList(const std::string& mid, std::vector<uint32_t> ssrc_list) 
-{
+void WrtcAgentPc::setVideoSsrcList(const std::string& mid, 
+                                   std::vector<uint32_t> ssrc_list) {
   connection_->getLocalSdpInfo()->video_ssrc_map[mid] = ssrc_list;
 }
 
-void WrtcAgentPc::onFrame(const owt_base::Frame& f)
-{
+void WrtcAgentPc::onFrame(const owt_base::Frame& f) {
   callBack(E_DATA, f);
 }
 
@@ -615,7 +594,7 @@ void WrtcAgentPc::callBack(E_SINKID id, const std::string& message) {
     return;
   }
   
-  sink_->callBack([id, message](std::shared_ptr<WebrtcAgentSink> sink){
+  sink_->callBack([id, message](std::shared_ptr<WebrtcAgentSink> sink) {
     switch(id) {
       case E_CANDIDATE :
         sink->onCandidate(message);
@@ -635,8 +614,7 @@ void WrtcAgentPc::callBack(E_SINKID id, const std::string& message) {
   });  
 }
 
-void WrtcAgentPc::callBack(E_SINKID, const owt_base::Frame& message)
-{
+void WrtcAgentPc::callBack(E_SINKID, const owt_base::Frame& message) {
   if (!sink_) {
     return;
   }
@@ -650,9 +628,8 @@ void WrtcAgentPc::callBack(E_SINKID, const owt_base::Frame& message)
   }
 }
 
-void WrtcAgentPc::asyncTask(std::function<void(std::shared_ptr<WrtcAgentPc>)> f) 
-{
-  std::weak_ptr<WrtcAgentPc> weak_this = shared_from_this();
+void WrtcAgentPc::asyncTask(std::function<void(std::shared_ptr<WrtcAgentPc>)> f) {
+  std::weak_ptr<WrtcAgentPc> weak_this = weak_from_this();
   worker_->task([weak_this, f] {
     if (auto this_ptr = weak_this.lock()) {
       f(this_ptr);

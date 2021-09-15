@@ -6,50 +6,34 @@
 
 #include "rtc_media_frame.h"
 
-namespace wa
-{
+namespace wa {
 
-enum EFormatPreference
-{
+enum EFormatPreference {
   p_unknow = 0,
   p_h264 = 1,
   p_opus = 2,
 };
 
-enum EMediaType
-{
+enum EMediaType {
   media_unknow,
   media_audio,
   media_video
 };
 
-struct FormatPreference
-{
+struct FormatPreference {
   EFormatPreference format_;
-  std::string profile_;  //for video, h264::42e01f 42001f; vp9: 0 2
+  std::string profile_;  //for video, h264::mode 0, 42e01f 42001f; vp9: 0 2
 };
 
-struct TTrackInfo
-{
+struct TTrackInfo {
   std::string mid_;
   EMediaType type_{media_unknow};
   FormatPreference preference_;
-  std::string direction_;
-};
-
-class ITaskQueue 
-{
- public:
-  virtual ~ITaskQueue() = default;
-
-  typedef std::function<void()> Task;
-
-  virtual void post(Task) = 0;
+  std::string direction_;         //automatic filled by publish or subscribe
 };
 
 class WebrtcAgentSink 
-    : public std::enable_shared_from_this<WebrtcAgentSink>
-{
+    : public std::enable_shared_from_this<WebrtcAgentSink> {
  public:
   virtual ~WebrtcAgentSink() = default;
 
@@ -73,18 +57,25 @@ class WebrtcAgentSink
     }
   }
 
+  class ITaskQueue {
+   public:
+    virtual ~ITaskQueue() = default;
+  
+    typedef std::function<void()> Task;
+  
+    virtual void post(Task) = 0;
+  };
+
   ITaskQueue* task_queue_{nullptr};
 };
 
-struct TOption
-{ 
+struct TOption { 
   std::string connectId_;
   std::vector<TTrackInfo> tracks_; 
   std::shared_ptr<WebrtcAgentSink> call_back_;
 };
 
-class rtc_api
-{
+class rtc_api {
  public:
   ~rtc_api() { }
 
@@ -111,11 +102,10 @@ class rtc_api
   virtual void mediaOnOff() = 0;
 };
 
-class AgentFactory
-{
+class AgentFactory {
  public:
- AgentFactory() = default;
- ~AgentFactory() = default;
+  AgentFactory() = default;
+  ~AgentFactory() = default;
  
   std::unique_ptr<rtc_api> create_agent();
 };

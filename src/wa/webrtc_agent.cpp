@@ -63,7 +63,7 @@ int WebrtcAgent::publish(TOption& options, const std::string& offer)
   }
 
   for(auto& i : options.tracks_) {
-    i.direction_ = "recvonly";
+    i.direction_ = "sendonly";
   }
   
   std::shared_ptr<WrtcAgentPc> pc = std::make_shared<WrtcAgentPc>(options, *this);

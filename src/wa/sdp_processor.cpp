@@ -30,14 +30,11 @@ using my_json = nlohmann::json;
 #define JSON_OBJECT my_json::object()
 #define JSON_ARRAY nlohmann::json::array()
 
-namespace wa
-{
+namespace wa {
 
-namespace
-{
+namespace {
 
-inline std::string get_preference_name(EFormatPreference t)
-{
+inline std::string get_preference_name(EFormatPreference t) {
   switch(t)
   {
     case p_h264:
@@ -50,13 +47,13 @@ inline std::string get_preference_name(EFormatPreference t)
 }
 
 int32_t filer_h264(const std::vector<MediaDesc::rtpmap>& rtpMaps, 
-                   const std::string& profile)
-{
+                   const std::string& profile) {
   int32_t result = 0;
   for (auto& item : rtpMaps) {
     if ("H264" != item.encoding_name_) {
       continue;
     }
+
     result = item.payload_type_;
 
     std::string_view view_fmtp(item.fmtp_);
@@ -64,16 +61,21 @@ int32_t filer_h264(const std::vector<MediaDesc::rtpmap>& rtpMaps,
     if (pkz_found == std::string_view::npos) {
       continue;
     }
+    
     result = item.payload_type_;
 
     auto level_found = view_fmtp.find("profile-level-id=");
     if (level_found == std::string_view::npos) {
       continue;
     }
-    
-    std::string_view str_level = view_fmtp.substr(level_found + 17, 6);
+
+    result = item.payload_type_;
+
+    std::string_view str_level = 
+        view_fmtp.substr(level_found + strlen("profile-level-id="), 6);
     if (str_level == profile) {
       result = item.payload_type_;
+      break;
     }
   }
   
@@ -85,8 +87,7 @@ int32_t filer_h264(const std::vector<MediaDesc::rtpmap>& rtpMaps,
 DEFINE_LOGGER(MediaDesc, "MediaDesc");
 DEFINE_LOGGER(WaSdpInfo, "WaSdpInfo");
 
-int SessionInfo::decode(const JSON_TYPE& session)
-{
+int SessionInfo::decode(const JSON_TYPE& session) {
   auto found = session.find("iceUfrag");
 
   if(found == session.end()){
@@ -108,8 +109,7 @@ int SessionInfo::decode(const JSON_TYPE& session)
   return wa_failed;
 }
 
-void SessionInfo::encode(JSON_TYPE& session)
-{
+void SessionInfo::encode(JSON_TYPE& session) {
   session["iceUfrag"] = ice_ufrag_;
   session["icePwd"] = ice_pwd_;
 
@@ -124,8 +124,7 @@ void SessionInfo::encode(JSON_TYPE& session)
   session["setup"] = setup_;
 }
 
-void MediaDesc::Candidate::encode(JSON_TYPE& session)
-{
+void MediaDesc::Candidate::encode(JSON_TYPE& session) {
   session["foundation"] = foundation_;
   session["component"] = component_;
   session["transport"] = transport_type_;
@@ -135,8 +134,7 @@ void MediaDesc::Candidate::encode(JSON_TYPE& session)
   session["type"] = type_;
 }
 
-void MediaDesc::Candidate::decode(const JSON_TYPE& session)
-{ 
+void MediaDesc::Candidate::decode(const JSON_TYPE& session) { 
   foundation_ = session.at("foundation");
   component_ = session.at("component");
   transport_type_ = session.at("transport");
@@ -153,8 +151,7 @@ MediaDesc::rtpmap::rtpmap(rtpmap&& r)
     encoding_param_(std::move(r.encoding_param_)),
     rtcp_fb_(std::move(r.rtcp_fb_)),
     fmtp_(std::move(r.fmtp_)),
-    related_(std::move(r.related_))
-{
+    related_(std::move(r.related_)) {
 }
 
 /*
@@ -169,8 +166,7 @@ void MediaDesc::rtpmap::operator=(const rtpmap& r)
   related_ = r.related_;
 }
 */
-void MediaDesc::rtpmap::encode_rtp(JSON_TYPE& session)
-{
+void MediaDesc::rtpmap::encode_rtp(JSON_TYPE& session) {
   session["payload"] = payload_type_;
   session["codec"] = encoding_name_;
   session["rate"] = clock_rate_;
@@ -179,8 +175,7 @@ void MediaDesc::rtpmap::encode_rtp(JSON_TYPE& session)
   }
 }
 
-void MediaDesc::rtpmap::encode_fb(JSON_TYPE& session)
-{
+void MediaDesc::rtpmap::encode_fb(JSON_TYPE& session) {
   for(size_t i=0; i<rtcp_fb_.size(); ++i){
     JSON_TYPE item = JSON_OBJECT;
     item["payload"] = payload_type_;
@@ -189,14 +184,12 @@ void MediaDesc::rtpmap::encode_fb(JSON_TYPE& session)
   }
 }
 
-void MediaDesc::rtpmap::encode_fmtp(JSON_TYPE& session)
-{
+void MediaDesc::rtpmap::encode_fmtp(JSON_TYPE& session) {
   session["payload"] = payload_type_;
   session["config"] = fmtp_;
 }
 
-std::string MediaDesc::rtpmap::decode(const JSON_TYPE& session)
-{
+std::string MediaDesc::rtpmap::decode(const JSON_TYPE& session) {
   payload_type_ = session.at("payload");
   encoding_name_ = session.at("codec");
   clock_rate_ = session.at("rate");
@@ -209,8 +202,7 @@ std::string MediaDesc::rtpmap::decode(const JSON_TYPE& session)
   return encoding_name_;
 }
 
-void MediaDesc::SSRCInfo::encode(JSON_TYPE& session)
-{
+void MediaDesc::SSRCInfo::encode(JSON_TYPE& session) {
   JSON_TYPE cname = JSON_OBJECT;
   cname["id"] = ssrc_;
   cname["attribute"] = "cname";
@@ -241,8 +233,7 @@ void MediaDesc::SSRCInfo::encode(JSON_TYPE& session)
   session.push_back(label);
 }
 
-void MediaDesc::SSRCGroup::encode(JSON_TYPE& session)
-{
+void MediaDesc::SSRCGroup::encode(JSON_TYPE& session) {
   session["semantics"] = semantic_;
   std::string ssrcs;
   std::ostringstream oss;
@@ -256,8 +247,7 @@ void MediaDesc::SSRCGroup::encode(JSON_TYPE& session)
   session["ssrcs"] = ssrcs;
 }
 
-void MediaDesc::SSRCGroup::decode(const JSON_TYPE& session)
-{
+void MediaDesc::SSRCGroup::decode(const JSON_TYPE& session) {
   semantic_ = session.at("semantics");
   std::string ssrcs = session.at("ssrcs");
   std::istringstream iss(ssrcs);
@@ -267,8 +257,7 @@ void MediaDesc::SSRCGroup::decode(const JSON_TYPE& session)
   }
 }
 
-MediaDesc::SSRCInfo& MediaDesc::fetch_or_create_ssrc_info(uint32_t ssrc)
-{
+MediaDesc::SSRCInfo& MediaDesc::fetch_or_create_ssrc_info(uint32_t ssrc) {
   for(size_t i = 0; i < ssrc_infos_.size(); ++i) {
     if (ssrc_infos_[i].ssrc_ == ssrc) {
       return ssrc_infos_[i];
@@ -282,8 +271,7 @@ MediaDesc::SSRCInfo& MediaDesc::fetch_or_create_ssrc_info(uint32_t ssrc)
   return ssrc_infos_.back();
 }
 
-MediaDesc::rtpmap* MediaDesc::find_rtpmap_with_payload_type(int payload_type)
-{
+MediaDesc::rtpmap* MediaDesc::find_rtpmap_with_payload_type(int payload_type) {
   for (size_t i = 0; i < rtp_maps_.size(); ++i) {
     if (rtp_maps_[i].payload_type_ == payload_type) {
       return &rtp_maps_[i];
@@ -306,8 +294,7 @@ void MediaDesc::parse_candidates(const JSON_TYPE& media){
   }
 }
 
-void MediaDesc::parse_rtcp_fb(const JSON_TYPE& media)
-{
+void MediaDesc::parse_rtcp_fb(const JSON_TYPE& media) {
   auto fb = media.find("rtcpFb");
   if(fb == media.end()) {
     return;
@@ -335,8 +322,7 @@ void MediaDesc::parse_rtcp_fb(const JSON_TYPE& media)
   }
 }
 
-void MediaDesc::parse_fmtp(const JSON_TYPE& media)
-{
+void MediaDesc::parse_fmtp(const JSON_TYPE& media) {
   auto fmtp = media.find("fmtp");
   
   if(fmtp == media.end()){
@@ -371,8 +357,7 @@ void MediaDesc::parse_fmtp(const JSON_TYPE& media)
   }
 }
 
-void MediaDesc::parse_ssrc_info(const JSON_TYPE& media)
-{
+void MediaDesc::parse_ssrc_info(const JSON_TYPE& media) {
   auto found = media.find("ssrcs");
   
   if(found == media.end()) {
@@ -407,8 +392,7 @@ void MediaDesc::parse_ssrc_info(const JSON_TYPE& media)
   }
 }
 
-void MediaDesc::parse_ssrc_group(const JSON_TYPE& media)
-{
+void MediaDesc::parse_ssrc_group(const JSON_TYPE& media) {
   auto found = media.find("ssrcGroups");
 
   if(found == media.end()){
@@ -421,8 +405,7 @@ void MediaDesc::parse_ssrc_group(const JSON_TYPE& media)
   }
 }
 
-void MediaDesc::parse(const JSON_TYPE& media)
-{
+void MediaDesc::parse(const JSON_TYPE& media) {
   MediaDesc& desc = *this;
   desc.type_ = media.at("type");
   desc.port_ = media.at("port");
@@ -532,8 +515,7 @@ void MediaDesc::parse(const JSON_TYPE& media)
   }
 }
 
-void MediaDesc::encode(JSON_TYPE& media)
-{
+void MediaDesc::encode(JSON_TYPE& media) {
   //construct
   media["type"] = type_;
   media["port"] = port_;
@@ -651,8 +633,7 @@ void MediaDesc::encode(JSON_TYPE& media)
   }
 }
 
-media_setting MediaDesc::get_media_settings() 
-{
+media_setting MediaDesc::get_media_settings() {
   media_setting settings;
   if (type_ == "audio") {
     settings.is_audio = true;
@@ -706,8 +687,7 @@ media_setting MediaDesc::get_media_settings()
   return settings;
 }
 
-int32_t MediaDesc::filterAudioPayload(const FormatPreference& prefer_type) 
-{
+int32_t MediaDesc::filterAudioPayload(const FormatPreference& prefer_type) {
   int32_t type = 0;
   for(auto& item : rtp_maps_){
     if(get_preference_name(prefer_type.format_) == item.encoding_name_){
@@ -717,20 +697,18 @@ int32_t MediaDesc::filterAudioPayload(const FormatPreference& prefer_type)
   return type;
 }
 
-int32_t MediaDesc::filterVideoPayload(const FormatPreference& prefer_type) 
-{
+int32_t MediaDesc::filterVideoPayload(const FormatPreference& prefer_type) {
   int32_t type = 0;
 
   if (get_preference_name(prefer_type.format_) == "H264") {
-    filer_h264(rtp_maps_, prefer_type.profile_);
+    type = filer_h264(rtp_maps_, prefer_type.profile_);
   } else if (get_preference_name(prefer_type.format_) == "VP9") {
   }
 
   return type;
 }
 
-std::string MediaDesc::setSsrcs(const std::vector<uint32_t>& ssrcs, const std::string& inmsid)
-{
+std::string MediaDesc::setSsrcs(const std::vector<uint32_t>& ssrcs, const std::string& inmsid) {
   std::string msid{inmsid};
   if (msid.empty()) {
     // Generate msid
@@ -779,8 +757,7 @@ std::string MediaDesc::setSsrcs(const std::vector<uint32_t>& ssrcs, const std::s
   return msid;
 }
 
-bool MediaDesc::filterByPayload(int32_t payload)
-{
+bool MediaDesc::filterByPayload(int32_t payload) {
   bool ret = false;
   rtpmap map;
   for(auto& i : rtp_maps_){
@@ -820,8 +797,7 @@ bool MediaDesc::filterByPayload(int32_t payload)
   return ret;
 }
 
-void MediaDesc::filterExtmap()
-{
+void MediaDesc::filterExtmap() {
   for(auto x = extmaps_.begin(); x != extmaps_.end();){
     size_t i = 0;
     for(; i < EXT_MAP_SIZE; ++i){
@@ -840,18 +816,14 @@ void MediaDesc::filterExtmap()
   }
 }
 
-WaSdpInfo::WaSdpInfo()
-{
-  
+WaSdpInfo::WaSdpInfo() {
 }
 
-WaSdpInfo::WaSdpInfo(const std::string& strSdp)
-{
+WaSdpInfo::WaSdpInfo(const std::string& strSdp) {
   init(strSdp);
 }
 
-int WaSdpInfo::init(const std::string& strSdp)
-{
+int WaSdpInfo::init(const std::string& strSdp) {
   if(!media_descs_.empty()){
     return wa_e_already_initialized;
   }
@@ -946,8 +918,7 @@ int WaSdpInfo::init(const std::string& strSdp)
   return wa_ok;
 }
 
-std::string WaSdpInfo::toString(const std::string& strMid) 
-{   
+std::string WaSdpInfo::toString(const std::string& strMid) {   
   if(media_descs_.empty()){
     return "";
   }
@@ -1060,8 +1031,7 @@ std::string WaSdpInfo::toString(const std::string& strMid)
   return sdptransform::write(session);
 }
 
-WaSdpInfo* WaSdpInfo::answer() 
-{
+WaSdpInfo* WaSdpInfo::answer() {
   auto answer = new WaSdpInfo(this->toString());
   answer->username_ = "-";
   answer->session_id_ = 0;
@@ -1116,8 +1086,7 @@ WaSdpInfo* WaSdpInfo::answer()
   return answer;
 }
 
-std::string WaSdpInfo::mediaType(const std::string& mid) 
-{
+std::string WaSdpInfo::mediaType(const std::string& mid) {
  for(auto& item : media_descs_){
     if(item.mid_ == mid){
       return item.type_;
@@ -1126,8 +1095,7 @@ std::string WaSdpInfo::mediaType(const std::string& mid)
   return "";
 }
 
-std::string WaSdpInfo::mediaDirection(const std::string& mid) 
-{ 
+std::string WaSdpInfo::mediaDirection(const std::string& mid) { 
   for(auto& item : media_descs_){
     if(item.mid_ == mid){
       return item.direction_;
@@ -1137,8 +1105,7 @@ std::string WaSdpInfo::mediaDirection(const std::string& mid)
 }
 
 int32_t WaSdpInfo::filterAudioPayload(const std::string& mid, 
-                                      const FormatPreference& prefer_type) 
-{
+                                      const FormatPreference& prefer_type) {
   int32_t type = 0;
   for(auto& item : media_descs_){
     if(item.mid_ == mid){
@@ -1149,19 +1116,18 @@ int32_t WaSdpInfo::filterAudioPayload(const std::string& mid,
 }
 
 int32_t WaSdpInfo::filterVideoPayload(const std::string& mid, 
-                                      const FormatPreference& prefer_type) 
-{
+                                      const FormatPreference& prefer_type) {
   int32_t type = 0;
   for(auto& item : media_descs_){
     if(item.mid_ == mid){
-      return item.filterVideoPayload(prefer_type);
+      type = item.filterVideoPayload(prefer_type);
+      break;
     }
   }
   return type;
 }
 
-bool WaSdpInfo::filterByPayload(const std::string& mid, int32_t payload)
-{
+bool WaSdpInfo::filterByPayload(const std::string& mid, int32_t payload) {
   for(auto& item : media_descs_){
     if(item.mid_ == mid){
       return item.filterByPayload(payload);
@@ -1171,15 +1137,13 @@ bool WaSdpInfo::filterByPayload(const std::string& mid, int32_t payload)
   return false;
 }
 
-void WaSdpInfo::filterExtmap()
-{
+void WaSdpInfo::filterExtmap() {
   for(auto& i : media_descs_){
     i.filterExtmap();
   }
 }
 
-int32_t WaSdpInfo::getMediaPort(const std::string& mid) 
-{
+int32_t WaSdpInfo::getMediaPort(const std::string& mid) {
   for(auto& item : media_descs_){
     if(item.mid_ == mid){
       return item.port_;
@@ -1188,8 +1152,7 @@ int32_t WaSdpInfo::getMediaPort(const std::string& mid)
   return 0;
 }
 
-bool WaSdpInfo::setMediaPort(const std::string& mid, int32_t port) 
-{
+bool WaSdpInfo::setMediaPort(const std::string& mid, int32_t port) {
   for(auto& item : media_descs_){
     if(item.mid_ == mid){
       item.port_ = port;
@@ -1200,19 +1163,16 @@ bool WaSdpInfo::setMediaPort(const std::string& mid, int32_t port)
   return false;
 }
 
-std::string WaSdpInfo::singleMediaSdp(const std::string& mid)
-{
+std::string WaSdpInfo::singleMediaSdp(const std::string& mid) {
   return toString(mid);
 }
 
-void WaSdpInfo::setMsidSemantic(const WaSdpInfo& sdpInfo)
-{
+void WaSdpInfo::setMsidSemantic(const WaSdpInfo& sdpInfo) {
   msid_semantic_ = sdpInfo.msid_semantic_;
   msids_ = sdpInfo.msids_;
 }
 
-void WaSdpInfo::setCredentials(const WaSdpInfo& sdpInfo)
-{
+void WaSdpInfo::setCredentials(const WaSdpInfo& sdpInfo) {
   const SessionInfo* pSessionInfo = nullptr;
   if(sdpInfo.session_in_medias_){
     LOG_ASSERT(false == sdpInfo.media_descs_.empty());
@@ -1232,8 +1192,7 @@ void WaSdpInfo::setCredentials(const WaSdpInfo& sdpInfo)
   }
 }
 
-void WaSdpInfo::setCandidates(const WaSdpInfo& sdpInfo)
-{
+void WaSdpInfo::setCandidates(const WaSdpInfo& sdpInfo) {
   LOG_ASSERT(!sdpInfo.media_descs_.empty());
   for(auto& i : media_descs_){
     i.candidates_ = sdpInfo.media_descs_[0].candidates_;
@@ -1241,8 +1200,7 @@ void WaSdpInfo::setCandidates(const WaSdpInfo& sdpInfo)
 }
 
 /*
-void WaSdpInfo::mergeMediaMaps(const WaSdpInfo& sdpinfo)
-{
+void WaSdpInfo::mergeMediaMaps(const WaSdpInfo& sdpinfo) {
   LOG_ASSERT(media_descs_.size() == sdpinfo.media_descs_.size());
 
   for(size_t i=0; i<media_descs_.size(); ++i){

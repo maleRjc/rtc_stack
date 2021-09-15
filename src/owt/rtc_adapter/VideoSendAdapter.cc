@@ -148,7 +148,6 @@ VideoSendAdapterImpl::~VideoSendAdapterImpl()
 {
     m_taskRunner->DeRegisterModule(m_rtpRtcp.get());
     m_ssrcGenerator->ReturnSsrc(m_ssrc);
-    boost::unique_lock<boost::shared_mutex> lock(m_rtpRtcpMutex);
 }
 
 bool VideoSendAdapterImpl::init()
@@ -351,7 +350,6 @@ void VideoSendAdapterImpl::onFrame(const Frame& frame)
 
 int VideoSendAdapterImpl::onRtcpData(char* data, int len)
 {
-    boost::shared_lock<boost::shared_mutex> lock(m_rtpRtcpMutex);
     if (m_rtpRtcp) {
         m_rtpRtcp->IncomingRtcpPacket(reinterpret_cast<uint8_t*>(data), len);
         return len;

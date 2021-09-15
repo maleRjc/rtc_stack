@@ -5,7 +5,6 @@
 #ifndef MediaFramePipeline_h
 #define MediaFramePipeline_h
 
-#include <boost/thread/shared_mutex.hpp>
 #include <list>
 #include <map>
 #include <stdint.h>
@@ -161,11 +160,8 @@ protected:
 
 private:
     std::list<FrameDestination*> m_audio_dests;
-    boost::shared_mutex m_audio_dests_mutex;
     std::list<FrameDestination*> m_video_dests;
-    boost::shared_mutex m_video_dests_mutex;
     std::list<FrameDestination*> m_data_dests;
-    boost::shared_mutex m_data_dests_mutex;
 };
 
 
@@ -196,11 +192,8 @@ protected:
 
 private:
     FrameSource* m_audio_src;
-    boost::shared_mutex m_audio_src_mutex;
     FrameSource* m_video_src;
-    boost::shared_mutex m_video_src_mutex;
     FrameSource* m_data_src;
-    boost::shared_mutex m_data_src_mutex;
 };
 
 class VideoFrameDecoder : public FrameSource, public FrameDestination {
