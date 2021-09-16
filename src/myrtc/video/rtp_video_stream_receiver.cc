@@ -650,8 +650,8 @@ void RtpVideoStreamReceiver::ReceivePacket(const RtpPacketReceived& packet) {
     return;
   }
   
-  RTC_LOG(LS_INFO) << "RtpVideoStreamReceiver::ReceivePacket pt:" << packet.PayloadType()
-                      << " on romote ssrc:" << packet.Ssrc();
+  //RTC_LOG(LS_INFO) << "RtpVideoStreamReceiver::ReceivePacket pt:" << packet.PayloadType()
+  //                    << " on romote ssrc:" << packet.Ssrc();
   
   const auto type_it = payload_type_map_.find(packet.PayloadType());
   if (type_it == payload_type_map_.end()) {

@@ -357,24 +357,29 @@ int AsyncRawTCPSocket::Send(const void* pv,
     return -1;
   }
 
-  size_t append_size = cb;
-  if (outbuf_.size() + cb > max_outsize_) {
-    append_size = max_outsize_ - cb;
+  if (cb == 0) {
+    return cb;
   }
 
-  AppendToOutBuffer(pv, append_size);
+  // If we are blocking on send
+  if (!IsOutBufferEmpty()) {
+    SetError(EWOULDBLOCK);
+    return -1;
+  }
+
+  AppendToOutBuffer(pv, cb);
 
   int res = FlushOutBuffer();
-  if (res <= 0) { 
+  if (res <= 0) {
     return res;
   }
-
+  
   rtc::SentPacket sent_packet(options.packet_id, rtc::TimeMillis(),
                               options.info_signaled_after_sent);
-  CopySocketInformationToPacketInfo(append_size, *this, false, &sent_packet.info);
+  CopySocketInformationToPacketInfo(cb, *this, false, &sent_packet.info);
   SignalSentPacket(this, sent_packet);
 
-  return static_cast<int>(append_size);
+  return static_cast<int>(cb);
 }
 
 void AsyncRawTCPSocket::ProcessInput(char* data, size_t* len) {
