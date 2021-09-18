@@ -82,9 +82,8 @@ MediaStream::MediaStream(wa::Worker* worker,
       packet_buffer_{std::make_shared<PacketBufferService>()},
       pipeline_{Pipeline::create()},
       worker_{worker},
-      is_publisher_{is_publisher}
-{
-  ELOG_DEBUG("%s constructor, id: %s", toLog(), media_stream_id.c_str());
+      is_publisher_{is_publisher} {
+  OLOG_TRACE_THIS(toLog());
   source_fb_sink_ = this;
   sink_fb_source_ = this;
   std::srand(std::time(nullptr));
@@ -93,19 +92,16 @@ MediaStream::MediaStream(wa::Worker* worker,
   mark_ = wa::clock::now();
 }
 
-MediaStream::~MediaStream() 
-{
-  ELOG_DEBUG("%s Destructor called", toLog());
+MediaStream::~MediaStream() {
+  OLOG_TRACE_THIS(toLog());
 }
 
-uint32_t MediaStream::getMaxVideoBW() 
-{
+uint32_t MediaStream::getMaxVideoBW() {
   uint32_t bitrate = rtcp_processor_ ? rtcp_processor_->getMaxVideoBW() : 0;
   return bitrate;
 }
 
-void MediaStream::setMaxVideoBW(uint32_t max_video_bw) 
-{
+void MediaStream::setMaxVideoBW(uint32_t max_video_bw) {
   if (rtcp_processor_) {
     rtcp_processor_->setMaxVideoBW(max_video_bw * 1000);
     if (pipeline_) {
@@ -115,9 +111,8 @@ void MediaStream::setMaxVideoBW(uint32_t max_video_bw)
 
 }
 
-void MediaStream::close() 
-{
-  ELOG_DEBUG("%s message:Close called", toLog());
+void MediaStream::close()  {
+  OLOG_TRACE_THIS("Close called" << toLog());
   if (!sending_) {
     return;
   }
@@ -132,24 +127,20 @@ void MediaStream::close()
   connection_.reset();
 }
 
-bool MediaStream::init() 
-{
+bool MediaStream::init() {
   return true;
 }
 
-bool MediaStream::isSourceSSRC(uint32_t ssrc) 
-{
+bool MediaStream::isSourceSSRC(uint32_t ssrc) {
   return isVideoSourceSSRC(ssrc) || isAudioSourceSSRC(ssrc);
 }
 
-bool MediaStream::isSinkSSRC(uint32_t ssrc) 
-{
+bool MediaStream::isSinkSSRC(uint32_t ssrc) {
   return isVideoSinkSSRC(ssrc) || isAudioSinkSSRC(ssrc);
 }
 
-bool MediaStream::setRemoteSdp(std::shared_ptr<SdpInfo> sdp) 
-{
-  ELOG_DEBUG("%s setting remote SDP", toLog());
+bool MediaStream::setRemoteSdp(std::shared_ptr<SdpInfo> sdp)  {
+  OLOG_TRACE_THIS("setting remote SDP" << toLog());
   if (!sending_) {
     return true;
   }
@@ -220,9 +211,7 @@ bool MediaStream::setRemoteSdp(std::shared_ptr<SdpInfo> sdp)
   return true;
 }
 
-void MediaStream::initializeStats() 
-{
-  OLOG_TRACE_THIS("");
+void MediaStream::initializeStats()  {
   log_stats_->getNode().insertStat("streamId", StringStat{getId()});
   log_stats_->getNode().insertStat("audioBitrate", CumulativeStat{0});
   log_stats_->getNode().insertStat("audioFL", CumulativeStat{0});
@@ -287,8 +276,7 @@ void MediaStream::initializeStats()
   }, kStreamStatsPeriod);
 }
 
-void MediaStream::transferLayerStats(std::string spatial, std::string temporal) 
-{
+void MediaStream::transferLayerStats(std::string spatial, std::string temporal) {
   std::string node = "SL" + spatial + "TL" + temporal;
   if (stats_->getNode().hasChild("qualityLayers") &&
       stats_->getNode()["qualityLayers"].hasChild(spatial) &&
@@ -299,8 +287,7 @@ void MediaStream::transferLayerStats(std::string spatial, std::string temporal)
 }
 
 void MediaStream::transferMediaStats(
-    std::string target_node, std::string source_parent, std::string source_node) 
-{
+    std::string target_node, std::string source_parent, std::string source_node) {
   if (stats_->getNode().hasChild(source_parent) &&
       stats_->getNode()[source_parent].hasChild(source_node)) {
     log_stats_->getNode()
@@ -308,8 +295,7 @@ void MediaStream::transferMediaStats(
   }
 }
 
-void MediaStream::printStats() 
-{
+void MediaStream::printStats() {
   std::string video_ssrc;
   std::string audio_ssrc;
 
@@ -362,8 +348,7 @@ void MediaStream::printStats()
   ELOG_INFOT(statsLogger, "%s", log_stats_->getStats());
 }
 
-void MediaStream::initializePipeline() 
-{
+void MediaStream::initializePipeline() {
   handler_manager_ = std::make_shared<HandlerManager>(shared_from_this());
   pipeline_->addService(shared_from_this());
   pipeline_->addService(handler_manager_);
@@ -380,24 +365,21 @@ void MediaStream::initializePipeline()
   pipeline_initialized_ = true;
 }
 
-int MediaStream::deliverAudioData_(std::shared_ptr<DataPacket> audio_packet) 
-{
+int MediaStream::deliverAudioData_(std::shared_ptr<DataPacket> audio_packet) {
   if (audio_enabled_) {
     sendPacketAsync(std::make_shared<DataPacket>(*audio_packet));
   }
   return audio_packet->length;
 }
 
-int MediaStream::deliverVideoData_(std::shared_ptr<DataPacket> video_packet) 
-{
+int MediaStream::deliverVideoData_(std::shared_ptr<DataPacket> video_packet) {
   if (video_enabled_) {
     sendPacketAsync(std::make_shared<DataPacket>(*video_packet));
   }
   return video_packet->length;
 }
 
-int MediaStream::deliverFeedback_(std::shared_ptr<DataPacket> fb_packet) 
-{
+int MediaStream::deliverFeedback_(std::shared_ptr<DataPacket> fb_packet) {
   RtcpHeader *chead = reinterpret_cast<RtcpHeader*>(fb_packet->data);
   uint32_t recvSSRC = chead->getSourceSSRC();
   if (chead->isREMB()) {
@@ -423,8 +405,7 @@ int MediaStream::deliverFeedback_(std::shared_ptr<DataPacket> fb_packet)
   return fb_packet->length;
 }
 
-int MediaStream::deliverEvent_(MediaEventPtr event) 
-{
+int MediaStream::deliverEvent_(MediaEventPtr event) {
   if (!pipeline_initialized_) {
     return 1;
   }
@@ -436,16 +417,15 @@ int MediaStream::deliverEvent_(MediaEventPtr event)
 }
 
 void MediaStream::onTransportData(
-    std::shared_ptr<DataPacket> incoming_packet, Transport*) 
-{
+    std::shared_ptr<DataPacket> incoming_packet, Transport*) {
   if ((audio_sink_ == nullptr && video_sink_ == nullptr && fb_sink_ == nullptr)) {
     return;
   }
 
-  std::shared_ptr<DataPacket> packet = std::make_shared<DataPacket>(*incoming_packet);
+  auto packet = std::make_shared<DataPacket>(*incoming_packet);
 
   if (!pipeline_initialized_) {
-    ELOG_DEBUG("%s message: Pipeline not initialized yet.", toLog());
+    ELOG_ERROR("%s message: Pipeline not initialized yet.", toLog());
     return;
   }
 
@@ -457,7 +437,7 @@ void MediaStream::onTransportData(
     if (isVideoSourceSSRC(recvSSRC)) {
       packet->type = VIDEO_PACKET;
     } else if (isAudioSourceSSRC(recvSSRC)) {
-      packet->type = AUDIO_PACKET;
+      packet->type = AUDIO_PACKET;      
     }
   }
 
@@ -466,17 +446,17 @@ void MediaStream::onTransportData(
   }
 }
 
-void MediaStream::read(std::shared_ptr<DataPacket> packet) 
-{
+void MediaStream::read(std::shared_ptr<DataPacket> packet) {
   char* buf = packet->data;
-  //int len = packet->length;
+  int len = packet->length;
   // PROCESS RTCP
   RtpHeader *head = reinterpret_cast<RtpHeader*> (buf);
   RtcpHeader *chead = reinterpret_cast<RtcpHeader*> (buf);
   uint32_t recvSSRC = 0;
   if (!chead->isRtcp()) {
     recvSSRC = head->getSSRC();
-  } else if (chead->packettype == RTCP_Sender_PT || chead->packettype == RTCP_SDES_PT) {  // Sender Report
+  } else if (chead->packettype == RTCP_Sender_PT || 
+             chead->packettype == RTCP_SDES_PT) {  // Sender Report
     recvSSRC = chead->getSSRC();
   }
   
@@ -495,12 +475,12 @@ void MediaStream::read(std::shared_ptr<DataPacket> packet)
     if (isVideoSourceSSRC(recvSSRC) && video_sink_) {
       //ELOG_DEBUG("bundle deliverVideoData %s ssrc:%u pt:%u", 
       //  toLog(), recvSSRC, chead->isRtcp()?chead->getPacketType():head->getPayloadType());
-      //parseIncomingPayloadType(buf, len, VIDEO_PACKET);
+      parseIncomingPayloadType(buf, len, VIDEO_PACKET);
       video_sink_->deliverVideoData(std::move(packet));
     } else if (isAudioSourceSSRC(recvSSRC) && audio_sink_) {
-      //ELOG_DEBUG("bundle deliverAudioData %s ssrc:%u pt:%u", 
-      //  toLog(), recvSSRC, chead->isRtcp()?chead->getPacketType():head->getPayloadType());
-      //parseIncomingPayloadType(buf, len, AUDIO_PACKET);
+      //ELOG_DEBUG("bundle deliverAudioData %s ssrc:%u pt:%u, len:%d", 
+      //  toLog(), recvSSRC, chead->isRtcp()?chead->getPacketType():head->getPayloadType(), len);
+      parseIncomingPayloadType(buf, len, AUDIO_PACKET);
       audio_sink_->deliverAudioData(std::move(packet));
     } else {
       ELOG_WARN("%s read video unknownSSRC: %u, localVideoSSRC: %u, localAudioSSRC: %u",
@@ -531,25 +511,21 @@ void MediaStream::read(std::shared_ptr<DataPacket> packet)
   }
 }
 
-void MediaStream::setMediaStreamEventListener(MediaStreamEventListener* listener) 
-{
+void MediaStream::setMediaStreamEventListener(MediaStreamEventListener* listener) {
   this->media_stream_event_listener_ = listener;
 }
 
-void MediaStream::notifyMediaStreamEvent(const std::string& type, const std::string& message) 
-{
+void MediaStream::notifyMediaStreamEvent(const std::string& type, const std::string& message) {
   if (this->media_stream_event_listener_ != nullptr) {
     media_stream_event_listener_->notifyMediaStreamEvent(type, message);
   }
 }
 
-void MediaStream::notifyToEventSink(MediaEventPtr event) 
-{
+void MediaStream::notifyToEventSink(MediaEventPtr event) {
   event_sink_->deliverEvent(std::move(event));
 }
 
-int MediaStream::sendPLI() 
-{
+int MediaStream::sendPLI() {
   RtcpHeader thePLI;
   thePLI.setPacketType(RTCP_PS_Feedback_PT);
   thePLI.setBlockCount(1);
@@ -562,8 +538,7 @@ int MediaStream::sendPLI()
   return len;
 }
 
-void MediaStream::sendPLIToFeedback() 
-{
+void MediaStream::sendPLIToFeedback() {
   if (fb_sink_) {
     fb_sink_->deliverFeedback(RtpUtils::createPLI(this->getVideoSinkSSRC(),
       this->getVideoSourceSSRC()));
@@ -571,8 +546,7 @@ void MediaStream::sendPLIToFeedback()
 }
 
 // changes the outgoing payload type for in the given data packet
-void MediaStream::sendPacketAsync(std::shared_ptr<DataPacket> packet) 
-{
+void MediaStream::sendPacketAsync(std::shared_ptr<DataPacket> packet) {
   if (!sending_) {
     return;
   }
@@ -589,10 +563,8 @@ void MediaStream::sendPacketAsync(std::shared_ptr<DataPacket> packet)
   sendPacket(packet);
 }
 
-void MediaStream::muteStream(bool mute_video, bool mute_audio) 
-{
-  ELOG_DEBUG("%s message: muteStream, mute_video: %u, mute_audio: %u", 
-             toLog(), mute_video, mute_audio);
+void MediaStream::muteStream(bool mute_video, bool mute_audio) {
+  OLOG_TRACE_THIS(toLog() << (mute_video?" mute_video ":" ") << (mute_audio?" mute_audio ":" "));
   audio_muted_ = mute_audio;
   video_muted_ = mute_video;
   stats_->getNode()[getAudioSinkSSRC()].insertStat("erizoAudioMute", CumulativeStat{mute_audio});
@@ -603,13 +575,11 @@ void MediaStream::muteStream(bool mute_video, bool mute_audio)
 }
 
 void MediaStream::setVideoConstraints(
-    int max_video_width, int max_video_height, int max_video_frame_rate) 
-{
+    int max_video_width, int max_video_height, int max_video_frame_rate) {
   quality_manager_->setVideoConstraints(max_video_width, max_video_height, max_video_frame_rate);
 }
 
-void MediaStream::setTransportInfo(std::string audio_info, std::string video_info) 
-{
+void MediaStream::setTransportInfo(std::string audio_info, std::string video_info) {
   if (video_enabled_) {
     uint32_t video_sink_ssrc = getVideoSinkSSRC();
     uint32_t video_source_ssrc = getVideoSourceSSRC();
@@ -635,8 +605,7 @@ void MediaStream::setTransportInfo(std::string audio_info, std::string video_inf
   }
 }
 
-void MediaStream::setFeedbackReports(bool will_send_fb, uint32_t target_bitrate) 
-{
+void MediaStream::setFeedbackReports(bool will_send_fb, uint32_t target_bitrate) {
   if (slide_show_mode_) {
     target_bitrate = 0;
   }
@@ -648,8 +617,7 @@ void MediaStream::setFeedbackReports(bool will_send_fb, uint32_t target_bitrate)
   this->rate_control_ = target_bitrate;
 }
 
-void MediaStream::setMetadata(std::map<std::string, std::string> metadata) 
-{
+void MediaStream::setMetadata(std::map<std::string, std::string> metadata) {
   for (const auto &item : metadata) {
     log_stats_->getNode().insertStat("metadata-" + item.first, StringStat{item.second});
   }
@@ -660,15 +628,13 @@ WebRTCEvent MediaStream::getCurrentState() {
   return connection_->getCurrentState();
 }
 
-void MediaStream::getJSONStats(std::function<void(std::string)> callback) 
-{
+void MediaStream::getJSONStats(std::function<void(std::string)> callback) {
   std::string requested_stats = stats_->getStats();
   //  ELOG_DEBUG("%s message: Stats, stats: %s", stream->toLog(), requested_stats.c_str());
   callback(requested_stats);
 }
 
-void MediaStream::changeDeliverPayloadType(DataPacket *dp, packetType type) 
-{
+void MediaStream::changeDeliverPayloadType(DataPacket *dp, packetType type) {
   RtpHeader* h = reinterpret_cast<RtpHeader*>(dp->data);
   RtcpHeader *chead = reinterpret_cast<RtcpHeader*>(dp->data);
   if (!chead->isRtcp()) {
@@ -686,8 +652,7 @@ void MediaStream::changeDeliverPayloadType(DataPacket *dp, packetType type)
 }
 
 // parses incoming payload type, replaces occurence in buf
-void MediaStream::parseIncomingPayloadType(char *buf, int len, packetType type) 
-{
+void MediaStream::parseIncomingPayloadType(char *buf, int len, packetType type) {
   RtcpHeader* chead = reinterpret_cast<RtcpHeader*>(buf);
   RtpHeader* h = reinterpret_cast<RtpHeader*>(buf);
   if (!chead->isRtcp()) {
@@ -698,44 +663,38 @@ void MediaStream::parseIncomingPayloadType(char *buf, int len, packetType type)
     } else if (type == VIDEO_PACKET) {
       internalPT = remote_sdp_->getVideoInternalPT(externalPT);
     }
+    
     if (externalPT != internalPT) {
       h->setPayloadType(internalPT);
-    } else {
-      ELOG_WARN("onTransportData did not find mapping for %i", externalPT);
     }
   }
 }
 
-void MediaStream::write(std::shared_ptr<DataPacket> packet) 
-{
+void MediaStream::write(std::shared_ptr<DataPacket> packet) {
   if (connection_) {
     connection_->write(packet);
   }
 }
 
-void MediaStream::enableHandler(const std::string &name) 
-{
+void MediaStream::enableHandler(const std::string &name) {
   if (pipeline_) {
     pipeline_->enable(name);
   }
 }
 
-void MediaStream::disableHandler(const std::string &name) 
-{
+void MediaStream::disableHandler(const std::string &name) {
   if (pipeline_) {
     pipeline_->disable(name);
   }
 }
 
-void MediaStream::notifyUpdateToHandlers()
-{
+void MediaStream::notifyUpdateToHandlers(){
   if (pipeline_) {
     pipeline_->notifyUpdate();
   }
 }
 
-void MediaStream::sendPacket(std::shared_ptr<DataPacket> p) 
-{
+void MediaStream::sendPacket(std::shared_ptr<DataPacket> p) {
   if (!sending_) {
     return;
   }
@@ -771,3 +730,4 @@ void MediaStream::sendPacket(std::shared_ptr<DataPacket> p)
 }
 
 }  // namespace erizo
+

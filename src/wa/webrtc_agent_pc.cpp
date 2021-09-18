@@ -20,6 +20,7 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc,
       audioFrameConstructor_.reset(new owt_base::AudioFrameConstructor());
       audioFrameConstructor_->bindTransport(dynamic_cast<erizo::MediaSource*>(ms),
                                            dynamic_cast<erizo::FeedbackSink*>(ms));
+      WLOG_DEBUG("set a ssrc %u", setting.ssrcs[0]);
       pc_->setAudioSsrc(mid_, setting.ssrcs[0]);
 
     } else {
@@ -78,7 +79,7 @@ uint32_t WrtcAgentPc::WebrtcTrack::ssrc(bool isAudio) {
 }
 
 void WrtcAgentPc::WebrtcTrack::addDestination(bool isAudio, owt_base::FrameDestination* dest) {
-  OLOG_TRACE_THIS("");
+  OLOG_TRACE_THIS((isAudio?"a":"v") << ", dest:" << dest);
   if (isAudio && audioFrameConstructor_) {
     audioFrameConstructor_->addAudioDestination(dest);
   } else if (!isAudio && videoFrameConstructor_) {
@@ -87,6 +88,7 @@ void WrtcAgentPc::WebrtcTrack::addDestination(bool isAudio, owt_base::FrameDesti
 }
 
 void WrtcAgentPc::WebrtcTrack::removeDestination(bool isAudio, owt_base::FrameDestination* dest) {
+  OLOG_TRACE_THIS((isAudio?"a":"v") << ", dest:" << dest);
   if (isAudio && audioFrameConstructor_) {
     audioFrameConstructor_->removeAudioDestination(dest);
   } else if (!isAudio && videoFrameConstructor_) {
@@ -151,7 +153,7 @@ WrtcAgentPc::WrtcAgentPc(const TOption& config, WebrtcAgent& mgr)
     id_(config.connectId_), 
     mgr_(mgr),
     sink_(std::move(config_.call_back_)) {
-  WLOG_DEBUG("WrtcAgentPc ctor %d", this);
+  OLOG_TRACE_THIS("");
 }
 
 WrtcAgentPc::~WrtcAgentPc() {
@@ -161,7 +163,7 @@ WrtcAgentPc::~WrtcAgentPc() {
   if(local_sdp_)
     delete local_sdp_;
 
-  WLOG_DEBUG("WrtcAgentPc dtor %d", this);
+  OLOG_TRACE_THIS("");
 }
 
 int WrtcAgentPc::init(std::shared_ptr<Worker>& worker, 
@@ -293,7 +295,6 @@ void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus,
 
 void WrtcAgentPc::processSendAnswer(const std::string& streamId, const std::string& sdpMsg) {
   WLOG_INFO("message: processSendAnswer streamId:%s", streamId.c_str());
-  OLOG_INFO(sdpMsg);
   LOG_ASSERT(sdpMsg.length());
   
   if(!sdpMsg.empty()) {
@@ -327,7 +328,6 @@ void WrtcAgentPc::processSendAnswer(const std::string& streamId, const std::stri
 using namespace erizo;
 
 srs_error_t WrtcAgentPc::processOffer(const std::string& sdp) {
-  OLOG_TRACE_THIS("");
   srs_error_t result = srs_success;
   if (!remote_sdp_) {
     // First offer
@@ -401,7 +401,7 @@ srs_error_t WrtcAgentPc::removeRemoteCandidates(const std::string& candidates) {
 }
 
 srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media) {
-  OLOG_TRACE_THIS("");
+  OLOG_TRACE_THIS("t:" << media.type_ << ", mid:" << media.mid_);
   // Check Media MID with saved operation
   auto found = operation_map_.find(media.mid_);
   if (found == operation_map_.end()) {
@@ -452,7 +452,7 @@ srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media) {
 }
 
 srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
-  OLOG_TRACE_THIS("");
+  OLOG_TRACE_THIS("t:" << media.type_ << ", mid:" << media.mid_);
   srs_error_t result = srs_success;
   
   auto op_found = operation_map_.find(media.mid_);
@@ -530,8 +530,8 @@ srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
 
 WrtcAgentPc::WebrtcTrack* WrtcAgentPc::addTrack(
     const std::string& mid, const media_setting& trackSetting, bool isPublish) {
-  OLOG_TRACE_THIS("");
-  ELOG_DEBUG("message: addTrack, connectionId:%s mediaStreamId:%s", id_.c_str(), mid.c_str());
+  ELOG_TRACE("message: addTrack %s, connectionId:%s mediaStreamId:%s", 
+      (isPublish?"p": "s"), id_.c_str(), mid.c_str());
 
   WebrtcTrack* result = nullptr;
 
@@ -554,7 +554,7 @@ WrtcAgentPc::WebrtcTrack* WrtcAgentPc::addTrack(
 }
 
 srs_error_t WrtcAgentPc::removeTrack(const std::string& mid) {
-  ELOG_DEBUG("message: removeTrack, connectionId:%s mediaStreamId:%s", id_.c_str(), mid.c_str());
+  ELOG_TRACE("message: removeTrack, connectionId:%s mediaStreamId:%s", id_.c_str(), mid.c_str());
 
   srs_error_t result = nullptr;
   
@@ -584,8 +584,7 @@ void WrtcAgentPc::onFrame(const owt_base::Frame& f) {
   callBack(E_DATA, f);
 }
 
-void WrtcAgentPc::onVideoInfo(const std::string& videoInfoJSON)
-{
+void WrtcAgentPc::onVideoInfo(const std::string& videoInfoJSON) {
   OLOG_INFO_THIS(videoInfoJSON);
 }
 

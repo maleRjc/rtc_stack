@@ -161,7 +161,8 @@ class MediaStream : public MediaSink,
   void setBitrateFromMaxQualityLayer(uint64_t bitrate) { }
 
   inline std::string toLog() {
-    return "id: " + stream_id_ + ", role:" + (is_publisher_ ? "publisher" : "subscriber") + ", " + printLogContext();
+    return "id:" + stream_id_ + ", role:" + 
+        (is_publisher_ ? "publisher" : "subscriber") + ", " + printLogContext();
   }
 
  private:

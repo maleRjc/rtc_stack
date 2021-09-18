@@ -356,32 +356,32 @@ private :
 
 #define OLOG_TRACE_THIS(msg) \
     if (logger->isTraceEnabled()) { \
-      OLOG(ELOG_TRACE, __FUNCTION__<<"("<<this<<")"); \
+      OLOG(ELOG_TRACE, "["<<__FUNCTION__<<":"<<__LINE__<<"]("<<this<<")" << msg); \
     }
 
 #define OLOG_DEBUG_THIS(msg) \
     if (logger->isDebugEnabled()) { \
-      OLOG(ELOG_DEBUG, "[this="<<this<<"]"<<msg); \
+      OLOG(ELOG_DEBUG, "("<<this<<")" << msg); \
     }
 
 #define OLOG_INFO_THIS(msg) \
     if (logger->isInfoEnabled()) { \
-      OLOG(ELOG_INFO, "[this="<<this<<"]"<<msg); \
+      OLOG(ELOG_INFO, "("<<this<<")" << msg); \
     }
     
 #define OLOG_WARN_THIS(msg) \
     if (logger->isWarnEnabled()) { \
-      OLOG(ELOG_WARN, "[this="<<this<<"]"<<msg); \
+      OLOG(ELOG_WARN, "("<<this<<")" << msg); \
     }
 
 #define OLOG_ERROR_THIS(msg) \
     if (logger->isErrorEnabled()) { \
-      OLOG(ELOG_ERROR, "[this="<<this<<"]"<<msg); \
+      OLOG(ELOG_ERROR, "("<<this<<")" << msg); \
     }  
 
 #define OLOG_FATAL_THIS(msg) \
     if (logger->isFatalEnabled()) { \
-      OLOG(ELOG_FATAL, "[this="<<this<<"]"<<msg); \
+      OLOG(ELOG_FATAL, "("<<this<<")" << msg); \
     }  
 
 #define WLOG_TRACE   ELOG_TRACE

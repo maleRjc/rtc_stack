@@ -17,28 +17,26 @@ DEFINE_LOGGER(AudioFrameConstructor, "owt.AudioFrameConstructor");
 constexpr uint8_t kAudioLevelExtensionId = 1;
 
 AudioFrameConstructor::AudioFrameConstructor()
-  : m_enabled(true)
-  , m_transport(nullptr)
-{
+    : m_enabled(true), 
+      m_transport(nullptr) {
+  OLOG_TRACE_THIS("");
   sink_fb_source_ = this;
 }
 
-AudioFrameConstructor::~AudioFrameConstructor()
-{
+AudioFrameConstructor::~AudioFrameConstructor() {
+  OLOG_TRACE_THIS("");
   unbindTransport();
 }
 
 void AudioFrameConstructor::bindTransport(
-    erizo::MediaSource* source, erizo::FeedbackSink* fbSink)
-{
+    erizo::MediaSource* source, erizo::FeedbackSink* fbSink) {
   m_transport = source;
   m_transport->setAudioSink(this);
   m_transport->setEventSink(this);
   setFeedbackSink(fbSink);
 }
 
-void AudioFrameConstructor::unbindTransport()
-{
+void AudioFrameConstructor::unbindTransport() {
   if (m_transport) {
       setFeedbackSink(nullptr);
       m_transport = nullptr;
@@ -46,8 +44,7 @@ void AudioFrameConstructor::unbindTransport()
 }
 
 int AudioFrameConstructor::deliverVideoData_(
-    std::shared_ptr<erizo::DataPacket> video_packet)
-{
+    std::shared_ptr<erizo::DataPacket> video_packet) {
   assert(false);
   return 0;
 }
@@ -100,10 +97,10 @@ std::unique_ptr<AudioLevel> parseAudioLevel(std::shared_ptr<erizo::DataPacket> p
 }
 
 int AudioFrameConstructor::deliverAudioData_(
-    std::shared_ptr<erizo::DataPacket> audio_packet)
-{
-  if (audio_packet->length <= 0)
-      return 0;
+    std::shared_ptr<erizo::DataPacket> audio_packet) {
+  if (audio_packet->length <= 0) {
+    return 0;
+  }
 
   FrameFormat frameFormat;
   Frame frame;
@@ -111,8 +108,10 @@ int AudioFrameConstructor::deliverAudioData_(
   RTPHeader* head = (RTPHeader*)(audio_packet->data);
 
   frameFormat = getAudioFrameFormat(head->getPayloadType());
-  if (frameFormat == FRAME_FORMAT_UNKNOWN)
-      return 0;
+  if (frameFormat == FRAME_FORMAT_UNKNOWN) {
+    ELOG_ERROR("audio format not found t:%d", frameFormat);
+    return 0;
+  }
 
   frame.additionalInfo.audio.sampleRate = getAudioSampleRate(frameFormat);
   frame.additionalInfo.audio.channels = getAudioChannels(frameFormat);
@@ -129,17 +128,17 @@ int AudioFrameConstructor::deliverAudioData_(
     frame.additionalInfo.audio.voice = audioLevel->getVoice();
     //ELOG_DEBUG("Has audio level extension %u, %d", audioLevel->getLevel(), audioLevel->getVoice());
   } else {
-    ELOG_DEBUG("No audio level extension");
+    ELOG_TRACE("No audio level extension");
   }
-
+  
   if (m_enabled) {
     deliverFrame(frame);
   }
+  
   return audio_packet->length;
 }
 
-void AudioFrameConstructor::onFeedback(const FeedbackMsg& msg)
-{
+void AudioFrameConstructor::onFeedback(const FeedbackMsg& msg) {
   if (msg.type == owt_base::AUDIO_FEEDBACK) {
     if (msg.cmd == RTCP_PACKET && fb_sink_)
       fb_sink_->deliverFeedback(std::make_shared<erizo::DataPacket>(
@@ -147,13 +146,13 @@ void AudioFrameConstructor::onFeedback(const FeedbackMsg& msg)
   }
 }
 
-int AudioFrameConstructor::deliverEvent_(erizo::MediaEventPtr event)
-{
+int AudioFrameConstructor::deliverEvent_(erizo::MediaEventPtr event) {
   return 0;
 }
 
-void AudioFrameConstructor::close()
-{
+void AudioFrameConstructor::close() {
   unbindTransport();
 }
-}
+
+}//namespace owt_base
+

@@ -26,10 +26,9 @@
 
 #include "erizo/SdpInfo.h"
 
-namespace wa
-{
+namespace wa {
 
-enum EExtmap{
+enum EExtmap {
   AudioLevel,
   TransportCC,
   SdesMid,

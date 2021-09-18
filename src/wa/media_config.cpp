@@ -1,7 +1,7 @@
 #include "media_config.h"
+#include "wa_rtp_define.h"
 
-namespace wa
-{
+namespace wa {
 
 const std::string extMappings[EXT_MAP_SIZE] = {
   "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
@@ -29,7 +29,7 @@ const std::map<std::string, int> extMappings2Id = {
 
 
 erizo::RtpMap rtpH264{
-  127,
+  H264_90000_PT,
   "H264",
   90000,
   erizo::MediaType::VIDEO_TYPE,
@@ -39,7 +39,7 @@ erizo::RtpMap rtpH264{
 };
 
 erizo::RtpMap rtpRed{
-  116,
+  RED_90000_PT,
   "red",
   90000,
   erizo::MediaType::VIDEO_TYPE,
@@ -49,7 +49,7 @@ erizo::RtpMap rtpRed{
 };
 
 erizo::RtpMap rtpRtx{
-  96,
+  RTX_90000_PT,
   "rtx",
   90000,
   erizo::MediaType::VIDEO_TYPE,
@@ -59,7 +59,7 @@ erizo::RtpMap rtpRtx{
 };
 
 erizo::RtpMap rtpUlpfec{
-  117,
+  ULP_90000_PT,
   "ulpfec",
   90000,
   erizo::MediaType::VIDEO_TYPE,
@@ -69,7 +69,7 @@ erizo::RtpMap rtpUlpfec{
 };
 
 erizo::RtpMap rtpOpus{
-  120,
+  OPUS_48000_PT,
   "opus",
   48000,
   erizo::MediaType::AUDIO_TYPE,

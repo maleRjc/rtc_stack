@@ -4,8 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace wa
-{
+namespace wa {
 
 std::string wa_string_replace(const std::string& str, 
                               const std::string& old_str, const std::string& new_str);

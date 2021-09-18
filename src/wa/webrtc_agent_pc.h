@@ -33,19 +33,17 @@ class WaSdpInfo;
 class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
                           public owt_base::FrameDestination,
                           public owt_base::VideoInfoListener,
-                          public std::enable_shared_from_this<WrtcAgentPc>
-{
+                          public std::enable_shared_from_this<WrtcAgentPc> {
   DECLARE_LOGGER();
 
-  class WebrtcTrack
-  {
+  class WebrtcTrack {
     /*
      * audio: { format, ssrc, mid, midExtId }
      * video: { format, ssrc, mid, midExtId, transportcc, red, ulpfec }
      */
     
   public:
-    enum ETrackCtrl{
+    enum ETrackCtrl {
       e_audio,
       e_video,
       e_av
@@ -136,8 +134,7 @@ public:
   
   void asyncTask(std::function<void(std::shared_ptr<WrtcAgentPc>)> f) ;
 
-  enum E_SINKID
-  {
+  enum E_SINKID {
     E_CANDIDATE,
     E_FAILED,
     E_READY,
@@ -159,7 +156,7 @@ private:
   WaSdpInfo* remote_sdp_{nullptr};
   WaSdpInfo* local_sdp_{nullptr};
 
-  struct operation{
+  struct operation {
     std::string operation_id_;
     EMediaType type_{media_unknow};
     std::string sdp_direction_;

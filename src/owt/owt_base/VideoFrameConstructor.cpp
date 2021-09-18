@@ -20,14 +20,15 @@ VideoFrameConstructor::VideoFrameConstructor(
   VideoInfoListener* vil, const config& config, webrtc::TaskQueueBase* task_queue_base)
   : config_(config),
     m_videoInfoListener(vil),
-    m_rtcAdapter(RtcAdapterFactory::CreateRtcAdapter(task_queue_base))
-{
+    m_rtcAdapter(RtcAdapterFactory::CreateRtcAdapter(task_queue_base)) {
+  OLOG_TRACE_THIS("");
   m_feedbackTimer = SharedJobTimer::GetSharedFrequencyTimer(1);
   m_feedbackTimer->addListener(this);
 }
 
-VideoFrameConstructor::~VideoFrameConstructor()
-{
+VideoFrameConstructor::~VideoFrameConstructor() {
+  OLOG_TRACE_THIS("");
+
   m_feedbackTimer->removeListener(this);
   unbindTransport();
   if (m_videoReceive) {
@@ -37,8 +38,7 @@ VideoFrameConstructor::~VideoFrameConstructor()
   }
 }
 
-void VideoFrameConstructor::maybeCreateReceiveVideo(uint32_t ssrc)
-{
+void VideoFrameConstructor::maybeCreateReceiveVideo(uint32_t ssrc) {
   if (m_videoReceive) {
     return;
   }
@@ -66,30 +66,27 @@ void VideoFrameConstructor::maybeCreateReceiveVideo(uint32_t ssrc)
   m_videoReceive = m_rtcAdapter->createVideoReceiver(recvConfig);
 }
 
-void VideoFrameConstructor::bindTransport(erizo::MediaSource* source, erizo::FeedbackSink* fbSink)
-{
+void VideoFrameConstructor::bindTransport(
+    erizo::MediaSource* source, erizo::FeedbackSink* fbSink) {
   m_transport = source;
   m_transport->setVideoSink(this);
   m_transport->setEventSink(this);
   setFeedbackSink(fbSink);
 }
 
-void VideoFrameConstructor::unbindTransport()
-{
+void VideoFrameConstructor::unbindTransport() {
   if (m_transport) {
     setFeedbackSink(nullptr);
     m_transport = nullptr;
   }
 }
 
-void VideoFrameConstructor::enable(bool enabled)
-{
+void VideoFrameConstructor::enable(bool enabled) {
   m_enabled = enabled;
   RequestKeyFrame();
 }
 
-int32_t VideoFrameConstructor::RequestKeyFrame()
-{
+int32_t VideoFrameConstructor::RequestKeyFrame() {
   if (!m_enabled) {
     return 0;
   }
@@ -99,21 +96,18 @@ int32_t VideoFrameConstructor::RequestKeyFrame()
   return 0;
 }
 
-bool VideoFrameConstructor::setBitrate(uint32_t kbps)
-{
+bool VideoFrameConstructor::setBitrate(uint32_t kbps) {
   // At present we do not react on this request
   return true;
 }
 
-void VideoFrameConstructor::onAdapterFrame(const Frame& frame)
-{
+void VideoFrameConstructor::onAdapterFrame(const Frame& frame) {
   if (m_enabled) {
     deliverFrame(frame);
   }
 }
 
-void VideoFrameConstructor::onAdapterStats(const AdapterStats& stats)
-{
+void VideoFrameConstructor::onAdapterStats(const AdapterStats& stats) {
   if (m_videoInfoListener) {
     std::ostringstream json_str;
     json_str.str("");
@@ -125,8 +119,7 @@ void VideoFrameConstructor::onAdapterStats(const AdapterStats& stats)
   }
 }
 
-void VideoFrameConstructor::onAdapterData(char* data, int len)
-{
+void VideoFrameConstructor::onAdapterData(char* data, int len) {
   // Data come from video receive stream is RTCP
   if (fb_sink_) {
     fb_sink_->deliverFeedback(
@@ -134,8 +127,8 @@ void VideoFrameConstructor::onAdapterData(char* data, int len)
   }
 }
 
-int VideoFrameConstructor::deliverVideoData_(std::shared_ptr<erizo::DataPacket> video_packet)
-{
+int VideoFrameConstructor::deliverVideoData_(
+    std::shared_ptr<erizo::DataPacket> video_packet) {
   RTCPHeader* chead = reinterpret_cast<RTCPHeader*>(video_packet->data);
   uint8_t packetType = chead->getPacketType();
 
@@ -160,22 +153,20 @@ int VideoFrameConstructor::deliverVideoData_(std::shared_ptr<erizo::DataPacket> 
   return video_packet->length;
 }
 
-int VideoFrameConstructor::deliverAudioData_(std::shared_ptr<erizo::DataPacket> audio_packet)
-{
+int VideoFrameConstructor::deliverAudioData_(
+    std::shared_ptr<erizo::DataPacket> audio_packet) {
   assert(false);
   return 0;
 }
 
-void VideoFrameConstructor::onTimeout()
-{
+void VideoFrameConstructor::onTimeout() {
   if (m_pendingKeyFrameRequests > 1) {
       RequestKeyFrame();
   }
   m_pendingKeyFrameRequests = 0;
 }
 
-void VideoFrameConstructor::onFeedback(const FeedbackMsg& msg)
-{
+void VideoFrameConstructor::onFeedback(const FeedbackMsg& msg) {
   if (msg.type == owt_base::VIDEO_FEEDBACK) {
     if (msg.cmd == REQUEST_KEY_FRAME) {
       if (!m_pendingKeyFrameRequests) {
@@ -188,8 +179,7 @@ void VideoFrameConstructor::onFeedback(const FeedbackMsg& msg)
   }
 }
 
-void VideoFrameConstructor::close()
-{
+void VideoFrameConstructor::close() {
   unbindTransport();
 }
 
