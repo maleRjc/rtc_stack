@@ -92,11 +92,11 @@ bool UseSendSideBwe(const std::vector<RtpExtension>& extensions,
 bool UseSendSideBwe(const VideoReceiveStream::Config& config) {
   return UseSendSideBwe(config.rtp.extensions, config.rtp.transport_cc);
 }
-
+/*
 bool UseSendSideBwe(const AudioReceiveStream::Config& config) {
   return UseSendSideBwe(config.rtp.extensions, config.rtp.transport_cc);
 }
-
+*/
 bool UseSendSideBwe(const FlexfecReceiveStream::Config& config) {
   return UseSendSideBwe(config.rtp_header_extensions, config.transport_cc);
 }
@@ -144,6 +144,7 @@ std::unique_ptr<rtclog::StreamConfig> CreateRtcLogStreamConfig(
   return rtclog_config;
 }
 
+/*
 std::unique_ptr<rtclog::StreamConfig> CreateRtcLogStreamConfig(
     const AudioReceiveStream::Config& config) {
   auto rtclog_config = std::make_unique<rtclog::StreamConfig>();
@@ -152,7 +153,7 @@ std::unique_ptr<rtclog::StreamConfig> CreateRtcLogStreamConfig(
   rtclog_config->rtp_extensions = config.rtp.extensions;
   return rtclog_config;
 }
-
+*/
 
 bool IsRtcp(const uint8_t* packet, size_t length) {
   RtpUtility::RtpHeaderParser rtp_parser(packet, length);
@@ -177,14 +178,14 @@ class Call final : public webrtc::Call,
   ~Call() override;
 
   // Implements webrtc::Call.
-  webrtc::AudioSendStream* CreateAudioSendStream(
-      const webrtc::AudioSendStream::Config& config) override;
-  void DestroyAudioSendStream(webrtc::AudioSendStream* send_stream) override;
+ // webrtc::AudioSendStream* CreateAudioSendStream(
+ //     const webrtc::AudioSendStream::Config& config) override;
+ // void DestroyAudioSendStream(webrtc::AudioSendStream* send_stream) override;
 
-  webrtc::AudioReceiveStream* CreateAudioReceiveStream(
-      const webrtc::AudioReceiveStream::Config& config) override;
-  void DestroyAudioReceiveStream(
-      webrtc::AudioReceiveStream* receive_stream) override;
+  //webrtc::AudioReceiveStream* CreateAudioReceiveStream(
+  //    const webrtc::AudioReceiveStream::Config& config) override;
+  //void DestroyAudioReceiveStream(
+  //    webrtc::AudioReceiveStream* receive_stream) override;
 
   webrtc::VideoSendStream* CreateVideoSendStream(
       webrtc::VideoSendStream::Config config,
@@ -296,9 +297,9 @@ class Call final : public webrtc::Call,
   // single mapping from ssrc to a more abstract receive stream, with
   // accessor methods for all configuration we need at this level.
   struct ReceiveRtpConfig {
-    explicit ReceiveRtpConfig(const webrtc::AudioReceiveStream::Config& config)
-        : extensions(config.rtp.extensions),
-          use_send_side_bwe(UseSendSideBwe(config)) {}
+    //explicit ReceiveRtpConfig(const webrtc::AudioReceiveStream::Config& config)
+    //    : extensions(config.rtp.extensions),
+    //      use_send_side_bwe(UseSendSideBwe(config)) {}
     explicit ReceiveRtpConfig(const webrtc::VideoReceiveStream::Config& config)
         : extensions(config.rtp.extensions),
           use_send_side_bwe(UseSendSideBwe(config)) {}
@@ -586,10 +587,12 @@ PacketReceiver* Call::Receiver() {
   return this;
 }
 
+#if 0  
+
 webrtc::AudioSendStream* Call::CreateAudioSendStream(
     const webrtc::AudioSendStream::Config& config) {
 
-#if 0    
+  
   TRACE_EVENT0("webrtc", "Call::CreateAudioSendStream");
   RTC_DCHECK_RUN_ON(&configuration_sequence_checker_);
 
@@ -626,13 +629,11 @@ webrtc::AudioSendStream* Call::CreateAudioSendStream(
   }
   UpdateAggregateNetworkState();
   return send_stream;
-#endif
   return nullptr;
 }
 
 void Call::DestroyAudioSendStream(webrtc::AudioSendStream* send_stream) {
 
-#if 0
   TRACE_EVENT0("webrtc", "Call::DestroyAudioSendStream");
   RTC_DCHECK_RUN_ON(&configuration_sequence_checker_);
   RTC_DCHECK(send_stream != nullptr);
@@ -658,13 +659,11 @@ void Call::DestroyAudioSendStream(webrtc::AudioSendStream* send_stream) {
   }
   UpdateAggregateNetworkState();
   delete send_stream;
-#endif
+
 }
 
 webrtc::AudioReceiveStream* Call::CreateAudioReceiveStream(
-    const webrtc::AudioReceiveStream::Config& config) {
-
-#if 0    
+    const webrtc::AudioReceiveStream::Config& config) {  
   TRACE_EVENT0("webrtc", "Call::CreateAudioReceiveStream");
   RTC_DCHECK_RUN_ON(&configuration_sequence_checker_);
   RegisterRateObserver();
@@ -690,14 +689,12 @@ webrtc::AudioReceiveStream* Call::CreateAudioReceiveStream(
   }
   UpdateAggregateNetworkState();
   return receive_stream;
-#endif
   return nullptr;
 }
 
 void Call::DestroyAudioReceiveStream(
     webrtc::AudioReceiveStream* receive_stream) {
-
-#if 0    
+ 
   TRACE_EVENT0("webrtc", "Call::DestroyAudioReceiveStream");
   RTC_DCHECK_RUN_ON(&configuration_sequence_checker_);
   RTC_DCHECK(receive_stream != nullptr);
@@ -721,8 +718,9 @@ void Call::DestroyAudioReceiveStream(
   }
   UpdateAggregateNetworkState();
   delete audio_receive_stream;
-#endif
+
 }
+#endif
 
 webrtc::VideoSendStream* Call::CreateVideoSendStream(
     webrtc::VideoSendStream::Config config,

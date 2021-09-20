@@ -167,7 +167,7 @@ class WebRtcConnection: public TransportListener,
   std::string connection_id_;
   bool audio_enabled_{false};
   bool video_enabled_{false};
-  bool trickle_enabled_;
+  bool trickle_enabled_; // candidates exclude in answer
   bool sending_{true};
   int bundle_{false};
   WebRtcConnectionEventListener* conn_event_listener_;

@@ -253,7 +253,7 @@ void DtlsTransport::onIceData(packetPtr packet) {
 }
 
 void DtlsTransport::updateIceState(IceState state, IceConnection *conn) {
-  std::weak_ptr<Transport> weak_transport = Transport::shared_from_this();
+  std::weak_ptr<Transport> weak_transport = Transport::weak_from_this();
   worker_->task([weak_transport, state, conn, this]() {
     if (auto transport = weak_transport.lock()) {
       updateIceStateSync(state, conn);
@@ -262,7 +262,7 @@ void DtlsTransport::updateIceState(IceState state, IceConnection *conn) {
 }
 
 void DtlsTransport::onCandidate(const CandidateInfo &candidate, IceConnection *conn) {
-  std::weak_ptr<Transport> weak_transport = Transport::shared_from_this();
+  std::weak_ptr<Transport> weak_transport = Transport::weak_from_this();
   worker_->task([candidate, weak_transport, conn]() {
     if (auto transport = weak_transport.lock()) {
       if (auto listener = transport->getTransportListener().lock()) {
@@ -403,7 +403,7 @@ void DtlsTransport::updateIceStateSync(IceState state, IceConnection *conn) {
   if (!running_) {
     return;
   }
-  ELOG_DEBUG("%s message:IceState, transportName: %s, state: %d, isBundle: %d",
+  ELOG_TRACE("%s message:IceState, transportName: %s, state: %d, isBundle: %d",
              toLog(), transport_name.c_str(), state, bundle_);
              
   if (state == IceState::INITIAL && this->getTransportState() != TRANSPORT_STARTED) {
@@ -417,7 +417,7 @@ void DtlsTransport::updateIceStateSync(IceState state, IceConnection *conn) {
   } 
 
   if (state == IceState::FAILED) {
-    ELOG_DEBUG("%s message: Ice Failed", toLog());
+    ELOG_INFO("%s message: Ice Failed", toLog());
     running_ = false;
     updateTransportState(TRANSPORT_FAILED);
     return;
@@ -425,7 +425,7 @@ void DtlsTransport::updateIceStateSync(IceState state, IceConnection *conn) {
   
   if (state == IceState::READY) {
     if (!isServer_ && dtlsRtp && !dtlsRtp->started) {
-      ELOG_INFO("%s message: DTLSRTP Start, transportName: %s", toLog(), transport_name.c_str());
+      ELOG_DEBUG("%s message: DTLSRTP Start, transportName: %s", toLog(), transport_name.c_str());
       dtlsRtp->start();
       rtp_timeout_checker_->scheduleCheck();
     }
@@ -437,17 +437,17 @@ void DtlsTransport::updateIceStateSync(IceState state, IceConnection *conn) {
   }
 }
 
-void DtlsTransport::processLocalSdp(SdpInfo *localSdp_) {
+void DtlsTransport::processLocalSdp(SdpInfo *localSdp) {
   ELOG_DEBUG("%s message: processing local sdp, transportName: %s", toLog(), transport_name.c_str());
-  localSdp_->isFingerprint = true;
-  localSdp_->fingerprint = getMyFingerprint();
+  localSdp->isFingerprint = true;
+  localSdp->fingerprint = getMyFingerprint();
   std::string username(ice_->getLocalUsername());
   std::string password(ice_->getLocalPassword());
   if (bundle_) {
-    localSdp_->setCredentials(username, password, VIDEO_TYPE);
-    localSdp_->setCredentials(username, password, AUDIO_TYPE);
+    localSdp->setCredentials(username, password, VIDEO_TYPE);
+    localSdp->setCredentials(username, password, AUDIO_TYPE);
   } else {
-    localSdp_->setCredentials(username, password, this->mediaType);
+    localSdp->setCredentials(username, password, this->mediaType);
   }
   ELOG_DEBUG("%s message: processed local sdp, transportName: %s, ufrag: %s, pass: %s",
              toLog(), transport_name.c_str(), username.c_str(), password.c_str());

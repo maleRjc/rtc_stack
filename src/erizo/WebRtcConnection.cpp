@@ -542,7 +542,7 @@ std::string WebRtcConnection::getJSONCandidate(const std::string& mid, const std
 void WebRtcConnection::onCandidate(const CandidateInfo& cand, Transport *transport) 
 {
   std::string sdp = local_sdp_->addCandidate(cand);
-  ELOG_DEBUG("%s message: Discovered New Candidate, candidate: %s", toLog(), sdp.c_str());
+  ELOG_TRACE("%s message: Discovered New Candidate, candidate: %s", toLog(), sdp.c_str());
   if (!trickle_enabled_) {
     return;
   }
@@ -658,7 +658,7 @@ void WebRtcConnection::updateState(TransportState state, Transport * transport)
 {
   WebRTCEvent temp = global_state_;
   std::string msg = "";
-  ELOG_DEBUG("%s transportName: %s, new_state: %d", toLog(), transport->transport_name.c_str(), state);
+  ELOG_TRACE("%s transportName: %s, new_state: %d", toLog(), transport->transport_name.c_str(), state);
   if (video_transport_.get() == nullptr && audio_transport_.get() == nullptr) {
     ELOG_ERROR("%s message: Updating NULL transport, state: %d", toLog(), state);
     return;
@@ -738,7 +738,7 @@ void WebRtcConnection::updateState(TransportState state, Transport * transport)
           toLog(), transport->transport_name.c_str() );
       break;
     default:
-      ELOG_DEBUG("%s message: Doing nothing on state, state %d", toLog(), state);
+      ELOG_WARN("%s message: Doing nothing on state, state %d", toLog(), state);
       break;
   }
 

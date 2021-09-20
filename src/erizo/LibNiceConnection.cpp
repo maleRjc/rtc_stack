@@ -167,7 +167,7 @@ void LibNiceConnection::start() {
     if (this->checkIceState() != INITIAL) {
       return;
     }
-    ELOG_DEBUG("%s message: creating Nice Agent", toLog());
+    ELOG_TRACE("%s message: creating Nice Agent", toLog());
 
     // Create a nice agent
     agent_ = lib_nice_->NiceAgentNewFull(context_, 
@@ -441,7 +441,7 @@ void LibNiceConnection::setRemoteCredentials(const std::string& username, const 
 }
 
 void LibNiceConnection::updateComponentState(unsigned int component_id, IceState state) {
-  ELOG_DEBUG("%s message: new ice component state, newState: %u, "
+  ELOG_TRACE("%s message: new ice component state, newState: %u, "
              "transportName: %s, componentId %u, iceComponents: %u",
              toLog(), state, ice_config_.transport_name.c_str(), 
              component_id, ice_config_.ice_components);

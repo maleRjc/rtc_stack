@@ -1,12 +1,13 @@
 #include "webrtc_agent_pc.h"
 
+#include "./wa_log.h"
 #include "media_config.h"
 #include "h/rtc_return_value.h"
 #include "sdp_processor.h"
 
-namespace wa
-{
-DEFINE_LOGGER(WrtcAgentPc, "WrtcAgentPc");
+namespace wa {
+
+static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("wa.pc");
 
 /////////////////////////////
 //WebrtcTrack
@@ -260,7 +261,7 @@ void WrtcAgentPc::signalling(const std::string& signal, const std::string& conte
 void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus, 
                               const std::string& message, 
                               const std::string& stream_id) {
-  WLOG_INFO("message: WebRtcConnection status update, id:%s, status:%d", id_.c_str(), newStatus);
+  WLOG_TRACE("message: WebRtcConnection status update, id:%s, status:%d", id_.c_str(), newStatus);
   connection_state_ = newStatus;
   switch(newStatus) {
     case erizo::CONN_GATHERED:
@@ -270,16 +271,16 @@ void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus,
     case erizo::CONN_CANDIDATE:
       //std::string mess = mess.replace(this.options.privateRegexp, this.options.publicIP);
       callBack(E_CANDIDATE, message);
-      WLOG_INFO("message: candidate, id::%s, c:%s", id_.c_str(), message.c_str());
+      WLOG_DEBUG("message: candidate, id::%s, c:%s", id_.c_str(), message.c_str());
       break;
 
     case erizo::CONN_FAILED:
-      WLOG_INFO("message: failed the ICE process, code:%s", id_.c_str());
+      WLOG_DEBUG("message: failed the ICE process, code:%s", id_.c_str());
       callBack(E_FAILED, message);
       break;
 
     case erizo::CONN_READY:
-      WLOG_INFO("message: connection ready, id:%s", id_.c_str());
+      WLOG_DEBUG("message: connection ready, id:%s", id_.c_str());
       if (!ready_) {
         ready_ = true;
         callBack(E_READY, "");
@@ -294,7 +295,7 @@ void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus,
 }
 
 void WrtcAgentPc::processSendAnswer(const std::string& streamId, const std::string& sdpMsg) {
-  WLOG_INFO("message: processSendAnswer streamId:%s", streamId.c_str());
+  WLOG_TRACE("message: processSendAnswer streamId:%s", streamId.c_str());
   LOG_ASSERT(sdpMsg.length());
   
   if(!sdpMsg.empty()) {
@@ -314,14 +315,14 @@ void WrtcAgentPc::processSendAnswer(const std::string& streamId, const std::stri
       }
     }
     catch(std::exception& ex){
-      std::cout << "exception catched :" << ex.what() << std::endl;
+      OLOG_ERROR("exception catched :" << ex.what());
       return;
     }
   }
   std::string answerSdp = local_sdp_->toString();
 
-  //WLOG_DEBUG("message: processSendAnswer streamId:%s, internalsdp:%s, answersdp:%s", 
-  //           streamId.c_str(), sdpMsg.c_str(), answerSdp.c_str());
+  WLOG_DEBUG("message: processSendAnswer streamId:%s, internalsdp:%s, answersdp:%s", 
+             streamId.c_str(), sdpMsg.c_str(), answerSdp.c_str());
   callBack(E_ANSWER, answerSdp);
 }
 

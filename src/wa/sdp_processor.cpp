@@ -13,10 +13,11 @@
 #include "libsdptransform/include/fifo_map.hpp"
 #endif
 
+#include "h/rtc_stack_api.h"
+#include "./wa_log.h"
 #include "h/rtc_return_value.h"
 #include "helper.h"
 #include "media_config.h"
-#include "h/rtc_stack_api.h"
 
 #ifdef ORDERED_JSON
 template<class K, class V, class dummy_compare, class A>
@@ -33,6 +34,8 @@ using my_json = nlohmann::json;
 namespace wa {
 
 namespace {
+
+static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("wa.sdp");
 
 inline std::string get_preference_name(EFormatPreference t) {
   switch(t)
@@ -83,9 +86,6 @@ int32_t filer_h264(const std::vector<MediaDesc::rtpmap>& rtpMaps,
 }
 
 }
-
-DEFINE_LOGGER(MediaDesc, "MediaDesc");
-DEFINE_LOGGER(WaSdpInfo, "WaSdpInfo");
 
 int SessionInfo::decode(const JSON_TYPE& session) {
   auto found = session.find("iceUfrag");

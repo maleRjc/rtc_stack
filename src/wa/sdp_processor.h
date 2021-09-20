@@ -8,8 +8,6 @@
 #include <random>
 
 #include "libsdptransform/include/json.hpp"
-#include "./wa_log.h"
-
 
 using JSON_TYPE = nlohmann::json;
 
@@ -42,9 +40,7 @@ struct SessionInfo {
 };
 
 class MediaDesc {
-  DECLARE_LOGGER();
-public:
-
+ public:
   //UDP RFC 8445
   //TCP RFC 6544
   struct Candidate {
@@ -109,7 +105,7 @@ public:
     std::string params_;
   };
 
-public:
+ public:
   //parse m line
   void parse(const JSON_TYPE& session);
   
@@ -130,7 +126,7 @@ public:
   bool filterByPayload(int32_t payload);
   
   void filterExtmap();
-private:
+ private:
   void parse_candidates(const JSON_TYPE& media);
 
   void parse_rtcp_fb(const JSON_TYPE& media);
@@ -145,7 +141,7 @@ private:
 
   void parse_ssrc_group(const JSON_TYPE& media);
 
-public:
+ public:
   std::string type_;
   int32_t port_{0};
   int32_t numPorts_{0};
@@ -183,8 +179,7 @@ public:
 };
 
 class WaSdpInfo {
-  DECLARE_LOGGER();
-public:
+ public:
   WaSdpInfo();
   
   WaSdpInfo(const std::string& sdp);
@@ -234,7 +229,7 @@ public:
   WaSdpInfo* answer();
   
   std::string toString(const std::string& strMid = "");
-public:
+ public:
   // version "v="
   int version_{0};  
 

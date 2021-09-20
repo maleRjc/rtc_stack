@@ -7,10 +7,9 @@
 
 using namespace erizo;
 
-namespace wa
-{
+namespace wa {
 
-DEFINE_LOGGER(WebrtcAgent, "WebrtcAgent");
+DEFINE_LOGGER(WebrtcAgent, "wa.agent");
 
 std::shared_ptr<ThreadPool> WebrtcAgent::workers_;
 std::shared_ptr<IOThreadPool> WebrtcAgent::io_workers_;

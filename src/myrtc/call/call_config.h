@@ -16,7 +16,7 @@
 #include "api/task_queue_factory.h"
 #include "api/bitrate_settings.h"
 #include "api/network_control.h"
-#include "call/audio_state.h"
+//#include "call/audio_state.h"
 
 namespace webrtc {
 
@@ -35,10 +35,10 @@ struct CallConfig {
   BitrateConstraints bitrate_config;
 
   // AudioState which is possibly shared between multiple calls.
-  rtc::scoped_refptr<AudioState> audio_state;
+  //rtc::scoped_refptr<AudioState> audio_state;
 
   // Audio Processing Module to be used in this call.
-  AudioProcessing* audio_processing = nullptr;
+  //AudioProcessing* audio_processing = nullptr;
 
   // RtcEventLog to use for this call. Required.
   // Use webrtc::RtcEventLog::CreateNull() for a null implementation.

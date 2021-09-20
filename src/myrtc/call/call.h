@@ -16,8 +16,8 @@
 #include <vector>
 
 #include "api/media_types.h"
-#include "call/audio_receive_stream.h"
-#include "call/audio_send_stream.h"
+//#include "call/audio_receive_stream.h"
+//#include "call/audio_send_stream.h"
 #include "call/call_config.h"
 #include "call/flexfec_receive_stream.h"
 #include "call/packet_receiver.h"
@@ -57,14 +57,14 @@ class Call {
   // Call instance exists.
   virtual PacketReceiver* Receiver() = 0;
 
-  virtual AudioSendStream* CreateAudioSendStream(
-      const AudioSendStream::Config& config) = 0;
-  virtual void DestroyAudioSendStream(AudioSendStream* send_stream) = 0;
+ // virtual AudioSendStream* CreateAudioSendStream(
+ //     const AudioSendStream::Config& config) = 0;
+ // virtual void DestroyAudioSendStream(AudioSendStream* send_stream) = 0;
 
-  virtual AudioReceiveStream* CreateAudioReceiveStream(
-      const AudioReceiveStream::Config& config) = 0;
-  virtual void DestroyAudioReceiveStream(
-      AudioReceiveStream* receive_stream) = 0;
+ // virtual AudioReceiveStream* CreateAudioReceiveStream(
+ //     const AudioReceiveStream::Config& config) = 0;
+ // virtual void DestroyAudioReceiveStream(
+ //     AudioReceiveStream* receive_stream) = 0;
 
   virtual VideoSendStream* CreateVideoSendStream(
       VideoSendStream::Config config,

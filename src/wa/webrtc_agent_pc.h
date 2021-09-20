@@ -16,7 +16,6 @@
 #include "srs_kernel_error.h"
 
 #include "h/rtc_stack_api.h"
-#include "./wa_log.h"
 #include "erizo/WebRtcConnection.h"
 
 #include "owt/owt_base/MediaFramePipeline.h"
@@ -34,8 +33,6 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
                           public owt_base::FrameDestination,
                           public owt_base::VideoInfoListener,
                           public std::enable_shared_from_this<WrtcAgentPc> {
-  DECLARE_LOGGER();
-
   class WebrtcTrack {
     /*
      * audio: { format, ssrc, mid, midExtId }
