@@ -448,17 +448,9 @@ void MediaStream::onTransportData(
 
 void MediaStream::read(std::shared_ptr<DataPacket> packet) {
   char* buf = packet->data;
-  int len = packet->length;
+ 
   // PROCESS RTCP
-  RtpHeader *head = reinterpret_cast<RtpHeader*> (buf);
   RtcpHeader *chead = reinterpret_cast<RtcpHeader*> (buf);
-  uint32_t recvSSRC = 0;
-  if (!chead->isRtcp()) {
-    recvSSRC = head->getSSRC();
-  } else if (chead->packettype == RTCP_Sender_PT || 
-             chead->packettype == RTCP_SDES_PT) {  // Sender Report
-    recvSSRC = chead->getSSRC();
-  }
   
   // DELIVER FEEDBACK (RR, FEEDBACK PACKETS)
   if (chead->isFeedback()) {
@@ -468,18 +460,23 @@ void MediaStream::read(std::shared_ptr<DataPacket> packet) {
     return;
   } 
 
+  if (chead->isRtcp()) {
+    return;
+  }
+
+  RtpHeader *head = reinterpret_cast<RtpHeader*> (buf);
+  uint32_t recvSSRC = 0;
+  recvSSRC = head->getSSRC();
+
   // RTP or RTCP Sender Report
   if (bundle_) {
     // Check incoming SSRC
     // Deliver data
+    int len = packet->length;
     if (isVideoSourceSSRC(recvSSRC) && video_sink_) {
-      //ELOG_DEBUG("bundle deliverVideoData %s ssrc:%u pt:%u", 
-      //  toLog(), recvSSRC, chead->isRtcp()?chead->getPacketType():head->getPayloadType());
       parseIncomingPayloadType(buf, len, VIDEO_PACKET);
       video_sink_->deliverVideoData(std::move(packet));
     } else if (isAudioSourceSSRC(recvSSRC) && audio_sink_) {
-      //ELOG_DEBUG("bundle deliverAudioData %s ssrc:%u pt:%u, len:%d", 
-      //  toLog(), recvSSRC, chead->isRtcp()?chead->getPacketType():head->getPayloadType(), len);
       parseIncomingPayloadType(buf, len, AUDIO_PACKET);
       audio_sink_->deliverAudioData(std::move(packet));
     } else {

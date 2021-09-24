@@ -1,7 +1,3 @@
-// Copyright (C) <2019> Intel Corporation
-//
-// SPDX-License-Identifier: Apache-2.0
-
 #include "owt_base/AudioFrameConstructor.h"
 #include "owt_base/AudioUtilitiesNew.h"
 
@@ -109,7 +105,7 @@ int AudioFrameConstructor::deliverAudioData_(
 
   frameFormat = getAudioFrameFormat(head->getPayloadType());
   if (frameFormat == FRAME_FORMAT_UNKNOWN) {
-    ELOG_ERROR("audio format not found t:%d", frameFormat);
+    ELOG_ERROR("audio format not found f:%d. pt:%d", frameFormat, head->getPayloadType());
     return 0;
   }
 

@@ -1,7 +1,3 @@
-// Copyright (C) <2019> Intel Corporation
-//
-// SPDX-License-Identifier: Apache-2.0
-
 #include "owt_base/AudioFramePacketizer.h"
 #include "owt_base/AudioUtilitiesNew.h"
 #include "myrtc/api/task_queue_base.h"

@@ -357,10 +357,6 @@ int AsyncRawTCPSocket::Send(const void* pv,
     return -1;
   }
 
-  if (cb == 0) {
-    return cb;
-  }
-
   // If we are blocking on send
   if (!IsOutBufferEmpty()) {
     SetError(EWOULDBLOCK);

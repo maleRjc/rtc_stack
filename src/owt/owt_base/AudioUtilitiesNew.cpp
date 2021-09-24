@@ -1,16 +1,41 @@
-// Copyright (C) <2019> Intel Corporation
-//
-// SPDX-License-Identifier: Apache-2.0
-
 #include "owt_base/AudioUtilitiesNew.h"
+
+#include <vector>
 #include "common/rtputils.h"
 #include "owt_base/MediaFramePipeline.h"
+
+#define __codecIns_OPTIMIZE__
 
 namespace owt_base {
 
 struct AudioCodecInsMap {
   FrameFormat format;
   CodecInst codec;
+};
+
+static std::vector<int> codecInsDB_idx {
+  -1, //FRAME_FORMAT_UNKNOWN
+  -1, //FRAME_FORMAT_I420
+  -1, //FRAME_FORMAT_VP8
+  -1, //FRAME_FORMAT_VP9
+  -1, //FRAME_FORMAT_H264
+  -1, //FRAME_FORMAT_H265
+  -1, //FRAME_FORMAT_MSDK
+  5, //FRAME_FORMAT_PCM_48000_2
+  0, //FRAME_FORMAT_PCMU
+  1, //FRAME_FORMAT_PCMA
+  4, //FRAME_FORMAT_OPUS
+  2, //FRAME_FORMAT_ISAC16
+  3, //FRAME_FORMAT_ISAC32
+  6, //FRAME_FORMAT_ILBC
+  7, //FRAME_FORMAT_G722_16000_1
+  8, //FRAME_FORMAT_G722_16000_2
+  -1, //FRAME_FORMAT_AAC
+  -1, //FRAME_FORMAT_AAC_48000_2
+  -1, //FRAME_FORMAT_AC3
+  -1, //FRAME_FORMAT_NELLYMOSER
+  -1, //FRAME_FORMAT_DATA
+  -1 //FRAME_FORMAT_MAX
 };
 
 static const AudioCodecInsMap codecInsDB[] = {
@@ -117,31 +142,51 @@ static const AudioCodecInsMap codecInsDB[] = {
 
 static const int numCodecIns = sizeof(codecInsDB) / sizeof(codecInsDB[0]);
 
-bool getAudioCodecInst(FrameFormat format, CodecInst& audioCodec)
-{
+bool getAudioCodecInst(FrameFormat format, CodecInst& audioCodec) {
+#ifdef __codecIns_OPTIMIZE__
+  int idx = codecInsDB_idx[format];
+  if (idx != -1) {
+    audioCodec = codecInsDB[idx].codec;
+    return true;
+  }
+#else
   for (size_t i = 0; i < numCodecIns; i++) {
     if (codecInsDB[i].format == format) {
       audioCodec = codecInsDB[i].codec;
       return true;
     }
   }
-
+#endif
   return false;
 }
 
-int getAudioPltype(FrameFormat format)
-{
+int getAudioPltype(FrameFormat format) {
+#ifdef __codecIns_OPTIMIZE__
+  int idx = codecInsDB_idx[format];
+  if (idx != -1) {
+    return codecInsDB[idx].codec.pltype;
+  }
+#else
   for (size_t i = 0; i < numCodecIns; i++) {
     if (codecInsDB[i].format == format) {
       return codecInsDB[i].codec.pltype;
     }
   }
-
+#endif
   return INVALID_PT;
 }
 
-FrameFormat getAudioFrameFormat(int pltype)
-{
+FrameFormat getAudioFrameFormat(int pltype) {
+#ifdef __codecIns_OPTIMIZE__
+  switch(pltype) {
+    case OPUS_48000_PT:
+      return FRAME_FORMAT_OPUS;
+      break;
+    default:
+      break;
+  }
+#endif
+
   for (size_t i = 0; i < numCodecIns; i++) {
     if (codecInsDB[i].codec.pltype == pltype) {
       return codecInsDB[i].format;
@@ -152,44 +197,41 @@ FrameFormat getAudioFrameFormat(int pltype)
 }
 
 int32_t getAudioSampleRate(const FrameFormat format) {
-  switch (format) {
-    case FRAME_FORMAT_AAC_48000_2:
-      return 48000;
-    case FRAME_FORMAT_AAC:
-    case FRAME_FORMAT_AC3:
-    case FRAME_FORMAT_NELLYMOSER:
-      return 0;
-    default:
-      break;
+  if (format == FRAME_FORMAT_AAC_48000_2) {
+    return 48000;
   }
-
+#ifdef __codecIns_OPTIMIZE__
+  int idx = codecInsDB_idx[format];
+  if (idx != -1) {
+    return codecInsDB[idx].codec.plfreq;
+  }
+#else
   for (size_t i = 0; i < numCodecIns; i++) {
     if (codecInsDB[i].format == format) {
       return codecInsDB[i].codec.plfreq;
     }
   }
-
+#endif
   return 0;
 }
 
 uint32_t getAudioChannels(const FrameFormat format) {
-  switch (format) {
-    case FRAME_FORMAT_AAC_48000_2:
-      return 2;
-    case FRAME_FORMAT_AAC:
-    case FRAME_FORMAT_AC3:
-    case FRAME_FORMAT_NELLYMOSER:
-      return 0;
-    default:
-      break;
+  if (format == FRAME_FORMAT_AAC_48000_2) {
+    return 2;
   }
 
+#ifdef __codecIns_OPTIMIZE__
+  int idx = codecInsDB_idx[format];
+  if (idx != -1) {
+    return codecInsDB[idx].codec.channels;
+  }
+#else
   for (size_t i = 0; i < numCodecIns; i++) {
     if (codecInsDB[i].format == format) {
       return codecInsDB[i].codec.channels;
     }
   }
-
+#endif
   return 0;
 }
 

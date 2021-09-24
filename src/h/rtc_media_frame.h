@@ -11,20 +11,19 @@
 namespace owt_base{
 
 enum FrameFormat {
-  FRAME_FORMAT_UNKNOWN    = 0,
+  FRAME_FORMAT_UNKNOWN      = 0,
 
-  FRAME_FORMAT_I420       = 100,
+  FRAME_FORMAT_I420,
 
-  FRAME_FORMAT_VP8        = 200,
+  FRAME_FORMAT_VP8,
   FRAME_FORMAT_VP9,
   FRAME_FORMAT_H264,
   FRAME_FORMAT_H265,
 
-  FRAME_FORMAT_MSDK       = 300,
+  FRAME_FORMAT_MSDK,
 
-  FRAME_FORMAT_PCM_48000_2    = 800,
-
-  FRAME_FORMAT_PCMU       = 900,
+  FRAME_FORMAT_PCM_48000_2,
+  FRAME_FORMAT_PCMU,
   FRAME_FORMAT_PCMA,
   FRAME_FORMAT_OPUS,
   FRAME_FORMAT_ISAC16,
@@ -40,6 +39,7 @@ enum FrameFormat {
   FRAME_FORMAT_NELLYMOSER,
 
   FRAME_FORMAT_DATA,  // Generic data frame. We don't know its detailed structure.
+  FRAME_FORMAT_MAX
 };
 
 enum VideoCodecProfile {

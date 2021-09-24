@@ -10,11 +10,10 @@
 
 namespace owt_base {
 
-static inline int64_t currentTimeMs()
-{
-    timeval time;
-    gettimeofday(&time, nullptr);
-    return ((time.tv_sec * 1000) + (time.tv_usec / 1000));
+static inline int64_t currentTimeMs() {
+  timeval time;
+  gettimeofday(&time, nullptr);
+  return ((time.tv_sec * 1000) + (time.tv_usec / 1000));
 }
 
 struct CodecInst {
