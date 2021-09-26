@@ -61,8 +61,8 @@ class PacketWriter : public OutboundHandler {
 };
 
 
-DEFINE_LOGGER(MediaStream, "MediaStream");
-log4cxx::LoggerPtr MediaStream::statsLogger = log4cxx::Logger::getLogger("StreamStats");
+DEFINE_LOGGER(MediaStream, "wa.MediaStream");
+log4cxx::LoggerPtr MediaStream::statsLogger = log4cxx::Logger::getLogger("wa.StreamStats");
 
 static constexpr auto kStreamStatsPeriod = std::chrono::seconds(30);
 
@@ -264,7 +264,7 @@ void MediaStream::initializeStats()  {
 
   log_stats_->getNode().insertStat("maxVideoBW", CumulativeStat{0});
 
-  std::weak_ptr<MediaStream> weak_this = shared_from_this();
+  auto weak_this = weak_from_this();
   worker_->scheduleEvery([weak_this] () {
     if (auto stream = weak_this.lock()) {
       if (stream->sending_) {
@@ -349,7 +349,7 @@ void MediaStream::printStats() {
 }
 
 void MediaStream::initializePipeline() {
-  handler_manager_ = std::make_shared<HandlerManager>(shared_from_this());
+  handler_manager_ = std::make_shared<HandlerManager>(weak_from_this());
   pipeline_->addService(shared_from_this());
   pipeline_->addService(handler_manager_);
   pipeline_->addService(rtcp_processor_);

@@ -1,7 +1,11 @@
 #include "./IOWorker.h"
 
-namespace wa
-{
+#include <sys/prctl.h>
+
+
+namespace wa {
+
+static const char* const thraed_name = "IO Woker";
 
 IOWorker::IOWorker() = default;
 
@@ -23,6 +27,7 @@ void IOWorker::start(std::shared_ptr<std::promise<void>> start_promise) {
     context_ = g_main_context_new();
     loop_ = g_main_loop_new(context_, FALSE);
     thread_ = std::unique_ptr<std::thread>(new std::thread([this, start_promise] {
+      prctl(PR_SET_NAME, reinterpret_cast<unsigned long>(thraed_name));
       start_promise->set_value();
       if (!this->closed_ && this->loop_) {
         g_main_loop_run(this->loop_);

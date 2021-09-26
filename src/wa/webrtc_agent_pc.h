@@ -51,6 +51,7 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
                 bool isPublish, 
                 const media_setting&,
                 erizo::MediaStream* mediaStream);
+    ~WebrtcTrack();
     
     void close() {}
     void onMediaUpdate() {}
@@ -113,6 +114,7 @@ public:
   
  private:
   void init_i(const std::vector<std::string>& ipAddresses, const std::string& stun_addr);
+  void close_i();
   
   srs_error_t processOffer(const std::string& sdp);
 
@@ -145,6 +147,7 @@ private:
   TOption config_;
   std::string id_;
   WebrtcAgent& mgr_;
+
   std::shared_ptr<WebrtcAgentSink> sink_;
 
   std::shared_ptr<Worker> worker_;

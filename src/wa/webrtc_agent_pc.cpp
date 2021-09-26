@@ -1,5 +1,7 @@
 #include "webrtc_agent_pc.h"
 
+#include <atomic>
+
 #include "./wa_log.h"
 #include "media_config.h"
 #include "h/rtc_return_value.h"
@@ -15,6 +17,8 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc,
                                       bool isPublish, const media_setting& setting,
                                       erizo::MediaStream* ms)
   : pc_(pc), mid_(mid) {
+  OLOG_TRACE_THIS("WebrtcTrack ctor mid:" << mid);
+  
   if (isPublish) {
     if (setting.is_audio) {
       audioFormat_ = setting.format;
@@ -68,6 +72,10 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc,
       videoFormat_ = setting.format;
     }
   }
+}
+
+WrtcAgentPc::WebrtcTrack::~WebrtcTrack() {
+  OLOG_TRACE_THIS("WebrtcTrack dtor mid:" << mid_);
 }
 
 uint32_t WrtcAgentPc::WebrtcTrack::ssrc(bool isAudio) {
@@ -154,17 +162,19 @@ WrtcAgentPc::WrtcAgentPc(const TOption& config, WebrtcAgent& mgr)
     id_(config.connectId_), 
     mgr_(mgr),
     sink_(std::move(config_.call_back_)) {
-  OLOG_TRACE_THIS("");
+  OLOG_TRACE_THIS("WrtcAgentPc ctor " << id_);
 }
 
 WrtcAgentPc::~WrtcAgentPc() {
-  this->close();
+  track_map_.clear();
+
+  this->close_i();
   if(remote_sdp_)
     delete remote_sdp_;
   if(local_sdp_)
     delete local_sdp_;
-
-  OLOG_TRACE_THIS("");
+    
+  OLOG_TRACE_THIS("WrtcAgentPc dtor " << id_);
 }
 
 int WrtcAgentPc::init(std::shared_ptr<Worker>& worker, 
@@ -207,11 +217,20 @@ void WrtcAgentPc::init_i(const std::vector<std::string>& ipAddresses,
   connection_->init();
 }
 
-void WrtcAgentPc::close() {
-  if(connection_)
+void WrtcAgentPc::close_i() {
+  if(connection_) {
     connection_->close();
+    connection_ = nullptr;
+  }
+}
 
-  sink_ = nullptr;
+void WrtcAgentPc::close() {
+  std::shared_ptr<WebrtcAgentSink> nul_sink;
+  std::atomic_store<WebrtcAgentSink>(&sink_, nul_sink);
+  
+  worker_->task([shared_this=shared_from_this()] {
+    shared_this->close_i();
+  });
 }
 
 srs_error_t WrtcAgentPc::addTrackOperation(const std::string& mid, 
@@ -321,8 +340,8 @@ void WrtcAgentPc::processSendAnswer(const std::string& streamId, const std::stri
   }
   std::string answerSdp = local_sdp_->toString();
 
-  WLOG_DEBUG("message: processSendAnswer streamId:%s, internalsdp:%s, answersdp:%s", 
-             streamId.c_str(), sdpMsg.c_str(), answerSdp.c_str());
+  //WLOG_DEBUG("message: processSendAnswer streamId:%s, internalsdp:%s, answersdp:%s", 
+  //           streamId.c_str(), sdpMsg.c_str(), answerSdp.c_str());
   callBack(E_ANSWER, answerSdp);
 }
 
@@ -590,23 +609,24 @@ void WrtcAgentPc::onVideoInfo(const std::string& videoInfoJSON) {
 }
 
 void WrtcAgentPc::callBack(E_SINKID id, const std::string& message) {
-  if (!sink_) {
+  auto sink = std::atomic_load<WebrtcAgentSink>(&sink_);
+  if (!sink) {
     return;
   }
   
-  sink_->callBack([id, message](std::shared_ptr<WebrtcAgentSink> sink) {
+  sink->callBack([id, message](std::shared_ptr<WebrtcAgentSink> pc_sink) {
     switch(id) {
       case E_CANDIDATE :
-        sink->onCandidate(message);
+        pc_sink->onCandidate(message);
         break;
       case E_FAILED :
-        sink->onFailed(message);
+        pc_sink->onFailed(message);
         break;
       case E_READY :
-        sink->onReady();
+        pc_sink->onReady();
         break;
       case E_ANSWER :
-        sink->onAnswer(message);
+        pc_sink->onAnswer(message);
         break;
       case E_DATA:
         ;
@@ -615,15 +635,16 @@ void WrtcAgentPc::callBack(E_SINKID id, const std::string& message) {
 }
 
 void WrtcAgentPc::callBack(E_SINKID, const owt_base::Frame& message) {
-  if (!sink_) {
+  auto sink = std::atomic_load<WebrtcAgentSink>(&sink_);
+  if (!sink) {
     return;
   }
 
-  if (!sink_->task_queue_) {
-    sink_->onFrame(message);
+  if (!sink->task_queue_) {
+    sink->onFrame(message);
   } else {
-    sink_->callBack([message](std::shared_ptr<WebrtcAgentSink> sink){
-      sink->onFrame(message);
+    sink->callBack([message](std::shared_ptr<WebrtcAgentSink> pc_sink){
+      pc_sink->onFrame(message);
     });
   }
 }

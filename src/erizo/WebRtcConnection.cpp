@@ -22,7 +22,7 @@
 #include "erizo/SdpInfo.h"
 
 namespace erizo {
-DEFINE_LOGGER(WebRtcConnection, "WebRtcConnection");
+DEFINE_LOGGER(WebRtcConnection, "wa.WebRtcConnection");
 
 WebRtcConnection::WebRtcConnection(wa::Worker* worker, 
     wa::IOWorker* io_worker,
@@ -42,7 +42,7 @@ WebRtcConnection::WebRtcConnection(wa::Worker* worker,
       local_sdp_{std::make_shared<SdpInfo>(rtp_mappings)},
       stats_{std::make_shared<Stats>()}
 {
-  ELOG_INFO("%s message: constructor, stunserver: %s, stunPort: %d, minPort: %d, maxPort: %d",
+  ELOG_TRACE("%s message: ctor, stunserver: %s, stunPort: %d, minPort: %d, maxPort: %d",
       toLog(), ice_config.stun_server.c_str(), ice_config.stun_port, 
       ice_config.min_port, ice_config.max_port);
   trickle_enabled_ = ice_config_.should_trickle;
@@ -50,8 +50,7 @@ WebRtcConnection::WebRtcConnection(wa::Worker* worker,
 
 WebRtcConnection::~WebRtcConnection() 
 {
-  ELOG_DEBUG("%s message:Destructor called", toLog());
-  ELOG_DEBUG("%s message: Destructor ended", toLog());
+  ELOG_TRACE("%s message: dtor called", toLog());
 
   delete extension_processor_;
 }
@@ -64,11 +63,12 @@ bool WebRtcConnection::init()
 
 void WebRtcConnection::close() 
 {
-  ELOG_DEBUG("%s message: Close called", toLog());
-  if (!sending_) {
-    return;
-  }
+  ELOG_TRACE("%s message: Close called", toLog());
+
   sending_ = false;
+  for(auto& x : media_streams_) {
+    x->close();
+  }
   media_streams_.clear();
   if (video_transport_.get()) {
     video_transport_->close();
@@ -111,55 +111,55 @@ bool WebRtcConnection::createOffer(bool video_enabled, bool audioEnabled, bool b
   auto listener = std::dynamic_pointer_cast<TransportListener>(shared_from_this());
 
   if (bundle_) {
-    video_transport_.reset(
-        new DtlsTransport(VIDEO_TYPE, 
-                         "video", 
-                         connection_id_, 
-                         bundle_,
-                         true,
-                         listener, 
-                         ice_config_ , 
-                         "", 
-                         "", 
-                         true,
-                         worker_, 
-                         io_worker_));
+    video_transport_= std::make_shared<DtlsTransport>(
+        VIDEO_TYPE, 
+        "video", 
+        connection_id_, 
+        bundle_,
+        true,
+        listener, 
+        ice_config_ , 
+        "", 
+        "", 
+        true,
+        worker_, 
+        io_worker_);
     video_transport_->copyLogContextFrom(*this);
     video_transport_->start();
   } else {
     if (video_transport_.get() == nullptr && video_enabled_) {
       // For now we don't re/check transports, if they are already created we leave them there
-      video_transport_.reset(
-          new DtlsTransport(VIDEO_TYPE, 
-                            "video", 
-                            connection_id_, 
-                            bundle_, 
-                            true,
-                            listener, 
-                            ice_config_ , 
-                            "", 
-                            "", 
-                            true, 
-                            worker_, 
-                            io_worker_));
+      video_transport_= std::make_shared<DtlsTransport>(
+          VIDEO_TYPE, 
+          "video", 
+          connection_id_, 
+          bundle_, 
+          true,
+          listener, 
+          ice_config_ , 
+          "", 
+          "", 
+          true, 
+          worker_, 
+          io_worker_);
       video_transport_->copyLogContextFrom(*this);
       video_transport_->start();
     }
     
     if (audio_transport_.get() == nullptr && audio_enabled_) {
-      audio_transport_.reset(
-          new DtlsTransport(AUDIO_TYPE, 
-                            "audio", 
-                            connection_id_, 
-                            bundle_,
-                            true,
-                            listener, 
-                            ice_config_,
-                            "",
-                            "",
-                            true,
-                            worker_,
-                            io_worker_));
+      audio_transport_ =std::make_shared<DtlsTransport>(
+          AUDIO_TYPE, 
+          "audio", 
+          connection_id_, 
+          bundle_,
+          true,
+          listener, 
+          ice_config_,
+          "",
+          "",
+          true,
+          worker_,
+          io_worker_);
       audio_transport_->copyLogContextFrom(*this);
       audio_transport_->start();
     }
@@ -339,19 +339,19 @@ bool WebRtcConnection::processRemoteSdp(const std::string& stream_id)
         if (video_transport_.get() == nullptr) {
           ELOG_DEBUG("%s message: Creating videoTransport, ufrag: %s, pass: %s",
                       toLog(), username.c_str(), password.c_str());
-          video_transport_.reset(
-              new DtlsTransport(VIDEO_TYPE, 
-                                "video", 
-                                connection_id_, 
-                                bundle_, 
-                                remote_sdp_->isRtcpMux,
-                                listener, 
-                                ice_config_ , 
-                                username, 
-                                password, 
-                                true,
-                                worker_, 
-                                io_worker_));
+          video_transport_ = 
+              std::make_shared<DtlsTransport>(VIDEO_TYPE, 
+                                              "video", 
+                                              connection_id_, 
+                                              bundle_, 
+                                              remote_sdp_->isRtcpMux,
+                                              listener, 
+                                              ice_config_ , 
+                                              username, 
+                                              password, 
+                                              true,
+                                              worker_, 
+                                              io_worker_);
           video_transport_->copyLogContextFrom(*this);
           video_transport_->start();
         } else {
@@ -366,19 +366,19 @@ bool WebRtcConnection::processRemoteSdp(const std::string& stream_id)
         if (audio_transport_.get() == nullptr) {
           ELOG_DEBUG("%s message: Creating audioTransport, ufrag: %s, pass: %s",
                       toLog(), username.c_str(), password.c_str());
-          audio_transport_.reset(
-              new DtlsTransport(AUDIO_TYPE, 
-                                "audio", 
-                                connection_id_, 
-                                bundle_, 
-                                remote_sdp_->isRtcpMux,
-                                listener, 
-                                ice_config_, 
-                                username, 
-                                password, 
-                                true,
-                                worker_, 
-                                io_worker_));
+          audio_transport_ = 
+              std::make_shared<DtlsTransport>(AUDIO_TYPE, 
+                                              "audio", 
+                                              connection_id_, 
+                                              bundle_, 
+                                              remote_sdp_->isRtcpMux,
+                                              listener, 
+                                              ice_config_, 
+                                              username, 
+                                              password, 
+                                              true,
+                                              worker_, 
+                                              io_worker_);
           audio_transport_->copyLogContextFrom(*this);
           audio_transport_->start();
         } else {

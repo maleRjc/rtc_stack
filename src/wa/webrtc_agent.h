@@ -14,13 +14,11 @@
 
 #include "./wa_log.h"
 
-namespace wa
-{
+namespace wa {
 
 class WrtcAgentPc;
 
-class WebrtcAgent final : public rtc_api
-{
+class WebrtcAgent final : public rtc_api {
   DECLARE_LOGGER();
 public:
   WebrtcAgent();

@@ -186,6 +186,9 @@ void LibNiceConnection::start() {
     
     g_object_set(agent_, "max-connectivity-checks", 100, nullptr);
 
+    gboolean keep_alive = {TRUE};
+    g_object_set(agent_, "keepalive-conncheck", keep_alive, nullptr);
+
     // Connect the signals
     g_signal_connect(agent_, "candidate-gathering-done",
         G_CALLBACK(cb_candidate_gathering_done), this);

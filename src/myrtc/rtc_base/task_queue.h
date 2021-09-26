@@ -90,6 +90,17 @@ class RTC_LOCKABLE RTC_EXPORT TaskQueue {
 
   // TODO(tommi): For better debuggability, implement RTC_FROM_HERE.
 
+  // Schedules a task to execute. Won't return util the task done.
+  void SendTask(std::unique_ptr<webrtc::QueuedTask> task);
+
+  template <class Closure,
+            typename std::enable_if<!std::is_convertible<
+                Closure,
+                std::unique_ptr<webrtc::QueuedTask>>::value>::type* = nullptr>
+  void SendTask(Closure&& closure) {
+    SendTask(webrtc::ToQueuedTask(std::forward<Closure>(closure)));
+  }
+  
   // Ownership of the task is passed to PostTask.
   void PostTask(std::unique_ptr<webrtc::QueuedTask> task);
 

@@ -151,10 +151,7 @@ void PacedSender::Process() {
 }
 
 void PacedSender::ProcessThreadAttached(ProcessThread* process_thread) {
-  //RTC_LOG(LS_INFO) << "ProcessThreadAttached 0x" << process_thread;
-  // proxy thread
-  //RTC_DCHECK(!process_thread || process_thread == process_thread_);
-  RTC_DCHECK(process_thread);
+  RTC_DCHECK(!process_thread || process_thread == process_thread_);
 }
 
 void PacedSender::SetQueueTimeLimit(TimeDelta limit) {

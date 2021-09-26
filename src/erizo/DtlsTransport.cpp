@@ -152,9 +152,9 @@ DtlsTransport::DtlsTransport(
   
   // We only use libnice connection
   ice_.reset(LibNiceConnection::create(iceConfig_, io_worker));
-  rtp_timeout_checker_.reset(new TimeoutChecker(this, dtlsRtp.get()));
+  rtp_timeout_checker_ = std::move(std::make_unique<TimeoutChecker>(this, dtlsRtp.get()));
   if (!rtcp_mux) {
-    rtcp_timeout_checker_.reset(new TimeoutChecker(this, dtlsRtcp.get()));
+    rtcp_timeout_checker_ = std::move(std::make_unique<TimeoutChecker>(this, dtlsRtcp.get()));
   }
   ELOG_DEBUG("%s message: created", toLog());
 }

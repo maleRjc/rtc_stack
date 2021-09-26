@@ -12,15 +12,14 @@
 
 #include <stdlib.h>
 #include <string.h>
-
 #include <algorithm>
 #include <memory>
 #include <set>
 #include <string>
 #include <utility>
+#include <optional>
 
 #include "absl/algorithm/container.h"
-#include "optional"
 #include "rtc_base/array_view.h"
 #include "api/frame_decryptor_interface.h"
 #include "api/encoded_image.h"
@@ -388,13 +387,10 @@ void VideoReceiveStream::Stop() {
   call_stats_->DeregisterStatsObserver(this);
 
   if (decoder_running_) {
-    rtc::Event done;
-    decode_queue_.PostTask([this, &done] {
+    decode_queue_.SendTask([this] {
       RTC_DCHECK_RUN_ON(&decode_queue_);
       decoder_stopped_ = true;
-      done.Set();
     });
-    done.Wait(rtc::Event::kForever);
 
     decoder_running_ = false;
     video_receiver_.DecoderThreadStopped();

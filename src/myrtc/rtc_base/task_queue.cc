@@ -10,6 +10,7 @@
 #include "rtc_base/task_queue.h"
 
 #include "api/task_queue_base.h"
+#include "rtc_base/event.h"
 
 namespace rtc {
 
@@ -27,6 +28,22 @@ TaskQueue::~TaskQueue() {
 
 bool TaskQueue::IsCurrent() const {
   return impl_->IsCurrent();
+}
+
+void TaskQueue::SendTask(std::unique_ptr<webrtc::QueuedTask> task) {
+
+  if (IsCurrent()) {
+    task->Run();
+    return;
+  }
+
+  rtc::Event done;
+  this->PostTask([&done, t=std::move(task)] {
+    t->Run();
+    done.Set();
+  });
+
+  done.Wait(rtc::Event::kForever);
 }
 
 void TaskQueue::PostTask(std::unique_ptr<webrtc::QueuedTask> task) {

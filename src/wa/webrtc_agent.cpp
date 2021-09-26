@@ -92,6 +92,7 @@ int WebrtcAgent::unpublish(const std::string& connectId)
     }
 
     pc = found->second;
+  
     peerConnections_.erase(found);
   }
 
