@@ -22,15 +22,14 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc,
   if (isPublish) {
     if (setting.is_audio) {
       audioFormat_ = setting.format;
-      audioFrameConstructor_.reset(new owt_base::AudioFrameConstructor());
+      audioFrameConstructor_ = std::move(std::make_unique<owt_base::AudioFrameConstructor>());
       audioFrameConstructor_->bindTransport(dynamic_cast<erizo::MediaSource*>(ms),
                                            dynamic_cast<erizo::FeedbackSink*>(ms));
       WLOG_DEBUG("set a ssrc %u", setting.ssrcs[0]);
       pc_->setAudioSsrc(mid_, setting.ssrcs[0]);
-
+      
     } else {
       videoFormat_ = setting.format;
-      
       owt_base::VideoFrameConstructor::config config;
       config.ssrc = setting.ssrcs[0];
       config.rtx_ssrc = setting.ssrcs[1];
@@ -41,20 +40,20 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc,
       config.transportcc = setting.transportcc;
       config.red_payload = setting.red?setting.red:-1;
       
-      videoFrameConstructor_.reset(
-          new owt_base::VideoFrameConstructor(pc, config, pc->worker_->getTaskQueue()));
+      videoFrameConstructor_ = std::move(std::make_unique<owt_base::VideoFrameConstructor>(
+          pc, config, pc->worker_->getTaskQueue()));
       videoFrameConstructor_->bindTransport(dynamic_cast<erizo::MediaSource*>(ms),
-                                           dynamic_cast<erizo::FeedbackSink*>(ms));
+                                            dynamic_cast<erizo::FeedbackSink*>(ms));
       pc_->setVideoSsrcList(mid_, setting.ssrcs);
     }
-    
   } else {
+    //subscribe
     if (setting.is_audio) {
       owt_base::AudioFramePacketizer::Config config;
       config.mid = setting.mid;
       config.midExtId = setting.mid_ext;
-      audioFramePacketizer_.reset(
-          new owt_base::AudioFramePacketizer(config, pc->worker_->getTaskQueue()));
+      audioFramePacketizer_ = std::move(std::make_unique<owt_base::AudioFramePacketizer>(
+          config, pc->worker_->getTaskQueue()));
       audioFramePacketizer_->bindTransport(dynamic_cast<erizo::MediaSink*>(ms));
       audioFormat_ = setting.format;
       
@@ -66,8 +65,8 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc,
       config.selfRequestKeyframe = true,
       config.mid = setting.mid,
       config.midExtId = setting.mid_ext;
-      videoFramePacketizer_.reset(
-          new owt_base::VideoFramePacketizer(config, pc->worker_->getTaskQueue()));
+      videoFramePacketizer_ = std::move(std::make_unique<owt_base::VideoFramePacketizer>(
+          config, pc->worker_->getTaskQueue()));
       videoFramePacketizer_->bindTransport(dynamic_cast<erizo::MediaSink*>(ms));
       videoFormat_ = setting.format;
     }

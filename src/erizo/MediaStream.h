@@ -49,14 +49,14 @@ class MediaStreamEventListener {
  * A MediaStream. This class represents a Media Stream that 
  * can be established with other peers via a SDP negotiation
  */
-class MediaStream : public MediaSink, 
-                    public MediaSource, 
-                    public FeedbackSink,
-                    public FeedbackSource, 
-                    public LogContext, 
-                    public HandlerManagerListener,
-                    public std::enable_shared_from_this<MediaStream>, 
-                    public Service {
+class MediaStream final : public MediaSink, 
+                          public MediaSource, 
+                          public FeedbackSink,
+                          public FeedbackSource, 
+                          public LogContext, 
+                          public HandlerManagerListener,
+                          public std::enable_shared_from_this<MediaStream>, 
+                          public Service {
   DECLARE_LOGGER();
   static log4cxx::LoggerPtr statsLogger;
 
@@ -110,7 +110,7 @@ class MediaStream : public MediaSink,
 
   void getJSONStats(std::function<void(std::string)> callback);
 
-  virtual void onTransportData(std::shared_ptr<DataPacket> packet, Transport *transport);
+  void onTransportData(std::shared_ptr<DataPacket> packet, Transport *transport);
 
   void sendPacketAsync(std::shared_ptr<DataPacket> packet);
 

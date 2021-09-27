@@ -18,7 +18,7 @@ namespace owt_base {
 class WebRTCTaskRunner {
 public:
     WebRTCTaskRunner(const char* task_name);
-    ~WebRTCTaskRunner();
+    ~WebRTCTaskRunner() = default;
 
     void Start();
     void Stop();
@@ -32,39 +32,30 @@ private:
 };
 
 inline WebRTCTaskRunner::WebRTCTaskRunner(const char* task_name)
-    : m_processThread(webrtc::ProcessThread::Create(task_name))
-{
+    : m_processThread(webrtc::ProcessThread::Create(task_name)) {
 }
 
-inline WebRTCTaskRunner::~WebRTCTaskRunner()
-{
-}
-
-inline void WebRTCTaskRunner::Start()
-{
+inline void WebRTCTaskRunner::Start() {
     m_processThread->Start();
 }
 
-inline void WebRTCTaskRunner::Stop()
-{
+inline void WebRTCTaskRunner::Stop() {
     m_processThread->Stop();
 }
 
-inline void WebRTCTaskRunner::RegisterModule(webrtc::Module* module)
-{
-    m_processThread->RegisterModule(module, RTC_FROM_HERE);
+inline void WebRTCTaskRunner::RegisterModule(webrtc::Module* module) {
+  m_processThread->RegisterModule(module, RTC_FROM_HERE);
 }
 
-inline void WebRTCTaskRunner::DeRegisterModule(webrtc::Module* module)
-{
-    m_processThread->DeRegisterModule(module);
+inline void WebRTCTaskRunner::DeRegisterModule(webrtc::Module* module) {
+  m_processThread->DeRegisterModule(module);
 }
 
-inline webrtc::ProcessThread* WebRTCTaskRunner::unwrap()
-{
-    return m_processThread.get();
+inline webrtc::ProcessThread* WebRTCTaskRunner::unwrap() {
+  return m_processThread.get();
 }
 
 } /* namespace owt_base */
 
 #endif /* WebRTCTaskRunner_h */
+

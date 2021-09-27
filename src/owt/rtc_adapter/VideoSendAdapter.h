@@ -20,67 +20,72 @@
 
 #include "owt_base/MediaFramePipeline.h"
 #include "owt_base/SsrcGenerator.h"
-#include "owt_base/WebRTCTaskRunner.h"
+#include "rtc_base/location.h"
+#include "utility/process_thread.h"
+
 
 namespace rtc_adapter {
 
 class VideoSendAdapterImpl : public VideoSendAdapter,
                              public webrtc::Transport,
                              public webrtc::RtcpIntraFrameObserver {
-public:
-    VideoSendAdapterImpl(CallOwner* owner, const RtcAdapter::Config& config);
-    ~VideoSendAdapterImpl();
+ public:
+  VideoSendAdapterImpl(CallOwner* owner, const RtcAdapter::Config& config);
+  ~VideoSendAdapterImpl();
 
-    // Implement VideoSendAdapter
-    void onFrame(const owt_base::Frame&) override;
-    int onRtcpData(char* data, int len) override;
-    void reset() override;
+  // Implement VideoSendAdapter
+  void onFrame(const owt_base::Frame&) override;
+  int onRtcpData(char* data, int len) override;
+  void reset() override;
 
-    uint32_t ssrc() { return m_ssrc; }
+  uint32_t ssrc() { return m_ssrc; }
 
-    // Implement webrtc::Transport
-    bool SendRtp(const uint8_t* packet,
-        size_t length,
-        const webrtc::PacketOptions& options) override;
-    bool SendRtcp(const uint8_t* packet, size_t length) override;
+  // Implement webrtc::Transport
+  bool SendRtp(const uint8_t* packet,
+               size_t length,
+               const webrtc::PacketOptions& options) override;
+  bool SendRtcp(const uint8_t* packet, size_t length) override;
 
-    // Implements webrtc::RtcpIntraFrameObserver.
-    void OnReceivedIntraFrameRequest(uint32_t ssrc);
-    void OnReceivedSLI(uint32_t ssrc, uint8_t picture_id) {}
-    void OnReceivedRPSI(uint32_t ssrc, uint64_t picture_id) {}
-    void OnLocalSsrcChanged(uint32_t old_ssrc, uint32_t new_ssrc) {}
+  // Implements webrtc::RtcpIntraFrameObserver.
+  void OnReceivedIntraFrameRequest(uint32_t ssrc);
+  void OnReceivedSLI(uint32_t ssrc, uint8_t picture_id) {}
+  void OnReceivedRPSI(uint32_t ssrc, uint64_t picture_id) {}
+  void OnLocalSsrcChanged(uint32_t old_ssrc, uint32_t new_ssrc) {}
 
-private:
-    bool init();
+ private:
+  bool init();
 
-    bool m_enableDump;
-    RtcAdapter::Config m_config;
+  bool m_enableDump;
+  RtcAdapter::Config m_config;
 
-    bool m_keyFrameArrived;
-    std::unique_ptr<webrtc::RateLimiter> m_retransmissionRateLimiter;
-    std::unique_ptr<webrtc::RtpRtcp> m_rtpRtcp;
+  bool m_keyFrameArrived;
+  std::unique_ptr<webrtc::RateLimiter> m_retransmissionRateLimiter;
+  std::unique_ptr<webrtc::RtpRtcp> m_rtpRtcp;
 
-    std::shared_ptr<owt_base::WebRTCTaskRunner> m_taskRunner;
-    owt_base::FrameFormat m_frameFormat;
-    uint16_t m_frameWidth;
-    uint16_t m_frameHeight;
-    webrtc::Random m_random;
-    uint32_t m_ssrc;
-    owt_base::SsrcGenerator* const m_ssrcGenerator;
+  owt_base::FrameFormat m_frameFormat;
+  uint16_t m_frameWidth;
+  uint16_t m_frameHeight;
+  webrtc::Random m_random;
+  uint32_t m_ssrc;
+  owt_base::SsrcGenerator* const m_ssrcGenerator;
 
-    webrtc::Clock* m_clock;
-    int64_t m_timeStampOffset;
+  webrtc::Clock* m_clock;
+  int64_t m_timeStampOffset;
 
-    std::unique_ptr<webrtc::RtcEventLog> m_eventLog;
-    std::unique_ptr<webrtc::RTPSenderVideo> m_senderVideo;
-    std::unique_ptr<webrtc::PlayoutDelayOracle> m_playoutDelayOracle;
-    std::unique_ptr<webrtc::FieldTrialBasedConfig> m_fieldTrialConfig;
+  std::unique_ptr<webrtc::RtcEventLog> m_eventLog;
+  std::unique_ptr<webrtc::RTPSenderVideo> m_senderVideo;
+  std::unique_ptr<webrtc::PlayoutDelayOracle> m_playoutDelayOracle;
+  std::unique_ptr<webrtc::FieldTrialBasedConfig> m_fieldTrialConfig;
 
-    // Listeners
-    AdapterFeedbackListener* m_feedbackListener;
-    AdapterDataListener* m_rtpListener;
-    AdapterStatsListener* m_statsListener;
+  // Listeners
+  AdapterFeedbackListener* m_feedbackListener;
+  AdapterDataListener* m_rtpListener;
+  AdapterStatsListener* m_statsListener;
+
+  //std::shared_ptr<owt_base::WebRTCTaskRunner> m_taskRunner;
+  std::unique_ptr<webrtc::ProcessThread> m_taskRunner;
 };
-}
+
+} //namespace owt
 
 #endif /* RTC_ADAPTER_VIDEO_SEND_ADAPTER_ */

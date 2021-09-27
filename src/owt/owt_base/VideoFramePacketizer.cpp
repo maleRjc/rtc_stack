@@ -18,24 +18,21 @@ static const int TRANSMISSION_MAXBITRATE_MULTIPLIER = 2;
 DEFINE_LOGGER(VideoFramePacketizer, "owt.VideoFramePacketizer");
 
 VideoFramePacketizer::VideoFramePacketizer(VideoFramePacketizer::Config& config, 
-                                           webrtc::TaskQueueBase* task_queue_base)
-  : m_rtcAdapter{RtcAdapterFactory::CreateRtcAdapter(task_queue_base)}
-{
+                                         webrtc::TaskQueueBase* task_queue_base)
+: m_rtcAdapter{RtcAdapterFactory::CreateRtcAdapter(task_queue_base)} {
   init(config);
 }
 
-VideoFramePacketizer::~VideoFramePacketizer()
-{
+VideoFramePacketizer::~VideoFramePacketizer() {
   close();
   if (m_videoSend) {
-      m_rtcAdapter->destoryVideoSender(m_videoSend);
-      m_rtcAdapter.reset();
-      m_videoSend = nullptr;
+    m_rtcAdapter->destoryVideoSender(m_videoSend);
+    m_rtcAdapter.reset();
+    m_videoSend = nullptr;
   }
 }
 
-bool VideoFramePacketizer::init(VideoFramePacketizer::Config& config)
-{
+bool VideoFramePacketizer::init(VideoFramePacketizer::Config& config) {
   if (!m_videoSend) {
     // Create Send Video Stream
     rtc_adapter::RtcAdapter::Config sendConfig;
@@ -58,8 +55,7 @@ bool VideoFramePacketizer::init(VideoFramePacketizer::Config& config)
   return false;
 }
 
-void VideoFramePacketizer::bindTransport(erizo::MediaSink* sink)
-{
+void VideoFramePacketizer::bindTransport(erizo::MediaSink* sink) {
   video_sink_ = sink;
   video_sink_->setVideoSinkSSRC(m_videoSend->ssrc());
   erizo::FeedbackSource* fbSource = video_sink_->getFeedbackSource();
@@ -67,15 +63,13 @@ void VideoFramePacketizer::bindTransport(erizo::MediaSink* sink)
       fbSource->setFeedbackSink(this);
 }
 
-void VideoFramePacketizer::unbindTransport()
-{
+void VideoFramePacketizer::unbindTransport() {
   if (video_sink_) {
-      video_sink_ = nullptr;
+    video_sink_ = nullptr;
   }
 }
 
-void VideoFramePacketizer::enable(bool enabled)
-{
+void VideoFramePacketizer::enable(bool enabled) {
   m_enabled = enabled;
   if (m_enabled) {
       m_sendFrameCount = 0;
@@ -85,78 +79,74 @@ void VideoFramePacketizer::enable(bool enabled)
   }
 }
 
-void VideoFramePacketizer::onFeedback(const FeedbackMsg& msg)
-{
+void VideoFramePacketizer::onFeedback(const FeedbackMsg& msg) {
   deliverFeedbackMsg(msg);
 }
 
-void VideoFramePacketizer::onAdapterStats(const AdapterStats& stats) {}
-
-void VideoFramePacketizer::onAdapterData(char* data, int len)
-{
-  if (!video_sink_) {
-      return;
-  }
-
-  video_sink_->deliverVideoData(std::make_shared<erizo::DataPacket>(0, data, len, erizo::VIDEO_PACKET));
+void VideoFramePacketizer::onAdapterStats(const AdapterStats& stats) {
 }
 
-void VideoFramePacketizer::onFrame(const Frame& frame)
-{
+void VideoFramePacketizer::onAdapterData(char* data, int len) {
+  if (!video_sink_) {
+    return;
+  }
+
+  video_sink_->deliverVideoData(std::make_shared<erizo::DataPacket>(
+      0, data, len, erizo::VIDEO_PACKET));
+}
+
+void VideoFramePacketizer::onFrame(const Frame& frame) {
   if (!m_enabled) {
-      return;
+    return;
   }
 
   if (m_selfRequestKeyframe) {
-      //FIXME: This is a workround for peer client not send key-frame-request
-      if (m_sendFrameCount < 151) {
-          if ((m_sendFrameCount == 10)
-              || (m_sendFrameCount == 30)
-              || (m_sendFrameCount == 60)
-              || (m_sendFrameCount == 150)) {
-              // ELOG_DEBUG("Self generated key-frame-request.");
-              FeedbackMsg feedback = {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
-              deliverFeedbackMsg(feedback);
-          }
-          m_sendFrameCount += 1;
+    //FIXME: This is a workround for peer client not send key-frame-request
+    if (m_sendFrameCount < 151) {
+      if ((m_sendFrameCount == 10)
+        || (m_sendFrameCount == 30)
+        || (m_sendFrameCount == 60)
+        || (m_sendFrameCount == 150)) {
+        // ELOG_DEBUG("Self generated key-frame-request.");
+        FeedbackMsg feedback = {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
+        deliverFeedbackMsg(feedback);
       }
+      m_sendFrameCount += 1;
+    }
   }
 
   if (m_videoSend) {
-      m_videoSend->onFrame(frame);
+    m_videoSend->onFrame(frame);
   }
 }
 
-void VideoFramePacketizer::onVideoSourceChanged()
-{
+void VideoFramePacketizer::onVideoSourceChanged() {
   if (m_videoSend) {
-      m_videoSend->reset();
+    m_videoSend->reset();
   }
 }
 
-int VideoFramePacketizer::sendFirPacket()
-{
+int VideoFramePacketizer::sendFirPacket() {
   FeedbackMsg feedback = {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
   deliverFeedbackMsg(feedback);
   return 0;
 }
 
-void VideoFramePacketizer::close()
-{
+void VideoFramePacketizer::close() {
   unbindTransport();
 }
 
-int VideoFramePacketizer::deliverFeedback_(std::shared_ptr<erizo::DataPacket> data_packet)
-{
+int VideoFramePacketizer::deliverFeedback_(std::shared_ptr<erizo::DataPacket> data_packet) {
   if (m_videoSend) {
-      m_videoSend->onRtcpData(data_packet->data, data_packet->length);
-      return data_packet->length;
+    m_videoSend->onRtcpData(data_packet->data, data_packet->length);
+    return data_packet->length;
   }
   return 0;
 }
 
-int VideoFramePacketizer::sendPLI()
-{
+int VideoFramePacketizer::sendPLI() {
   return 0;
 }
-}
+
+} //namespace owt
+

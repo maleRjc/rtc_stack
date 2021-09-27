@@ -21,8 +21,7 @@ WebrtcAgent::WebrtcAgent() = default;
 WebrtcAgent::~WebrtcAgent() = default;
 
 int WebrtcAgent::initiate(uint32_t num_workers, 
-  const std::vector<std::string>& ip_addresses, const std::string& service_addr)
-{
+  const std::vector<std::string>& ip_addresses, const std::string& service_addr) {
   if(ip_addresses.empty()){
     return wa_e_invalid_param;
   }
@@ -51,8 +50,7 @@ int WebrtcAgent::initiate(uint32_t num_workers,
   return wa_ok;
 }
 
-int WebrtcAgent::publish(TOption& options, const std::string& offer)
-{
+int WebrtcAgent::publish(TOption& options, const std::string& offer) {
   {
     std::lock_guard<std::mutex> guard(pcLock_);
     auto found = peerConnections_.find(options.connectId_);
@@ -80,8 +78,7 @@ int WebrtcAgent::publish(TOption& options, const std::string& offer)
   return code;
 }
 
-int WebrtcAgent::unpublish(const std::string& connectId)
-{
+int WebrtcAgent::unpublish(const std::string& connectId) {
   std::shared_ptr<WrtcAgentPc> pc;
   {
     std::lock_guard<std::mutex> guard(pcLock_);
@@ -100,8 +97,14 @@ int WebrtcAgent::unpublish(const std::string& connectId)
   return wa_ok;
 }
 
-std::unique_ptr<rtc_api> AgentFactory::create_agent()
-{
+void WebrtcAgent::subscribe(std::string& connectId, const std::string& offer) {
+  
+}
+
+void WebrtcAgent::linkup(int connectId, WebrtcAgentSink*) {
+}
+
+std::unique_ptr<rtc_api> AgentFactory::create_agent() {
   return std::make_unique<WebrtcAgent>();
 }
 

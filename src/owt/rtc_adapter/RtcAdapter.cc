@@ -40,6 +40,7 @@ public:
 
   // Implement CallOwner
   std::shared_ptr<webrtc::Call> call() override { return m_call; }
+  std::shared_ptr<rtc::TaskQueue> taskQueue() override { return m_taskQueue; }
   std::shared_ptr<webrtc::RtcEventLog> eventLog() override { return m_eventLog; }
 
 private:

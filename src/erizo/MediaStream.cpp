@@ -556,7 +556,7 @@ void MediaStream::sendPacketAsync(std::shared_ptr<DataPacket> packet) {
     return;
   }
 
-  //changeDeliverPayloadType(packet.get(), packet->type);
+  changeDeliverPayloadType(packet.get(), packet->type);
   sendPacket(packet);
 }
 
@@ -635,16 +635,16 @@ void MediaStream::changeDeliverPayloadType(DataPacket *dp, packetType type) {
   RtpHeader* h = reinterpret_cast<RtpHeader*>(dp->data);
   RtcpHeader *chead = reinterpret_cast<RtcpHeader*>(dp->data);
   if (!chead->isRtcp()) {
-      int internalPT = h->getPayloadType();
-      int externalPT = internalPT;
-      if (type == AUDIO_PACKET) {
-          externalPT = remote_sdp_->getAudioExternalPT(internalPT);
-      } else if (type == VIDEO_PACKET) {
-          externalPT = remote_sdp_->getVideoExternalPT(externalPT);
-      }
-      if (internalPT != externalPT) {
-          h->setPayloadType(externalPT);
-      }
+    int internalPT = h->getPayloadType();
+    int externalPT = internalPT;
+    if (type == AUDIO_PACKET) {
+        externalPT = remote_sdp_->getAudioExternalPT(internalPT);
+    } else if (type == VIDEO_PACKET) {
+        externalPT = remote_sdp_->getVideoExternalPT(externalPT);
+    }
+    if (internalPT != externalPT) {
+        h->setPayloadType(externalPT);
+    }
   }
 }
 

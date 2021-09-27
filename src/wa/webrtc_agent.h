@@ -28,15 +28,15 @@ public:
   int initiate(uint32_t num_workers, 
       const std::vector<std::string>& ip_addresses, const std::string& service_addr);
 
-  int publish(TOption&, const std::string& offer);
+  int publish(TOption&, const std::string& offer) override;
 
-  int unpublish(const std::string& connectId);
+  int unpublish(const std::string& connectId) override;
 
-  void subscribe(std::string& connectId, const std::string& offer) { }
+  void subscribe(std::string& connectId, const std::string& offer) override;
   
   void unsubscribe(const std::string& connectId) { }
 
-  void linkup(int connectId, WebrtcAgentSink*) { }
+  void linkup(int connectId, WebrtcAgentSink*) override;
 
   void cutoff(std::string& connectId) { }
 
