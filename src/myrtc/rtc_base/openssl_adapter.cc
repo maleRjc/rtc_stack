@@ -395,6 +395,7 @@ int OpenSSLAdapter::ContinueSSL() {
         return -1;
       }
 
+      RTC_LOG(LS_INFO) << "SSL_ERROR_NONE stat=SSL_CONNECTED";
       state_ = SSL_CONNECTED;
       AsyncSocketAdapter::OnConnectEvent(this);
       // TODO(benwright): Refactor this code path.
@@ -415,6 +416,7 @@ int OpenSSLAdapter::ContinueSSL() {
         Thread::Current()->PostDelayed(RTC_FROM_HERE, delay, this, MSG_TIMEOUT,
                                        0);
       }
+      RTC_LOG(LS_INFO) << "SSL_ERROR_WANT_READ";
       break;
 
     case SSL_ERROR_WANT_WRITE:

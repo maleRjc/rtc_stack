@@ -146,16 +146,28 @@ std::unique_ptr<OpenSSLCertificate> OpenSSLCertificate::Generate(
 
 std::unique_ptr<OpenSSLCertificate> OpenSSLCertificate::FromPEMString(
     const std::string& pem_string) {
+
+#ifdef READ_FROM_BIO    
   BIO* bio = BIO_new_mem_buf(const_cast<char*>(pem_string.c_str()), -1);
   if (!bio) {
+    RTC_LOG(LS_ERROR) << "Failed to create a new BIO buffer.";
     return nullptr;
   }
-
   BIO_set_mem_eof_return(bio, 0);
   X509* x509 =
       PEM_read_bio_X509(bio, nullptr, nullptr, const_cast<char*>("\0"));
   BIO_free(bio);  // Frees the BIO, but not the pointed-to string.
+#else
+  FILE* pf = fopen(pem_string.c_str(), "r");
+  if (!pf) {
+    RTC_LOG(LS_ERROR) << "open " << pem_string << " failed, errno" << errno;
+    return nullptr;
+  }
 
+  X509* x509 =
+      PEM_read_X509(pf, nullptr, nullptr, const_cast<char*>("\0"));
+  fclose(pf);
+#endif
   if (!x509) {
     return nullptr;
   }

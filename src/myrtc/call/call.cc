@@ -11,7 +11,6 @@
 #include "call.h"
 
 #include <string.h>
-
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -22,11 +21,7 @@
 #include "optional"
 #include "api/rtc_event_log.h"
 #include "api/network_control.h"
- //#include "audio/audio_receive_stream.h"
-//#include "audio/audio_send_stream.h"
-//#include "audio/audio_state.h"
 #include "call/bitrate_allocator.h"
-//#include "call/flexfec_receive_stream_impl.h"
 #include "call/receive_time_calculator.h"
 #include "call/rtp_stream_receiver_controller.h"
 #include "call/rtp_transport_controller_send.h"
@@ -62,7 +57,6 @@
 #include "video/send_delay_stats.h"
 #include "video/stats_counter.h"
 #include "video/video_receive_stream.h"
-//#include "video/video_send_stream.h"
 
 namespace webrtc {
 
@@ -127,6 +121,7 @@ std::unique_ptr<rtclog::StreamConfig> CreateRtcLogStreamConfig(
   return rtclog_config;
 }
 
+/*
 std::unique_ptr<rtclog::StreamConfig> CreateRtcLogStreamConfig(
     const VideoSendStream::Config& config,
     size_t ssrc_index) {
@@ -144,7 +139,6 @@ std::unique_ptr<rtclog::StreamConfig> CreateRtcLogStreamConfig(
   return rtclog_config;
 }
 
-/*
 std::unique_ptr<rtclog::StreamConfig> CreateRtcLogStreamConfig(
     const AudioReceiveStream::Config& config) {
   auto rtclog_config = std::make_unique<rtclog::StreamConfig>();
@@ -187,10 +181,10 @@ class Call final : public webrtc::Call,
   //void DestroyAudioReceiveStream(
   //    webrtc::AudioReceiveStream* receive_stream) override;
 
-  webrtc::VideoSendStream* CreateVideoSendStream(
-      webrtc::VideoSendStream::Config config,
-      VideoEncoderConfig encoder_config) override;
-  void DestroyVideoSendStream(webrtc::VideoSendStream* send_stream) override;
+  //webrtc::VideoSendStream* CreateVideoSendStream(
+  //    webrtc::VideoSendStream::Config config,
+  //    VideoEncoderConfig encoder_config) override;
+  //void DestroyVideoSendStream(webrtc::VideoSendStream* send_stream) override;
 
   webrtc::VideoReceiveStream* CreateVideoReceiveStream(
       webrtc::VideoReceiveStream::Config configuration) override;
@@ -720,12 +714,11 @@ void Call::DestroyAudioReceiveStream(
   delete audio_receive_stream;
 
 }
-#endif
 
 webrtc::VideoSendStream* Call::CreateVideoSendStream(
     webrtc::VideoSendStream::Config config,
     VideoEncoderConfig encoder_config) {
-#if 0
+
     
   if (config_.fec_controller_factory) {
     RTC_LOG(LS_INFO) << "External FEC Controller will be used.";
@@ -736,12 +729,12 @@ webrtc::VideoSendStream* Call::CreateVideoSendStream(
           : std::make_unique<FecControllerDefault>(clock_);
   return CreateVideoSendStream(std::move(config), std::move(encoder_config),
                                std::move(fec_controller));
-#endif
+
   return nullptr;
 }
 
 void Call::DestroyVideoSendStream(webrtc::VideoSendStream* send_stream) {
-#if 0
+
   TRACE_EVENT0("webrtc", "Call::DestroyVideoSendStream");
   RTC_DCHECK(send_stream != nullptr);
   RTC_DCHECK_RUN_ON(&configuration_sequence_checker_);
@@ -777,8 +770,8 @@ void Call::DestroyVideoSendStream(webrtc::VideoSendStream* send_stream) {
 
   UpdateAggregateNetworkState();
   delete send_stream_impl;
-#endif
 }
+#endif
 
 webrtc::VideoReceiveStream* Call::CreateVideoReceiveStream(
     webrtc::VideoReceiveStream::Config configuration) {

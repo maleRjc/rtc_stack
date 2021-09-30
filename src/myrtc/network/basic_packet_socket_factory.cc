@@ -62,24 +62,19 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateServerTcpSocket(
     const SocketAddress& local_address,
     uint16_t min_port,
     uint16_t max_port,
-    int opts) {
-  // Fail if TLS is required.
-  if (opts & PacketSocketFactory::OPT_TLS) {
-    RTC_LOG(LS_ERROR) << "TLS support currently is not available.";
-    return NULL;
-  }
-
+    const PacketSocketServerOptions& option) {
   AsyncSocket* socket =
       socket_factory()->CreateAsyncSocket(local_address.family(), SOCK_STREAM);
   if (!socket) {
     return NULL;
   }
 
-  if (opts & PacketSocketFactory::OPT_ADDRESS_REUSE) {
+  if (option.opts & PacketSocketFactory::OPT_ADDRESS_REUSE) {
     int reuse = 1;
     if (socket->GetLocalAddress().family() != PF_UNIX && 
         socket->SetOption(Socket::OPT_REUSEADDR, reuse) < 0) {
-      RTC_LOG(LS_ERROR) << "set OPT_ADDRESS_REUSE with error " << socket->GetError();
+      RTC_LOG(LS_ERROR) << "set OPT_ADDRESS_REUSE with error " 
+                        << socket->GetError();
     }
   }
   
@@ -90,8 +85,8 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateServerTcpSocket(
   }
 
   // If using fake TLS, wrap the TCP socket in a pseudo-SSL socket.
-  if (opts & PacketSocketFactory::OPT_TLS_FAKE) {
-    RTC_DCHECK(!(opts & PacketSocketFactory::OPT_TLS));
+  if (option.opts & PacketSocketFactory::OPT_TLS_FAKE) {
+    RTC_DCHECK(!(option.opts & PacketSocketFactory::OPT_TLS));
     socket = new AsyncSSLSocket(socket);
   }
 
@@ -99,10 +94,33 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateServerTcpSocket(
   // See http://go/gtalktcpnodelayexperiment
   socket->SetOption(Socket::OPT_NODELAY, 1);
 
-  if (opts & PacketSocketFactory::OPT_STUN)
+  if ((option.opts & PacketSocketFactory::OPT_TLS) ||
+      (option.opts & PacketSocketFactory::OPT_TLS_INSECURE)) {
+    rtc::SSLAdapter* ssl_adapter = rtc::SSLAdapter::Create(socket);
+
+    if (NULL == ssl_adapter) {
+      delete socket;
+      return NULL;
+    }
+    
+    ssl_adapter->SetRole(rtc::SSL_SERVER);
+    
+    ssl_adapter->SetIdentity(
+        rtc::SSLIdentity::FromPEMStrings(option.https_private_key, 
+                                         option.https_certificate));
+
+    if (option.opts & PacketSocketFactory::OPT_TLS_INSECURE) {
+      ssl_adapter->SetIgnoreBadCert(true);
+    }
+
+    //TODO support custom SSL certificate verifier
+    socket = ssl_adapter;
+  }
+
+  if (option.opts & PacketSocketFactory::OPT_STUN)
     return new cricket::AsyncStunTCPSocket(socket, true);
 
-  if (opts & PacketSocketFactory::OPT_RAW) {
+  if (option.opts & PacketSocketFactory::OPT_RAW) {
     return new AsyncRawTCPSocket(socket, true);
   }
 

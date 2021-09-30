@@ -36,8 +36,16 @@ struct PacketSocketTcpOptions {
   SSLCertificateVerifier* tls_cert_verifier = nullptr;
 };
 
+struct PacketSocketServerOptions {
+  int opts = 0;
+  std::string https_private_key;  // server.key path
+  std::string https_certificate;  //server.crt path
+};
+
+
 class RTC_EXPORT PacketSocketFactory {
  public:
+  //tcp only
   enum Options {
     OPT_STUN = 0x04,
 
@@ -48,8 +56,6 @@ class RTC_EXPORT PacketSocketFactory {
 
     OPT_RAW = 0x10,   // tcp raw stream
     OPT_ADDRESS_REUSE = 0x20, // tcp reuse address
-    // Deprecated, use OPT_TLS_FAKE.
-    OPT_SSLTCP = OPT_TLS_FAKE,
   };
 
   PacketSocketFactory() = default;
@@ -62,7 +68,7 @@ class RTC_EXPORT PacketSocketFactory {
       const SocketAddress& local_address,
       uint16_t min_port,
       uint16_t max_port,
-      int opts) = 0;
+      const PacketSocketServerOptions& option) = 0;
 
   virtual AsyncPacketSocket* CreateClientTcpSocket(
       const SocketAddress& local_address,

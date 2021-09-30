@@ -103,6 +103,8 @@ OpenSSLKeyPair* OpenSSLKeyPair::Generate(const KeyParams& key_params) {
 
 OpenSSLKeyPair* OpenSSLKeyPair::FromPrivateKeyPEMString(
     const std::string& pem_string) {
+
+#ifdef READ_FROM_BIO    
   BIO* bio = BIO_new_mem_buf(const_cast<char*>(pem_string.c_str()), -1);
   if (!bio) {
     RTC_LOG(LS_ERROR) << "Failed to create a new BIO buffer.";
@@ -112,6 +114,19 @@ OpenSSLKeyPair* OpenSSLKeyPair::FromPrivateKeyPEMString(
   EVP_PKEY* pkey =
       PEM_read_bio_PrivateKey(bio, nullptr, nullptr, const_cast<char*>("\0"));
   BIO_free(bio);  // Frees the BIO, but not the pointed-to string.
+#else
+  FILE* pf = fopen(pem_string.c_str(), "r");
+  if (!pf) {
+    RTC_LOG(LS_ERROR) << "open " << pem_string << " failed, errno" << errno;
+    return nullptr;
+  }
+  
+  EVP_PKEY* pkey =
+      PEM_read_PrivateKey(pf, nullptr, nullptr, const_cast<char*>("\0"));
+
+  fclose(pf);
+#endif
+  
   if (!pkey) {
     RTC_LOG(LS_ERROR) << "Failed to create the private key from PEM string.";
     return nullptr;

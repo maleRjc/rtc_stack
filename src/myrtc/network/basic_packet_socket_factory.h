@@ -31,10 +31,12 @@ class BasicPacketSocketFactory : public PacketSocketFactory {
   AsyncPacketSocket* CreateUdpSocket(const SocketAddress& local_address,
                                      uint16_t min_port,
                                      uint16_t max_port) override;
-  AsyncPacketSocket* CreateServerTcpSocket(const SocketAddress& local_address,
-                                           uint16_t min_port,
-                                           uint16_t max_port,
-                                           int opts) override;
+  AsyncPacketSocket* CreateServerTcpSocket(
+      const SocketAddress& local_address,
+      uint16_t min_port,
+      uint16_t max_port,
+      const PacketSocketServerOptions& option) override;
+      
   AsyncPacketSocket* CreateClientTcpSocket(
       const SocketAddress& local_address,
       const SocketAddress& remote_address,
