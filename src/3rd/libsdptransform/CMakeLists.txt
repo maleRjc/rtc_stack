@@ -8,7 +8,7 @@ else()
   set(CMAKE_CXX_FLAGS "$ENV{CXXFLAGS} -O3 ${WA_CMAKE_CXX_FLAGS}")
 endif()
 
-message("Generating libsdotrabsform ${WA_BUILD_TYPE} project with ${CMAKE_CXX_FLAGS}")
+message("Generating libsdptransform ${WA_BUILD_TYPE} project with ${CMAKE_CXX_FLAGS}")
 
 #link_libraries("-lboost_regex")
 

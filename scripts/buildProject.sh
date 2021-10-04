@@ -70,12 +70,12 @@ gen_lib() {
 	pushd
 }
 
-OS=`$PATHNAME/detectOS.sh | awk '{print tolower($0)}'`
-echo $PATHNAME
+OS=`./detectOS.sh | awk '{print tolower($0)}'`
+echo $OS
 
-#if [[ "$OS" =~ .*centos.* ]];then
+if [[ "$OS" =~ .*centos.* ]];then
   source scl_source enable devtoolset-7
-#fi
+fi
 
 export PATH=$PATH:/$(pwd)/build/libdeps/build/ninja
 
