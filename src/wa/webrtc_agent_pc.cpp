@@ -13,8 +13,10 @@ static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("wa.pc");
 
 /////////////////////////////
 //WebrtcTrack
-WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc, 
-                                      bool isPublish, const media_setting& setting,
+WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, 
+                                      WrtcAgentPc* pc, 
+                                      bool isPublish, 
+                                      const media_setting& setting,
                                       erizo::MediaStream* ms)
   : pc_(pc), mid_(mid) {
   OLOG_TRACE_THIS("WebrtcTrack ctor mid:" << mid);
@@ -22,12 +24,13 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc,
   if (isPublish) {
     if (setting.is_audio) {
       audioFormat_ = setting.format;
-      audioFrameConstructor_ = std::move(std::make_unique<owt_base::AudioFrameConstructor>());
-      audioFrameConstructor_->bindTransport(dynamic_cast<erizo::MediaSource*>(ms),
-                                           dynamic_cast<erizo::FeedbackSink*>(ms));
-      WLOG_DEBUG("set a ssrc %u", setting.ssrcs[0]);
+      audioFrameConstructor_ = 
+          std::move(std::make_unique<owt_base::AudioFrameConstructor>());
+      audioFrameConstructor_->bindTransport(
+          dynamic_cast<erizo::MediaSource*>(ms),
+          dynamic_cast<erizo::FeedbackSink*>(ms));
       pc_->setAudioSsrc(mid_, setting.ssrcs[0]);
-      
+      name_ = "audio";
     } else {
       videoFormat_ = setting.format;
       owt_base::VideoFrameConstructor::config config;
@@ -40,11 +43,16 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc,
       config.transportcc = setting.transportcc;
       config.red_payload = setting.red?setting.red:-1;
       
-      videoFrameConstructor_ = std::move(std::make_unique<owt_base::VideoFrameConstructor>(
-          pc, config, pc->worker_->getTaskQueue()));
-      videoFrameConstructor_->bindTransport(dynamic_cast<erizo::MediaSource*>(ms),
-                                            dynamic_cast<erizo::FeedbackSink*>(ms));
+      videoFrameConstructor_ = 
+          std::move(std::make_unique<owt_base::VideoFrameConstructor>(
+              pc, 
+              config, 
+              pc->worker_->getTaskQueue()));
+      videoFrameConstructor_->bindTransport(
+          dynamic_cast<erizo::MediaSource*>(ms),
+          dynamic_cast<erizo::FeedbackSink*>(ms));
       pc_->setVideoSsrcList(mid_, setting.ssrcs);
+      name_ = "video";
     }
   } else {
     //subscribe
@@ -52,11 +60,12 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc,
       owt_base::AudioFramePacketizer::Config config;
       config.mid = setting.mid;
       config.midExtId = setting.mid_ext;
-      audioFramePacketizer_ = std::move(std::make_unique<owt_base::AudioFramePacketizer>(
-          config, pc->worker_->getTaskQueue()));
+      audioFramePacketizer_ = 
+          std::move(std::make_shared<owt_base::AudioFramePacketizer>(
+              config, pc->worker_->getTaskQueue()));
       audioFramePacketizer_->bindTransport(dynamic_cast<erizo::MediaSink*>(ms));
       audioFormat_ = setting.format;
-      
+      name_ = "audio";
     } else {
       owt_base::VideoFramePacketizer::Config config;
       config.Red = setting.red, 
@@ -65,10 +74,12 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid, WrtcAgentPc* pc,
       config.selfRequestKeyframe = true,
       config.mid = setting.mid,
       config.midExtId = setting.mid_ext;
-      videoFramePacketizer_ = std::move(std::make_unique<owt_base::VideoFramePacketizer>(
-          config, pc->worker_->getTaskQueue()));
+      videoFramePacketizer_ = 
+          std::move(std::make_shared<owt_base::VideoFramePacketizer>(
+              config, pc->worker_->getTaskQueue()));
       videoFramePacketizer_->bindTransport(dynamic_cast<erizo::MediaSink*>(ms));
       videoFormat_ = setting.format;
+      name_ = "video";
     }
   }
 }
@@ -86,7 +97,8 @@ uint32_t WrtcAgentPc::WebrtcTrack::ssrc(bool isAudio) {
   return 0;
 }
 
-void WrtcAgentPc::WebrtcTrack::addDestination(bool isAudio, owt_base::FrameDestination* dest) {
+void WrtcAgentPc::WebrtcTrack::addDestination(
+    bool isAudio, owt_base::FrameDestination* dest) {
   OLOG_TRACE_THIS((isAudio?"a":"v") << ", dest:" << dest);
   if (isAudio && audioFrameConstructor_) {
     audioFrameConstructor_->addAudioDestination(dest);
@@ -95,7 +107,8 @@ void WrtcAgentPc::WebrtcTrack::addDestination(bool isAudio, owt_base::FrameDesti
   }
 }
 
-void WrtcAgentPc::WebrtcTrack::removeDestination(bool isAudio, owt_base::FrameDestination* dest) {
+void WrtcAgentPc::WebrtcTrack::removeDestination(
+    bool isAudio, owt_base::FrameDestination* dest) {
   OLOG_TRACE_THIS((isAudio?"a":"v") << ", dest:" << dest);
   if (isAudio && audioFrameConstructor_) {
     audioFrameConstructor_->removeAudioDestination(dest);
@@ -104,8 +117,7 @@ void WrtcAgentPc::WebrtcTrack::removeDestination(bool isAudio, owt_base::FrameDe
   } 
 }
 
-owt_base::FrameDestination* WrtcAgentPc::WebrtcTrack::receiver(bool isAudio) 
-{
+owt_base::FrameDestination* WrtcAgentPc::WebrtcTrack::receiver(bool isAudio) {
   owt_base::FrameDestination* dest = nullptr;
   if (isAudio) {
     dest = audioFramePacketizer_.get();
@@ -115,7 +127,8 @@ owt_base::FrameDestination* WrtcAgentPc::WebrtcTrack::receiver(bool isAudio)
   return dest;
 }
 
-srs_error_t WrtcAgentPc::WebrtcTrack::trackControl(ETrackCtrl track, bool isIn, bool isOn) {
+srs_error_t WrtcAgentPc::WebrtcTrack::trackControl(
+    ETrackCtrl track, bool isIn, bool isOn) {
   bool trackUpdate = false;
   if (track == e_av || track == e_audio) {
     if (isIn && audioFrameConstructor_) {
@@ -227,7 +240,7 @@ void WrtcAgentPc::close() {
   std::shared_ptr<WebrtcAgentSink> nul_sink;
   std::atomic_store<WebrtcAgentSink>(&sink_, nul_sink);
   
-  worker_->task([shared_this=shared_from_this()] {
+  worker_->task([shared_this = shared_from_this()] {
     shared_this->close_i();
   });
 }
@@ -254,12 +267,7 @@ srs_error_t WrtcAgentPc::addTrackOperation(const std::string& mid,
 }
 
 void WrtcAgentPc::signalling(const std::string& signal, const std::string& content) {
-  std::weak_ptr<WrtcAgentPc> weak_ptr = weak_from_this();
-  asyncTask([weak_ptr, signal, content](std::shared_ptr<WrtcAgentPc>){
-    auto this_ptr = weak_ptr.lock();
-    if (!this_ptr){
-      return;
-    }
+  asyncTask([signal, content](std::shared_ptr<WrtcAgentPc> this_ptr){
     srs_error_t result = srs_success;  
     if (signal == "offer") {
       result = this_ptr->processOffer(content);
@@ -479,7 +487,6 @@ srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
 
   auto& rids = media.rids_;
   std::string direction = (opSettings.sdp_direction_ == "sendonly") ? "in" : "out";
-  //const simSsrcs = remoteSdp.getLegacySimulcast(mid);
   media_setting trackSetting = media.get_media_settings();
   
   if (opSettings.final_format_) {
@@ -490,30 +497,32 @@ srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
     // No simulcast    
     auto track_found = track_map_.find(media.mid_);
     if(track_found == track_map_.end()){
-      // Set ssrc in local sdp for out direction
-      if (direction == "in") {
-
-        WebrtcTrack* ret = addTrack(media.mid_, trackSetting, (direction=="in"?true:false));
+      WebrtcTrack* track = 
+          addTrack(media.mid_, trackSetting, (direction=="in"?true:false));
      
-        uint32_t ssrc = ret->ssrc(trackSetting.is_audio);
-        if(ssrc){
-          ELOG_INFO("Add ssrc %u to %s in SDP for %s", ssrc, media.mid_.c_str(), id_.c_str());
-          
-          const std::string& opId = opSettings.operation_id_;
-          auto msid_found = msid_map_.find(opId);
-          if (msid_found != msid_map_.end()){
-            media.setSsrcs(std::vector<uint32_t>(ssrc), msid_found->second);
-          }else{
-            std::string msid = media.setSsrcs(std::vector<uint32_t>(ssrc), "");
-            msid_map_.insert(std::make_pair(opId, msid));
-          }
+      uint32_t ssrc = track->ssrc(trackSetting.is_audio);
+      if(ssrc){
+        ELOG_INFO("Add ssrc %u to %s in SDP for %s", 
+                  ssrc, media.mid_.c_str(), id_.c_str());
+        
+        const std::string& opId = opSettings.operation_id_;
+        auto msid_found = msid_map_.find(opId);
+        if (msid_found != msid_map_.end()){
+          media.setSsrcs(std::vector<uint32_t>{ssrc,}, msid_found->second);
+        } else {
+          std::string msid = media.setSsrcs(std::vector<uint32_t>{ssrc,}, "");
+          msid_map_.insert(std::make_pair(opId, std::move(msid)));
         }
-
-        ret->addDestination(trackSetting.is_audio, this);
       }
-      connection_->setRemoteSdp(remote_sdp_->singleMediaSdp(media.mid_), media.mid_);
+      
+      if (direction == "in") {
+        // TODO choise
+        track->addDestination(trackSetting.is_audio, this);
+      }
+      connection_->setRemoteSdp(
+          remote_sdp_->singleMediaSdp(media.mid_), media.mid_);
     } else {
-      result = srs_error_new(wa_e_found, "Conflict trackId %s for %s", 
+      result = srs_error_new(wa_e_found, "Conflict trackId %s with %s", 
                              media.mid_.c_str(), id_.c_str());
     }
   }else {
@@ -547,11 +556,76 @@ srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
   return result;
 }
 
+void WrtcAgentPc::Subscribe(std::shared_ptr<WrtcAgentPc> subscriber) {
+  OLOG_TRACE_THIS("s:" << id_ << " d:" << subscriber->id());
+  subscribe_i(std::move(subscriber), true);
+}
+
+void WrtcAgentPc::unSubscribe(std::shared_ptr<WrtcAgentPc> subscriber) {
+  OLOG_TRACE_THIS("s:" << id_ << " d:" << subscriber->id());
+  subscribe_i(std::move(subscriber), false);
+}
+
+void WrtcAgentPc::subscribe_i(
+    std::shared_ptr<WrtcAgentPc> sub_pc, bool isSub) {
+  asyncTask([sub_pc, isSub] (std::shared_ptr<WrtcAgentPc> this_pc) {
+    
+    WebrtcTrack* dest_track = nullptr;
+    WebrtcTrack* src_track = nullptr;
+    bool isAudio = true;
+    owt_base::FrameDestination* receiver = nullptr;
+    auto& dest_tracks = sub_pc->getTracks();
+
+    if (dest_tracks.empty()) {
+      OLOG_ERROR("dest tracks empty! s:" << this_pc->id() << 
+                 " d:" << sub_pc->id());
+    }
+    
+    // add or remove FrameDestination by name
+    for (auto& i : dest_tracks) {
+      std::string track_name = i.second->getName();
+      isAudio = i.second->isAudio();
+      src_track = this_pc->getTrack(track_name);
+      dest_track = sub_pc->getTrack(track_name);
+      if (!src_track) {
+        OLOG_ERROR(track_name << (isSub?" sub":" unsub") << 
+                   ", src track not found! s:" << 
+                   this_pc->id() << " d:" << sub_pc->id());
+        continue;
+      }
+      
+      if (!dest_track) {
+        OLOG_ERROR(track_name << (isSub?" sub":" unsub") << 
+                   ", dest track not found! s:" << 
+                   this_pc->id() << " d:" << sub_pc->id());
+        continue;
+      }
+
+      receiver = dest_track->receiver(isAudio);
+      if (!receiver) {
+        OLOG_ERROR(track_name << (isSub?" sub":" unsub") << 
+                   ", dest track receiver not found! s:" << 
+                   this_pc->id() << " d:" << sub_pc->id());
+        continue;
+      }
+      
+      if (isSub) {
+        OLOG_INFO(track_name << " sub, s:" << 
+                  this_pc->id() << " d:" << sub_pc->id());
+        src_track->addDestination(isAudio, receiver);
+      } else {
+        OLOG_INFO(track_name << " unsub, s:" << 
+                  this_pc->id() << " d:" << sub_pc->id());
+        src_track->removeDestination(isAudio, receiver);
+      }
+    }
+  });
+}
+
 WrtcAgentPc::WebrtcTrack* WrtcAgentPc::addTrack(
     const std::string& mid, const media_setting& trackSetting, bool isPublish) {
-  ELOG_TRACE("message: addTrack %s, connectionId:%s mediaStreamId:%s", 
-      (isPublish?"p": "s"), id_.c_str(), mid.c_str());
-
+  OLOG_TRACE_THIS( (isPublish?"p": "s") << 
+      " connectionId:" << id_ << ", mediaStreamId:%s" << mid);
   WebrtcTrack* result = nullptr;
 
   auto found = track_map_.find(mid);
@@ -573,7 +647,7 @@ WrtcAgentPc::WebrtcTrack* WrtcAgentPc::addTrack(
 }
 
 srs_error_t WrtcAgentPc::removeTrack(const std::string& mid) {
-  ELOG_TRACE("message: removeTrack, connectionId:%s mediaStreamId:%s", id_.c_str(), mid.c_str());
+  OLOG_TRACE_THIS("connectionId:" << id_ << ", mediaStreamId:%s" << mid);
 
   srs_error_t result = nullptr;
   
@@ -588,6 +662,15 @@ srs_error_t WrtcAgentPc::removeTrack(const std::string& mid) {
   track_map_.erase(found);
 
   return result;
+}
+
+WrtcAgentPc::WebrtcTrack* WrtcAgentPc::getTrack(const std::string& name) {
+  for (auto& item : track_map_) {
+    if (item.second->getName() == name) {
+      return item.second.get();
+    }
+  }
+  return nullptr;
 }
 
 void WrtcAgentPc::setAudioSsrc(const std::string& mid, uint32_t ssrc) {

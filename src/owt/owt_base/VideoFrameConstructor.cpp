@@ -20,7 +20,8 @@ VideoFrameConstructor::VideoFrameConstructor(
   VideoInfoListener* vil, const config& config, webrtc::TaskQueueBase* task_queue_base)
   : config_(config),
     m_videoInfoListener(vil),
-    m_rtcAdapter(RtcAdapterFactory::CreateRtcAdapter(task_queue_base)) {
+    m_rtcAdapter(std::move(
+        RtcAdapterFactory::CreateRtcAdapter(task_queue_base))) {
   OLOG_TRACE_THIS("");
   m_feedbackTimer = SharedJobTimer::GetSharedFrequencyTimer(1);
   m_feedbackTimer->addListener(this);

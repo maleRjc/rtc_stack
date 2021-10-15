@@ -29,7 +29,8 @@ public:
 // QueuedTaskProxy only execute when the owner shared_ptr exists
 class QueuedTaskProxy : public webrtc::QueuedTask {
 public:
-  QueuedTaskProxy(std::unique_ptr<webrtc::QueuedTask> task, std::shared_ptr<int> owner)
+  QueuedTaskProxy(std::unique_ptr<webrtc::QueuedTask> task, 
+                  std::shared_ptr<int> owner)
       : m_task(std::move(task)), m_owner(owner) {
   }
 
@@ -91,19 +92,13 @@ public:
   // Implements webrtc::TaskQueueFactory
   std::unique_ptr<webrtc::TaskQueueBase, webrtc::TaskQueueDeleter> 
   CreateTaskQueue(std::string_view name, 
-                  webrtc::TaskQueueFactory::Priority priority) const override {
-    if (name == std::string_view("CallTaskQueue")) {
+                  webrtc::TaskQueueFactory::Priority) const override {
+    if (name == std::string_view("CallTaskQueue") ||
+        name == std::string_view("DecodingQueue") ||
+        name == std::string_view("rtp_send_controller") ||
+        name == std::string_view("deliver_frame")) {
       return std::unique_ptr<webrtc::TaskQueueBase, webrtc::TaskQueueDeleter>(
         new TaskQueueProxy(task_queue_base_));
-        
-    } else if (name == std::string_view("DecodingQueue")) {
-      return std::unique_ptr<webrtc::TaskQueueBase, webrtc::TaskQueueDeleter>(
-        new TaskQueueProxy(task_queue_base_));
-        
-    } else if (name == std::string_view("rtp_send_controller")) {
-      return std::unique_ptr<webrtc::TaskQueueBase, webrtc::TaskQueueDeleter>(
-        new TaskQueueProxy(task_queue_base_));
-        
     } else {
       assert(false);
       // Return dummy task queue for other names like "IncomingVideoStream"

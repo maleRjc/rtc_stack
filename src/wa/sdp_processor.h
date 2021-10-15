@@ -121,7 +121,8 @@ class MediaDesc {
   
   int32_t filterVideoPayload(const FormatPreference& option);
   
-  std::string setSsrcs(const std::vector<uint32_t>& ssrcs, const std::string& inmsid);
+  std::string setSsrcs(const std::vector<uint32_t>& ssrcs, 
+                       const std::string& inmsid);
 
   bool filterByPayload(int32_t payload);
   

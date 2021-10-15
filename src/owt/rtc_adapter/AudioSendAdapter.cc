@@ -8,11 +8,10 @@
 
 #include "rtc_base/logging.h"
 #include "rtp_rtcp/rtp_packet.h"
-
 #include "owt_base/AudioUtilitiesNew.h"
 #include "owt_base/TaskRunnerPool.h"
-
 #include "common/rtputils.h"
+#include "rtc_adapter/thread/ProcessThreadMock.h"
 
 using namespace webrtc;
 using namespace owt_base;
@@ -21,19 +20,21 @@ namespace rtc_adapter {
 
 const uint32_t kSeqNoStep = 10;
 
-AudioSendAdapterImpl::AudioSendAdapterImpl(CallOwner* owner, const RtcAdapter::Config& config)
-    : m_frameFormat(FRAME_FORMAT_UNKNOWN)
-    , m_lastOriginSeqNo(0)
-    , m_seqNo(0)
-    , m_ssrc(0)
-    , m_ssrc_generator(SsrcGenerator::GetSsrcGenerator())
-    , m_config(config)
-    , m_rtpListener(config.rtp_listener)
-    , m_statsListener(config.stats_listener)
+AudioSendAdapterImpl::AudioSendAdapterImpl(
+    CallOwner* callowner, const RtcAdapter::Config& config)
+    : m_frameFormat(FRAME_FORMAT_UNKNOWN),
+      m_lastOriginSeqNo(0),
+      m_seqNo(0),
+      m_ssrc(0),
+      m_ssrc_generator(SsrcGenerator::GetSsrcGenerator()), 
+      m_config(config), 
+      m_rtpListener(config.rtp_listener), 
+      m_statsListener(config.stats_listener), 
+      m_taskRunner{std::make_unique<ProcessThreadMock>(
+          callowner->taskQueue().get())}
 {
     m_ssrc = m_ssrc_generator->CreateSsrc();
     m_ssrc_generator->RegisterSsrc(m_ssrc);
-    m_taskRunner = TaskRunnerPool::GetInstance().GetTaskRunner();
     init();
 }
 
@@ -128,7 +129,7 @@ bool AudioSendAdapterImpl::init()
     }
     m_senderAudio = std::make_unique<RTPSenderAudio>(
         configuration.clock, m_rtpRtcp->RtpSender());
-    m_taskRunner->RegisterModule(m_rtpRtcp.get());
+    m_taskRunner->RegisterModule(m_rtpRtcp.get(), RTC_FROM_HERE);
 
     return true;
 }

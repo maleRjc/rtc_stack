@@ -47,7 +47,6 @@ private:
     void updateSeqNo(uint8_t* rtp);
     std::unique_ptr<webrtc::RtpRtcp> m_rtpRtcp;
 
-    std::shared_ptr<owt_base::WebRTCTaskRunner> m_taskRunner;
     owt_base::FrameFormat m_frameFormat;
 
     uint16_t m_lastOriginSeqNo;
@@ -66,6 +65,9 @@ private:
     // TODO: remove extensionMap and mid if frames do not carry rtp packets
     webrtc::RtpHeaderExtensionMap m_extensions;
     std::string m_mid;
+    
+    //std::shared_ptr<owt_base::WebRTCTaskRunner> m_taskRunner;
+    std::unique_ptr<webrtc::ProcessThread> m_taskRunner;
 };
 }
 #endif /* RTC_ADAPTER_AUDIO_SEND_ADAPTER_ */

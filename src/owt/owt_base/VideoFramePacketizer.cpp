@@ -6,6 +6,7 @@
 #include "owt_base/MediaUtilities.h"
 #include "common/rtputils.h"
 #include "myrtc/api/task_queue_base.h"
+#include "rtc_adapter/thread/StaticTaskQueueFactory.h"
 
 using namespace rtc_adapter;
 
@@ -19,15 +20,24 @@ DEFINE_LOGGER(VideoFramePacketizer, "owt.VideoFramePacketizer");
 
 VideoFramePacketizer::VideoFramePacketizer(VideoFramePacketizer::Config& config, 
                                          webrtc::TaskQueueBase* task_queue_base)
-: m_rtcAdapter{RtcAdapterFactory::CreateRtcAdapter(task_queue_base)} {
+    : m_rtcAdapter{std::move(
+        RtcAdapterFactory::CreateRtcAdapter(task_queue_base))} {
+  OLOG_TRACE_THIS("");
+
+  auto factory = rtc_adapter::createDummyTaskQueueFactory(task_queue_base);
+  auto task_queue = factory->CreateTaskQueue(
+      "deliver_frame", webrtc::TaskQueueFactory::Priority::NORMAL);
+  task_queue_ = std::move(
+      std::make_unique<rtc::TaskQueue>(std::move(task_queue)));
+  
   init(config);
 }
 
 VideoFramePacketizer::~VideoFramePacketizer() {
+  OLOG_TRACE_THIS("");
   close();
   if (m_videoSend) {
     m_rtcAdapter->destoryVideoSender(m_videoSend);
-    m_rtcAdapter.reset();
     m_videoSend = nullptr;
   }
 }
@@ -72,10 +82,10 @@ void VideoFramePacketizer::unbindTransport() {
 void VideoFramePacketizer::enable(bool enabled) {
   m_enabled = enabled;
   if (m_enabled) {
-      m_sendFrameCount = 0;
-      if (m_videoSend) {
-          m_videoSend->reset();
-      }
+    m_sendFrameCount = 0;
+    if (m_videoSend) {
+        m_videoSend->reset();
+    }
   }
 }
 
@@ -96,28 +106,37 @@ void VideoFramePacketizer::onAdapterData(char* data, int len) {
 }
 
 void VideoFramePacketizer::onFrame(const Frame& frame) {
-  if (!m_enabled) {
-    return;
+  if (frame.length <= 0) {
+    return ;
   }
-
-  if (m_selfRequestKeyframe) {
-    //FIXME: This is a workround for peer client not send key-frame-request
-    if (m_sendFrameCount < 151) {
-      if ((m_sendFrameCount == 10)
-        || (m_sendFrameCount == 30)
-        || (m_sendFrameCount == 60)
-        || (m_sendFrameCount == 150)) {
-        // ELOG_DEBUG("Self generated key-frame-request.");
-        FeedbackMsg feedback = {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
-        deliverFeedbackMsg(feedback);
+  
+  task_queue_->PostTask([this, weak_ptr = weak_from_this(), frame] () {
+    if (auto shared_this = weak_ptr.lock()) {
+      if (!m_enabled) {
+        return;
       }
-      m_sendFrameCount += 1;
-    }
-  }
+      
+      if (m_selfRequestKeyframe) {
+        //FIXME: This is a workround for peer client not send key-frame-request
+        if (m_sendFrameCount < 151) {
+          if ((m_sendFrameCount == 10)
+            || (m_sendFrameCount == 30)
+            || (m_sendFrameCount == 60)
+            || (m_sendFrameCount == 150)) {
+            // ELOG_DEBUG("Self generated key-frame-request.");
+            FeedbackMsg feedback = 
+                {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
+            deliverFeedbackMsg(feedback);
+          }
+          m_sendFrameCount += 1;
+        }
+      }
 
-  if (m_videoSend) {
-    m_videoSend->onFrame(frame);
-  }
+      if (m_videoSend) {
+        m_videoSend->onFrame(frame);
+      }
+    }
+  });
 }
 
 void VideoFramePacketizer::onVideoSourceChanged() {

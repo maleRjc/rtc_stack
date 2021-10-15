@@ -9,11 +9,11 @@
 #include "common/logger.h"
 
 #include "erizo/MediaDefinitions.h"
-
+#include "rtc_adapter/RtcAdapter.h"
+#include "rtc_base/task_queue.h"
 #include "owt_base/MediaFramePipeline.h"
 #include "owt_base/MediaDefinitionExtra.h"
 
-#include "rtc_adapter/RtcAdapter.h"
 
 namespace owt_base {
 /**
@@ -21,12 +21,14 @@ namespace owt_base {
  * packetize the frame and send them out via the given WebRTCTransport.
  * It also gives the feedback to the encoder based on the feedback from the remote.
  */
-class VideoFramePacketizer : public FrameDestination,
-                             public erizo::MediaSource,
-                             public erizo::FeedbackSink,
-                             public rtc_adapter::AdapterFeedbackListener,
-                             public rtc_adapter::AdapterStatsListener,
-                             public rtc_adapter::AdapterDataListener {
+class VideoFramePacketizer 
+    : public FrameDestination,
+      public erizo::MediaSource,
+      public erizo::FeedbackSink,
+      public rtc_adapter::AdapterFeedbackListener,
+      public rtc_adapter::AdapterStatsListener,
+      public rtc_adapter::AdapterDataListener,
+      public std::enable_shared_from_this<VideoFramePacketizer> {
   DECLARE_LOGGER();
 
  public:
@@ -80,6 +82,11 @@ class VideoFramePacketizer : public FrameDestination,
   uint16_t m_sendFrameCount{0};
   std::shared_ptr<rtc_adapter::RtcAdapter> m_rtcAdapter;
   rtc_adapter::VideoSendAdapter* m_videoSend{nullptr};
+
+  std::unique_ptr<rtc::TaskQueue> task_queue_;
 };
-}
+
+} //namespace owt_base
+
 #endif /* EncodedVideoFrameSender_h */
+

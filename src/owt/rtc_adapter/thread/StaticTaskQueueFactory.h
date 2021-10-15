@@ -11,7 +11,8 @@
 
 namespace rtc_adapter {
 
-std::unique_ptr<webrtc::TaskQueueFactory> createDummyTaskQueueFactory(webrtc::TaskQueueBase* pQueue);
+std::unique_ptr<webrtc::TaskQueueFactory> 
+    createDummyTaskQueueFactory(webrtc::TaskQueueBase* pQueue);
 
 }  // namespace webrtc
 

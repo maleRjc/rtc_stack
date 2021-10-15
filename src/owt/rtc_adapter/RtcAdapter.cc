@@ -112,11 +112,11 @@ void RtcAdapterImpl::destoryAudioSender(AudioSendAdapter* audio_send_adapter) {
 
 /////////////////////////
 //RtcAdapterFactory
-RtcAdapter* RtcAdapterFactory::CreateRtcAdapter(webrtc::TaskQueueBase* p) {
-  return new RtcAdapterImpl(p);
+std::shared_ptr<RtcAdapter>
+RtcAdapterFactory::CreateRtcAdapter(webrtc::TaskQueueBase* p) {
+  return std::dynamic_pointer_cast<RtcAdapter>(
+             std::make_shared<RtcAdapterImpl>(p));
 }
-
-void RtcAdapterFactory::DestroyRtcAdapter(RtcAdapter* adapter) {}
 
 } // namespace rtc_adapter
 

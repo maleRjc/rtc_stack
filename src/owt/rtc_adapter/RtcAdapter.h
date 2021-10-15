@@ -104,9 +104,7 @@ public:
 
 class RtcAdapterFactory {
 public:
-  static RtcAdapter* CreateRtcAdapter(webrtc::TaskQueueBase*);
-  // Use delete instead of this function
-  static void DestroyRtcAdapter(RtcAdapter*);
+  static std::shared_ptr<RtcAdapter> CreateRtcAdapter(webrtc::TaskQueueBase*);
 };
 
 } // namespace rtc_adapter

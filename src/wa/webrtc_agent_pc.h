@@ -34,12 +34,12 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
                           public owt_base::VideoInfoListener,
                           public std::enable_shared_from_this<WrtcAgentPc> {
   class WebrtcTrack {
-    /*
-     * audio: { format, ssrc, mid, midExtId }
-     * video: { format, ssrc, mid, midExtId, transportcc, red, ulpfec }
-     */
+  /*
+   * audio: { format, ssrc, mid, midExtId }
+   * video: { format, ssrc, mid, midExtId, transportcc, red, ulpfec }
+   */
     
-  public:
+   public:
     enum ETrackCtrl {
       e_audio,
       e_video,
@@ -65,17 +65,25 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
     int32_t format(bool isAudio) { return isAudio?audioFormat_:videoFormat_; }
     srs_error_t trackControl(ETrackCtrl, bool isIn, bool isOn);
     void requestKeyFrame();
+    inline bool isAudio() {
+      return name_ == "audio";
+    }
+
+    inline const std::string& getName() {
+      return name_;
+    }
   private:
     WrtcAgentPc* pc_{nullptr};
     std::string mid_;
   
-    std::unique_ptr<owt_base::AudioFramePacketizer> audioFramePacketizer_;
+    std::shared_ptr<owt_base::AudioFramePacketizer> audioFramePacketizer_;
     std::unique_ptr<owt_base::AudioFrameConstructor> audioFrameConstructor_;
-    std::unique_ptr<owt_base::VideoFramePacketizer> videoFramePacketizer_;
+    std::shared_ptr<owt_base::VideoFramePacketizer> videoFramePacketizer_;
     std::unique_ptr<owt_base::VideoFrameConstructor> videoFrameConstructor_;
   
     int32_t audioFormat_{0};
     int32_t videoFormat_{0};
+    std::string name_;
   };
 
 public:
@@ -101,25 +109,31 @@ public:
                    const std::string& message, 
                    const std::string &stream_id = "") override;
 
-  WebrtcTrack* addTrack(const std::string& mid, const media_setting&, bool isPublish);
-
-  srs_error_t removeTrack(const std::string& mid);
+  void Subscribe(std::shared_ptr<WrtcAgentPc> subscriber);
+  void unSubscribe(std::shared_ptr<WrtcAgentPc> subscriber);
 
   void setAudioSsrc(const std::string& mid, uint32_t ssrc);
   
-  void setVideoSsrcList(const std::string& mid, std::vector<uint32_t> ssrc_list);
+  void setVideoSsrcList(const std::string& mid, 
+                        std::vector<uint32_t> ssrc_list);
 
   //FrameDestination
   void onFrame(const owt_base::Frame&) override;
+
+  const std::string& id() {
+    return id_;
+  }
   
  private:
-  void init_i(const std::vector<std::string>& ipAddresses, const std::string& stun_addr);
+  void init_i(const std::vector<std::string>& ipAddresses, 
+              const std::string& stun_addr);
   void close_i();
-  
+  void subscribe_i(std::shared_ptr<WrtcAgentPc> subscriber, bool isSub);
   srs_error_t processOffer(const std::string& sdp);
 
   // call by WebrtcConnection
-  void processSendAnswer(const std::string& streamId, const std::string& sdpMsg);
+  void processSendAnswer(const std::string& streamId, 
+                         const std::string& sdpMsg);
 
   srs_error_t addRemoteCandidate(const std::string& candidates);
    
@@ -130,6 +144,18 @@ public:
   srs_error_t setupTransport(MediaDesc& media);
 
   void onVideoInfo(const std::string& videoInfoJSON) override;
+
+  WebrtcTrack* addTrack(const std::string& mid, 
+                        const media_setting&, 
+                        bool isPublish);
+
+  srs_error_t removeTrack(const std::string& mid);
+
+  WebrtcTrack* getTrack(const std::string& name);
+
+  inline auto& getTracks() {
+    return track_map_;
+  }
   
   void asyncTask(std::function<void(std::shared_ptr<WrtcAgentPc>)> f) ;
 
@@ -166,13 +192,21 @@ private:
     uint32_t final_format_{0};
   };
 
-  // mid => { operationId, type, sdpDirection, formatPreference, rids, enabled, finalFormat }
+  /* mid => { 
+   *  operationId, 
+   *  type, 
+   *  sdpDirection, 
+   *  formatPreference, 
+   *  rids, 
+   *  enabled, 
+   *  finalFormat }
+   */
   std::map<std::string, operation> operation_map_;
 
-  // composedId(track id) => WrtcStream
+  // composedId(mid) => WebrtcTrack
   std::map<std::string, std::unique_ptr<WebrtcTrack>> track_map_;
 
-  //operationId => msid
+  // mid => msid
   std::map<std::string, std::string> msid_map_;
   
   std::shared_ptr<erizo::WebRtcConnection> connection_;

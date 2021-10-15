@@ -167,7 +167,11 @@ private:
 
 class FrameDestination {
 public:
-    FrameDestination() : m_audio_src(nullptr), m_video_src(nullptr), m_data_src(nullptr) { }
+    FrameDestination() 
+        : m_audio_src(nullptr), 
+          m_video_src(nullptr), 
+          m_data_src(nullptr) { 
+    }
     virtual ~FrameDestination() { }
 
     virtual void onFrame(const Frame&) = 0;

@@ -91,13 +91,13 @@ class rtc_api {
 
   virtual int unpublish(const std::string& connectId) = 0;
 
-  virtual void subscribe(std::string& connectId, const std::string& offer) = 0;
+  virtual int subscribe(TOption&, const std::string& offer) = 0;
 
-  virtual void unsubscribe(const std::string& connectId) = 0;
+  virtual int unsubscribe(const std::string& connectId) = 0;
 
-  virtual void linkup(int connectId, WebrtcAgentSink*) = 0;
+  virtual int linkup(const std::string& from, const std::string& to) = 0;
 
-  virtual void cutoff(std::string& connectId) = 0;
+  virtual int cutoff(const std::string& from, const std::string& to) = 0;
 
   virtual void mediaOnOff() = 0;
 };

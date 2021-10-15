@@ -63,19 +63,17 @@ int WebrtcAgent::publish(TOption& options, const std::string& offer) {
     i.direction_ = "sendonly";
   }
   
-  std::shared_ptr<WrtcAgentPc> pc = std::make_shared<WrtcAgentPc>(options, *this);
+  auto pc = std::make_shared<WrtcAgentPc>(options, *this);
   std::shared_ptr<Worker> worker = workers_->getLessUsedWorker();
   std::shared_ptr<IOWorker> ioworker = io_workers_->getLessUsedIOWorker();
   pc->init(worker, ioworker, network_addresses_, stun_address_);
-  
-  int code = wa_ok;
 
   pc->signalling("offer", offer);
   
   std::lock_guard<std::mutex> guard(pcLock_);
   peerConnections_.insert(std::make_pair(options.connectId_, std::move(pc)));
   
-  return code;
+  return wa_ok;
 }
 
 int WebrtcAgent::unpublish(const std::string& connectId) {
@@ -97,11 +95,100 @@ int WebrtcAgent::unpublish(const std::string& connectId) {
   return wa_ok;
 }
 
-void WebrtcAgent::subscribe(std::string& connectId, const std::string& offer) {
+int WebrtcAgent::subscribe(TOption& options, const std::string& offer) {
+  {
+    std::lock_guard<std::mutex> guard(pcLock_);
+    auto found = peerConnections_.find(options.connectId_);
+    if(found != peerConnections_.end()) {
+      return wa_e_found;
+    }
+  }
+
+  for(auto& i : options.tracks_) {
+    i.direction_ = "recvonly";
+  }
   
+  auto pc = std::make_shared<WrtcAgentPc>(options, *this);
+  std::shared_ptr<Worker> worker = workers_->getLessUsedWorker();
+  std::shared_ptr<IOWorker> ioworker = io_workers_->getLessUsedIOWorker();
+  pc->init(worker, ioworker, network_addresses_, stun_address_);
+
+  pc->signalling("offer", offer);
+
+  std::lock_guard<std::mutex> guard(pcLock_);
+  peerConnections_.insert(std::make_pair(options.connectId_, std::move(pc)));
+  
+  return wa_ok;
 }
 
-void WebrtcAgent::linkup(int connectId, WebrtcAgentSink*) {
+int WebrtcAgent::unsubscribe(const std::string& connectId) {
+  std::shared_ptr<WrtcAgentPc> pc;
+  {
+    std::lock_guard<std::mutex> guard(pcLock_);
+
+    auto found = peerConnections_.find(connectId);
+    if(found == peerConnections_.end()){
+      return wa_e_not_found;
+    }
+
+    pc = found->second;
+
+    peerConnections_.erase(found);
+  }
+
+  pc->close();
+  return wa_ok;
+}
+
+int WebrtcAgent::linkup(const std::string& from, const std::string& to) {
+  OLOG_TRACE("linkup s:" << from << ", d:" << to);
+  std::shared_ptr<WrtcAgentPc> pc_from;
+  std::shared_ptr<WrtcAgentPc> pc_to;
+
+  {
+    std::lock_guard<std::mutex> guard(pcLock_);
+
+    auto found = peerConnections_.find(from);
+    if(found == peerConnections_.end()){
+      return wa_e_not_found;
+    }
+    pc_from = found->second;
+
+    found = peerConnections_.find(to);
+    if(found == peerConnections_.end()){
+      return wa_e_not_found;
+    }
+    pc_to = found->second;
+  }
+
+  pc_from->Subscribe(std::move(pc_to));
+
+  return wa_ok;
+}
+
+int WebrtcAgent::cutoff(const std::string& from, const std::string& to) {
+  std::shared_ptr<WrtcAgentPc> pc_from;
+  std::shared_ptr<WrtcAgentPc> pc_to;
+
+  {
+    std::lock_guard<std::mutex> guard(pcLock_);
+
+    auto found = peerConnections_.find(from);
+    if(found == peerConnections_.end()){
+      return wa_e_not_found;
+    }
+    pc_from = found->second;
+
+    found = peerConnections_.find(to);
+    if(found == peerConnections_.end()){
+      return wa_e_not_found;
+    }
+    pc_to = found->second;
+  }
+
+  pc_from->unSubscribe(std::move(pc_to));
+
+  return wa_ok;
 }
 
 std::unique_ptr<rtc_api> AgentFactory::create_agent() {

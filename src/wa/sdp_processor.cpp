@@ -708,7 +708,8 @@ int32_t MediaDesc::filterVideoPayload(const FormatPreference& prefer_type) {
   return type;
 }
 
-std::string MediaDesc::setSsrcs(const std::vector<uint32_t>& ssrcs, const std::string& inmsid) {
+std::string MediaDesc::setSsrcs(const std::vector<uint32_t>& ssrcs, 
+                                const std::string& inmsid) {
   std::string msid{inmsid};
   if (msid.empty()) {
     // Generate msid
@@ -748,7 +749,7 @@ std::string MediaDesc::setSsrcs(const std::vector<uint32_t>& ssrcs, const std::s
 
   JSON_TYPE jarray = JSON_ARRAY;
   ssrc_infos_[0].encode(jarray);
-  JSON_TYPE jobj = JSON_ARRAY;
+  JSON_TYPE jobj = JSON_OBJECT;
   jobj["ssrcs"] = jarray;
   std::ostringstream oss;
   oss << jobj;

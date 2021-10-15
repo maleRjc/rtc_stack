@@ -1,10 +1,9 @@
 #ifndef __WA_RTC_RETURN_VALUE_H__
 #define __WA_RTC_RETURN_VALUE_H__
 
-namespace wa
-{
+namespace wa {
 
-enum{
+enum {
   wa_ok = 0,
   wa_failed = -1,
   wa_e_invalid_param = -2,

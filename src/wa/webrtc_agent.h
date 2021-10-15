@@ -32,13 +32,13 @@ public:
 
   int unpublish(const std::string& connectId) override;
 
-  void subscribe(std::string& connectId, const std::string& offer) override;
+  int subscribe(TOption&, const std::string& offer) override;
   
-  void unsubscribe(const std::string& connectId) { }
+  int unsubscribe(const std::string& connectId) override;
 
-  void linkup(int connectId, WebrtcAgentSink*) override;
+  int linkup(const std::string& from, const std::string& to) override;
 
-  void cutoff(std::string& connectId) { }
+  int cutoff(const std::string& from, const std::string& to) override;
 
   void mediaOnOff() { }
 

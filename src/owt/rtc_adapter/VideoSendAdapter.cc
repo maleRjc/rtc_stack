@@ -119,7 +119,8 @@ static void dump(void* index, FrameFormat format, uint8_t* buf, int len) {
     }
 }
 
-VideoSendAdapterImpl::VideoSendAdapterImpl(CallOwner* callowner, const RtcAdapter::Config& config)
+VideoSendAdapterImpl::VideoSendAdapterImpl(CallOwner* callowner, 
+                                           const RtcAdapter::Config& config)
     : m_enableDump(false)
     , m_config(config)
     , m_keyFrameArrived(false)
@@ -210,19 +211,19 @@ void VideoSendAdapterImpl::onFrame(const Frame& frame) {
   using namespace webrtc;
 
   if (!m_keyFrameArrived) {
-      if (!frame.additionalInfo.video.isKeyFrame) {
-          RTC_DLOG(LS_INFO) << "Key frame has not arrived, send key-frame-request.";
-          if (m_feedbackListener) {
-              FeedbackMsg feedback = {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
-              m_feedbackListener->onFeedback(feedback);
-          }
-          return;
-      } else {
-          // Recalculate timestamp offset
-          const uint32_t kMsToRtpTimestamp = 90;
-          m_timeStampOffset = kMsToRtpTimestamp * m_clock->TimeInMilliseconds() - frame.timeStamp;
-          m_keyFrameArrived = true;
+    if (!frame.additionalInfo.video.isKeyFrame) {
+      RTC_DLOG(LS_INFO) << "Key frame has not arrived, send key-frame-request.";
+      if (m_feedbackListener) {
+        FeedbackMsg feedback = {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
+        m_feedbackListener->onFeedback(feedback);
       }
+      return;
+    } else {
+      // Recalculate timestamp offset
+      const uint32_t kMsToRtpTimestamp = 90;
+      m_timeStampOffset = kMsToRtpTimestamp * m_clock->TimeInMilliseconds() - frame.timeStamp;
+      m_keyFrameArrived = true;
+    }
   }
 
   // Recalculate timestamp for stream substitution
