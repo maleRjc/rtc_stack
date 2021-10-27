@@ -383,8 +383,7 @@ int MediaStream::deliverFeedback_(std::shared_ptr<DataPacket> fb_packet) {
   RtcpHeader *chead = reinterpret_cast<RtcpHeader*>(fb_packet->data);
   uint32_t recvSSRC = chead->getSourceSSRC();
   if (chead->isREMB()) {
-    for (uint8_t index = 0; index < chead->getREMBNumSSRC(); index++) 
-    {
+    for (uint8_t index = 0; index < chead->getREMBNumSSRC(); index++) {
       uint32_t ssrc = chead->getREMBFeedSSRC(index);
       if (isVideoSourceSSRC(ssrc)) {
         recvSSRC = ssrc;
@@ -399,8 +398,10 @@ int MediaStream::deliverFeedback_(std::shared_ptr<DataPacket> fb_packet) {
     fb_packet->type = AUDIO_PACKET;
     sendPacketAsync(std::make_shared<DataPacket>(*fb_packet));
   } else {
-    ELOG_DEBUG("%s deliverFeedback unknownSSRC: %u, localVideoSSRC: %u, localAudioSSRC: %u",
-                toLog(), recvSSRC, this->getVideoSourceSSRC(), this->getAudioSourceSSRC());
+    ELOG_DEBUG("%s deliverFeedback unknownSSRC: %u," 
+               "localVideoSSRC: %u, localAudioSSRC: %u",
+               toLog(), recvSSRC, 
+               this->getVideoSourceSSRC(), this->getAudioSourceSSRC());
   }
   return fb_packet->length;
 }
@@ -418,7 +419,9 @@ int MediaStream::deliverEvent_(MediaEventPtr event) {
 
 void MediaStream::onTransportData(
     std::shared_ptr<DataPacket> incoming_packet, Transport*) {
-  if ((audio_sink_ == nullptr && video_sink_ == nullptr && fb_sink_ == nullptr)) {
+  if (audio_sink_ == nullptr && 
+       video_sink_ == nullptr && 
+       fb_sink_ == nullptr) {
     return;
   }
 
@@ -480,8 +483,10 @@ void MediaStream::read(std::shared_ptr<DataPacket> packet) {
       parseIncomingPayloadType(buf, len, AUDIO_PACKET);
       audio_sink_->deliverAudioData(std::move(packet));
     } else {
-      ELOG_WARN("%s read video unknownSSRC: %u, localVideoSSRC: %u, localAudioSSRC: %u",
-                  toLog(), recvSSRC, this->getVideoSourceSSRC(), this->getAudioSourceSSRC());
+      ELOG_WARN("%s read video unknownSSRC: %u, "
+                "localVideoSSRC: %u, localAudioSSRC: %u",
+                toLog(), recvSSRC, 
+                this->getVideoSourceSSRC(), this->getAudioSourceSSRC());
     }
 
     return;

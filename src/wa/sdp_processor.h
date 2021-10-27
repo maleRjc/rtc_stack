@@ -58,11 +58,8 @@ class MediaDesc {
 
   struct rtpmap {
     rtpmap() = default;
-
     rtpmap(const rtpmap&) = default;
-    
     rtpmap(rtpmap&&);
-
     rtpmap& operator=(const rtpmap&) = default;
   
     void encode_rtp(JSON_TYPE& session);
@@ -171,8 +168,7 @@ class MediaDesc {
   std::vector<SSRCInfo>  ssrc_infos_;
   
   std::string rtcp_rsize_;  // for video
-  //bool inactive_{true};
-  //std::string protos_;
+
   std::vector<SSRCGroup> ssrc_groups_; 
 
   //rids for simulcast not support
@@ -197,9 +193,11 @@ class WaSdpInfo {
 
   std::string mediaDirection(const std::string& mid);
 
-  int32_t filterAudioPayload(const std::string& mid, const FormatPreference& type);
+  int32_t filterAudioPayload(const std::string& mid, 
+                             const FormatPreference& type);
 
-  int32_t filterVideoPayload(const std::string& mid, const FormatPreference& type);
+  int32_t filterVideoPayload(const std::string& mid, 
+                             const FormatPreference& type);
 
   bool filterByPayload(const std::string& mid, int32_t payload);
 
@@ -232,7 +230,7 @@ class WaSdpInfo {
   std::string toString(const std::string& strMid = "");
  public:
   // version "v="
-  int version_{0};  
+  int version_{0};
 
   // origin "o="
   std::string username_;

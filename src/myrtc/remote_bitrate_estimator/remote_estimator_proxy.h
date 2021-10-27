@@ -91,7 +91,7 @@ class RemoteEstimatorProxy : public RemoteBitrateEstimator {
   const TransportWideFeedbackConfig send_config_;
   int64_t last_process_time_ms_;
 
-  rtc::CriticalSection lock_;
+  //rtc::CriticalSection lock_;
   //  |network_state_estimator_| may be null.
   NetworkStateEstimator* const network_state_estimator_
       RTC_PT_GUARDED_BY(&lock_);
