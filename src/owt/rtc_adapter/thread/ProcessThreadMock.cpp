@@ -3,6 +3,7 @@
 #include <string>
 #include "rtc_base/checks.h"
 #include "rtc_base/time_utils.h"
+#include "rtc_base/logging.h"
 
 namespace rtc_adapter {
 
@@ -90,7 +91,7 @@ void ProcessThreadMock::DeRegisterModule(webrtc::Module* module) {
 
 void ProcessThreadMock::Process() {
   int64_t now = rtc::TimeMillis();
-  int64_t next_checkpoint = now + (1000 * 60);
+  int64_t next_checkpoint = now + (rtc::kNumMillisecsPerSec * 60);
 
   for (ModuleCallback& m : modules_) {
     // TODO(tommi): Would be good to measure the time TimeUntilNextProcess
@@ -102,17 +103,15 @@ void ProcessThreadMock::Process() {
 
     if (m.next_callback <= now ||
         m.next_callback == kCallProcessImmediately) {
-      {
-        //TRACE_EVENT2("webrtc", "ModuleProcess", "function",
-        //             m.location.function_name(), "file",
-       //             m.location.file_and_line());
-        m.module->Process();
-      }
+      m.module->Process();
       // Use a new 'now' reference to calculate when the next callback
       // should occur.  We'll continue to use 'now' above for the baseline
       // of calculating how long we should wait, to reduce variance.
       int64_t new_now = rtc::TimeMillis();
       m.next_callback = GetNextCallbackTime(m.module, new_now);
+
+      //RTC_DLOG(LS_INFO) << m.location.ToString() << 
+      //    ", next_callback:" << m.next_callback;
     }
 
     if (m.next_callback < next_checkpoint)
@@ -124,6 +123,8 @@ void ProcessThreadMock::Process() {
     impl_->PostDelayedTask([this]() {
       this->Process();
     }, time_to_wait);
+  } else {
+    impl_->PostTask([this]() { this->Process(); });
   }
 }
 

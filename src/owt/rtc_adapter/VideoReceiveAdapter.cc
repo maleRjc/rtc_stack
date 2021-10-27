@@ -23,8 +23,7 @@ const uint32_t kBufferSize = 8192;
 // Local SSRC has no meaning for receive stream here
 const uint32_t kLocalSsrc = 1;
 
-static void dump(void* index, FrameFormat format, uint8_t* buf, int len)
-{
+static void dump(void* index, FrameFormat format, uint8_t* buf, int len) {
   char dumpFileName[128];
 
   snprintf(dumpFileName, 128, "/tmp/postConstructor-%p.%s", index, getFormatStr(format));
@@ -38,8 +37,7 @@ static void dump(void* index, FrameFormat format, uint8_t* buf, int len)
 ///////////////////////////////////
 //AdapterDecoder
 int32_t VideoReceiveAdapterImpl::AdapterDecoder::InitDecode(
-    const webrtc::VideoCodec* config, int32_t)
-{
+    const webrtc::VideoCodec* config, int32_t) {
   RTC_DLOG(LS_INFO) << "AdapterDecoder InitDecode";
   if (config) {
       m_codec = config->codecType;
@@ -65,8 +63,7 @@ struct DataPacket {
 
 int32_t VideoReceiveAdapterImpl::AdapterDecoder::Decode(
     const webrtc::EncodedImage& encodedImage,
-    bool missing_frames, int64_t render_time_ms)
-{
+    bool missing_frames, int64_t render_time_ms) {
   owt_base::FrameFormat format = FRAME_FORMAT_UNKNOWN;
 
   switch (m_codec) {
@@ -154,20 +151,19 @@ int32_t VideoReceiveAdapterImpl::AdapterDecoder::Decode(
 
 ///////////////////////////////////
 //VideoReceiveAdapterImpl
-VideoReceiveAdapterImpl::VideoReceiveAdapterImpl(CallOwner* owner, const RtcAdapter::Config& config)
+VideoReceiveAdapterImpl::VideoReceiveAdapterImpl(
+    CallOwner* owner, const RtcAdapter::Config& config)
   : m_config(config)
   , m_format(owt_base::FRAME_FORMAT_UNKNOWN)
   , m_frameListener(config.frame_listener)
   , m_rtcpListener(config.rtp_listener)
   , m_statsListener(config.stats_listener)
-  , m_owner(owner)
-{
+  , m_owner(owner) {
   assert(m_owner != nullptr);
   CreateReceiveVideo();
 }
 
-VideoReceiveAdapterImpl::~VideoReceiveAdapterImpl()
-{
+VideoReceiveAdapterImpl::~VideoReceiveAdapterImpl() {
   if (m_videoRecvStream) {
     OLOG_INFO_THIS("Destroy VideoReceiveStream with SSRC: " << m_config.ssrc);
     m_videoRecvStream->Stop();
@@ -176,12 +172,10 @@ VideoReceiveAdapterImpl::~VideoReceiveAdapterImpl()
   }
 }
 
-void VideoReceiveAdapterImpl::OnFrame(const webrtc::VideoFrame& video_frame) 
-{
+void VideoReceiveAdapterImpl::OnFrame(const webrtc::VideoFrame& video_frame) {
 }
 
-void VideoReceiveAdapterImpl::CreateReceiveVideo()
-{
+void VideoReceiveAdapterImpl::CreateReceiveVideo() {
   if (m_videoRecvStream) {
     return;
   }
@@ -230,14 +224,12 @@ void VideoReceiveAdapterImpl::CreateReceiveVideo()
   call()->SignalChannelNetworkState(webrtc::MediaType::VIDEO, webrtc::NetworkState::kNetworkUp);
 }
 
-void VideoReceiveAdapterImpl::requestKeyFrame()
-{
+void VideoReceiveAdapterImpl::requestKeyFrame() {
   // m_videoRecvStream->GenerateKeyFrame();
   m_isWaitingKeyFrame = true;
 }
 
-std::vector<webrtc::SdpVideoFormat> VideoReceiveAdapterImpl::GetSupportedFormats() const
-{
+std::vector<webrtc::SdpVideoFormat> VideoReceiveAdapterImpl::GetSupportedFormats() const {
   return std::vector<webrtc::SdpVideoFormat>{
       webrtc::SdpVideoFormat(
           webrtc::CodecTypeToPayloadString(webrtc::VideoCodecType::kVideoCodecVP8)),
@@ -253,13 +245,11 @@ std::vector<webrtc::SdpVideoFormat> VideoReceiveAdapterImpl::GetSupportedFormats
 }
 
 std::unique_ptr<webrtc::VideoDecoder> VideoReceiveAdapterImpl::CreateVideoDecoder(
-  const webrtc::SdpVideoFormat& format)
-{
+  const webrtc::SdpVideoFormat& format) {
   return std::make_unique<AdapterDecoder>(this);
 }
 
-int VideoReceiveAdapterImpl::onRtpData(char* data, int len)
-{
+int VideoReceiveAdapterImpl::onRtpData(char* data, int len) {
   call()->Receiver()->DeliverPacket(
       webrtc::MediaType::VIDEO,
       rtc::CopyOnWriteBuffer(data, len),
@@ -267,14 +257,12 @@ int VideoReceiveAdapterImpl::onRtpData(char* data, int len)
   return len;
 }
 
-bool VideoReceiveAdapterImpl::SendRtp(const uint8_t* data, size_t len, const webrtc::PacketOptions& options)
-{
+bool VideoReceiveAdapterImpl::SendRtp(const uint8_t* data, size_t len, const webrtc::PacketOptions& options) {
   OLOG_WARN_THIS("VideoReceiveAdapterImpl SendRtp called");
   return true;
 }
 
-bool VideoReceiveAdapterImpl::SendRtcp(const uint8_t* data, size_t len)
-{
+bool VideoReceiveAdapterImpl::SendRtcp(const uint8_t* data, size_t len) {
   if (m_rtcpListener) {
       m_rtcpListener->onAdapterData(
           reinterpret_cast<char*>(const_cast<uint8_t*>(data)), len);

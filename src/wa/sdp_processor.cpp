@@ -21,7 +21,8 @@
 
 #ifdef ORDERED_JSON
 template<class K, class V, class dummy_compare, class A>
-using my_workaround_fifo_map = nlohmann::fifo_map<K, V, nlohmann::fifo_map_compare<K>, A>;
+using my_workaround_fifo_map = 
+    nlohmann::fifo_map<K, V, nlohmann::fifo_map_compare<K>, A>;
 using unordered_json = nlohmann::basic_json<my_workaround_fifo_map>;
 using my_json = unordered_json;
 #else
@@ -653,7 +654,9 @@ media_setting MediaDesc::get_media_settings() {
         settings.rtcp_rsize = rtcp_rsize_.empty() ? false : true;
       
         // Video ulpfec red transport-cc
-        std::for_each(rtp_maps_.begin(), rtp_maps_.end(), [this, &settings](rtpmap& item){          
+        std::for_each(rtp_maps_.begin(), 
+                      rtp_maps_.end(), 
+                      [this, &settings](rtpmap& item){          
           if (!strcasecmp(item.encoding_name_.data(), "red")) {
             settings.red = item.payload_type_;
           } else if (!strcasecmp(item.encoding_name_.data(), "ulpfec")) {
@@ -1041,9 +1044,10 @@ WaSdpInfo* WaSdpInfo::answer() {
   answer->addrtype_ = 4;
   answer->unicast_address_ = "127.0.0.1";
 
-  std::for_each(answer->media_descs_.begin(), answer->media_descs_.end(), [](MediaDesc& mediaInfo){
+  std::for_each(answer->media_descs_.begin(), answer->media_descs_.end(), 
+        [](MediaDesc& mediaInfo){
     mediaInfo.port_ = 1;
-//    mediaInfo.rtcport_ = 1;
+//  mediaInfo.rtcport_ = 1;
 
     if(mediaInfo.session_info_.setup_ == "active"){
       mediaInfo.session_info_.setup_ = "passive";

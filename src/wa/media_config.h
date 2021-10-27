@@ -32,13 +32,18 @@ enum EExtmap {
   AudioLevel,
   TransportCC,
   SdesMid,
-  SdesRtpStreamId,
+/*  SdesRtpStreamId,
   SdesRepairedRtpStreamId,
   Toffset,
-  AbsSendTime
+*/  
+  AbsSendTime,
+/*
+  videoOrientation,
+  PlayoutDelay
+*/
 };
 
-#define EXT_MAP_SIZE  7
+#define EXT_MAP_SIZE  4
 
 extern const std::string extMappings[EXT_MAP_SIZE];
 

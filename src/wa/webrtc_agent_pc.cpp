@@ -217,15 +217,23 @@ void WrtcAgentPc::init_i(const std::vector<std::string>& ipAddresses,
   std::istringstream iss(stun_addr.substr(pos2+1));
   iss >> ice_config.stun_port;
   
-  std::vector<erizo::RtpMap> rtp_mappings{rtpH264, rtpRed, rtpRtx, rtpUlpfec, rtpOpus};
+  std::vector<erizo::RtpMap> rtp_mappings{
+      rtpH264, rtpRed, rtpRtx, rtpUlpfec, rtpOpus};
   
   std::vector<erizo::ExtMap> ext_mappings;
+
   for(unsigned int i = 0; i < EXT_MAP_SIZE; ++i){
-    ext_mappings.push_back({i, extMappings[i]});
+    ext_mappings.emplace_back(i, extMappings[i]);
   }
   
-  connection_ = std::make_shared<erizo::WebRtcConnection>(
-    worker_.get(), ioworker_.get(), id_, ice_config, rtp_mappings, ext_mappings, this);
+  connection_ = 
+      std::make_shared<erizo::WebRtcConnection>(worker_.get(), 
+                                                ioworker_.get(),
+                                                id_, 
+                                                ice_config, 
+                                                rtp_mappings, 
+                                                ext_mappings, 
+                                                this);
   connection_->init();
 }
 
@@ -320,7 +328,8 @@ void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus,
   }
 }
 
-void WrtcAgentPc::processSendAnswer(const std::string& streamId, const std::string& sdpMsg) {
+void WrtcAgentPc::processSendAnswer(const std::string& streamId, 
+                                    const std::string& sdpMsg) {
   WLOG_TRACE("message: processSendAnswer streamId:%s", streamId.c_str());
   LOG_ASSERT(sdpMsg.length());
   
@@ -347,8 +356,6 @@ void WrtcAgentPc::processSendAnswer(const std::string& streamId, const std::stri
   }
   std::string answerSdp = local_sdp_->toString();
 
-  //WLOG_DEBUG("message: processSendAnswer streamId:%s, internalsdp:%s, answersdp:%s", 
-  //           streamId.c_str(), sdpMsg.c_str(), answerSdp.c_str());
   callBack(E_ANSWER, answerSdp);
 }
 

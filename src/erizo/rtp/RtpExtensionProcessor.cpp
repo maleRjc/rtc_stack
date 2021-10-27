@@ -13,7 +13,8 @@ namespace erizo
 
 DEFINE_LOGGER(RtpExtensionProcessor, "rtp.RtpExtensionProcessor");
 
-RtpExtensionProcessor::RtpExtensionProcessor(const std::vector<erizo::ExtMap>& ext_mappings) 
+RtpExtensionProcessor::RtpExtensionProcessor(
+      const std::vector<erizo::ExtMap>& ext_mappings) 
   : ext_mappings_{ext_mappings}, 
     video_orientation_{kVideoRotation_0} 
 {

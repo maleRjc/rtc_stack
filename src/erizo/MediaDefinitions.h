@@ -116,7 +116,7 @@ class FeedbackSink {
 public:
   virtual ~FeedbackSink() {}
   int deliverFeedback(std::shared_ptr<DataPacket> data_packet) {
-      return this->deliverFeedback_(data_packet);
+    return this->deliverFeedback_(data_packet);
   }
 private:
   virtual int deliverFeedback_(std::shared_ptr<DataPacket> data_packet) = 0;
@@ -129,7 +129,7 @@ public:
   FeedbackSource(): fb_sink_{nullptr} {}
   virtual ~FeedbackSource() {}
   void setFeedbackSink(FeedbackSink* sink) {
-      fb_sink_ = sink;
+    fb_sink_ = sink;
   }
 };
 
@@ -143,7 +143,7 @@ class MediaSink: public virtual Monitor {
               sink_fb_source_{nullptr} {
   }
   
-  virtual ~MediaSink()  = default;
+  virtual ~MediaSink() = default;
 
   inline int deliverAudioData(std::shared_ptr<DataPacket> data_packet) {
     return this->deliverAudioData_(std::move(data_packet));
