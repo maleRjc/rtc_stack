@@ -55,22 +55,22 @@ class VideoSendAdapterImpl : public VideoSendAdapter,
  private:
   bool init();
 
-  bool m_enableDump;
+  bool m_enableDump{false};
   RtcAdapter::Config m_config;
 
-  bool m_keyFrameArrived;
+  bool m_keyFrameArrived{false};
   std::unique_ptr<webrtc::RateLimiter> m_retransmissionRateLimiter;
   std::unique_ptr<webrtc::RtpRtcp> m_rtpRtcp;
 
   owt_base::FrameFormat m_frameFormat;
-  uint16_t m_frameWidth;
-  uint16_t m_frameHeight;
+  uint16_t m_frameWidth{0};
+  uint16_t m_frameHeight{0};
   webrtc::Random m_random;
-  uint32_t m_ssrc;
+  uint32_t m_ssrc{0};
   owt_base::SsrcGenerator* const m_ssrcGenerator;
 
-  webrtc::Clock* m_clock;
-  int64_t m_timeStampOffset;
+  webrtc::Clock* m_clock{nullptr};
+  int64_t m_timeStampOffset{0};
 
   std::unique_ptr<webrtc::RtcEventLog> m_eventLog;
   std::unique_ptr<webrtc::RTPSenderVideo> m_senderVideo;
@@ -79,7 +79,7 @@ class VideoSendAdapterImpl : public VideoSendAdapter,
 
   // Listeners
   AdapterFeedbackListener* m_feedbackListener;
-  AdapterDataListener* m_rtpListener;
+  AdapterDataListener* m_dataListener;
   AdapterStatsListener* m_statsListener;
 
   //std::shared_ptr<owt_base::WebRTCTaskRunner> m_taskRunner;

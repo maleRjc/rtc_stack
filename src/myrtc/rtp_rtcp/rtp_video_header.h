@@ -61,9 +61,9 @@ struct RTPVideoHeader {
   uint8_t simulcastIdx = 0;
   VideoCodecType codec = VideoCodecType::kVideoCodecGeneric;
 
-  PlayoutDelay playout_delay = {-1, -1};
+  PlayoutDelay playout_delay{-1, -1};
   VideoSendTiming video_timing;
-  FrameMarking frame_marking = {false, false, false, false, false, 0xFF, 0, 0};
+  FrameMarking frame_marking{false, false, false, false, false, 0xFF, 0, 0};
   std::optional<ColorSpace> color_space;
   RTPVideoTypeHeader video_type_header;
 };

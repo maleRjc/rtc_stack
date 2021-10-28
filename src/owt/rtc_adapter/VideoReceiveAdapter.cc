@@ -225,22 +225,13 @@ void VideoReceiveAdapterImpl::CreateReceiveVideo() {
 }
 
 void VideoReceiveAdapterImpl::requestKeyFrame() {
-  // m_videoRecvStream->GenerateKeyFrame();
   m_isWaitingKeyFrame = true;
 }
 
 std::vector<webrtc::SdpVideoFormat> VideoReceiveAdapterImpl::GetSupportedFormats() const {
   return std::vector<webrtc::SdpVideoFormat>{
       webrtc::SdpVideoFormat(
-          webrtc::CodecTypeToPayloadString(webrtc::VideoCodecType::kVideoCodecVP8)),
-      webrtc::SdpVideoFormat(
-          webrtc::CodecTypeToPayloadString(webrtc::VideoCodecType::kVideoCodecVP9)),
-      webrtc::SdpVideoFormat(
           webrtc::CodecTypeToPayloadString(webrtc::VideoCodecType::kVideoCodecH264)),
-#ifdef OWT_ENABLE_H265 
-      webrtc::SdpVideoFormat(
-          webrtc::CodecTypeToPayloadString(webrtc::VideoCodecType::kVideoCodecH265))
-#endif
   };
 }
 

@@ -3,119 +3,165 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "owt_base/MediaFramePipeline.h"
+#include <assert.h>
 
 namespace owt_base {
 
 FrameSource::~FrameSource() {
-  for (auto it = m_audio_dests.begin(); it != m_audio_dests.end(); ++it) {
-    (*it)->unsetAudioSource();
+/*  
+  for (auto& it : m_audio_dests) {
+    auto p = it.second->lock();
+    if (p) {
+      p->unsetAudioSource();
+    }
   }
 
-  m_audio_dests.clear();
-
-  for (auto it = m_video_dests.begin(); it != m_video_dests.end(); ++it) {
-    (*it)->unsetVideoSource();
+  for (auto& it : m_video_dests) {
+    auto p = it.second->lock();
+    if (p) {
+      p->unsetVideoSource();
+    }
   }
-
-  m_video_dests.clear();
+*/
 }
 
-void FrameSource::addAudioDestination(FrameDestination* dest) {
-  m_audio_dests.push_back(dest);
-  dest->setAudioSource(this);
+void FrameSource::addAudioDestination(std::shared_ptr<FrameDestination> dest) {
+  dest->setAudioSource(std::move(weak_from_this()));
+  m_audio_dests.emplace(dest.get(), dest);
 }
 
-void FrameSource::addVideoDestination(FrameDestination* dest) {
-  m_video_dests.push_back(dest);
-  dest->setVideoSource(this);
+void FrameSource::addVideoDestination(std::shared_ptr<FrameDestination> dest) {
+  dest->setVideoSource(std::move(weak_from_this()));
+  m_video_dests.emplace(dest.get(), dest);
 }
 
-void FrameSource::addDataDestination(FrameDestination* dest) {
-  m_data_dests.push_back(dest);
-  dest->setDataSource(this);
+void FrameSource::addDataDestination(std::shared_ptr<FrameDestination> dest) {
+  dest->setDataSource(std::move(weak_from_this()));
+  m_data_dests.emplace(dest.get(), dest);
 }
 
 void FrameSource::removeAudioDestination(FrameDestination* dest) {
-  m_audio_dests.remove(dest);
-  dest->unsetAudioSource();
+  auto p = m_audio_dests.find(dest);
+  if (p != m_audio_dests.end()) {
+    p->second.lock()->unsetAudioSource();
+    m_audio_dests.erase(p);
+  }
 }
 
 void FrameSource::removeVideoDestination(FrameDestination* dest) {
-  m_video_dests.remove(dest);
-  dest->unsetVideoSource();
+  auto p = m_video_dests.find(dest);
+  if (p != m_video_dests.end()) {
+    p->second.lock()->unsetAudioSource();
+    m_video_dests.erase(p);
+  }
 }
 
 void FrameSource::removeDataDestination(FrameDestination* dest) {
-  m_data_dests.remove(dest);
-  dest->unsetDataSource();
+  auto p = m_data_dests.find(dest);
+  if (p != m_data_dests.end()) {
+    p->second.lock()->unsetAudioSource();
+    m_data_dests.erase(p);
+  }
 }
 
 void FrameSource::deliverFrame(const Frame& frame) {
   
   if (isAudioFrame(frame)) {
-    for (auto it = m_audio_dests.begin(); it != m_audio_dests.end(); ++it) {
-      (*it)->onFrame(frame);
+    for (auto it = m_audio_dests.begin(); it != m_audio_dests.end();) {
+      auto p = it->second.lock();
+      if (p) {
+        p->onFrame(frame);
+        ++it;
+      } else {
+        m_audio_dests.erase(it++); 
+      }
     }
   } else if (isVideoFrame(frame)) {
-    for (auto it = m_video_dests.begin(); it != m_video_dests.end(); ++it) {
-      (*it)->onFrame(frame);
+    for (auto it = m_video_dests.begin(); it != m_video_dests.end();) {
+      auto p = it->second.lock();
+      if (p) {
+        p->onFrame(frame);
+        ++it;
+      } else {
+        m_video_dests.erase(it++); 
+      }
     }
   } else if (isDataFrame(frame)){
-    for (auto it = m_data_dests.begin(); it != m_data_dests.end(); ++it) {
-      (*it)->onFrame(frame);
+    for (auto it = m_data_dests.begin(); it != m_data_dests.end();) {
+      auto p = it->second.lock();
+      if (p) {
+        p->onFrame(frame);
+        ++it;
+      } else {
+        m_data_dests.erase(it++); 
+      }
     }
   } else {
-    //TODO: log error here.
+    assert(false);
   }
 }
 
 void FrameSource::deliverMetaData(const MetaData& metadata) {
-  for (auto it = m_audio_dests.begin(); it != m_audio_dests.end(); ++it) {
-    (*it)->onMetaData(metadata);
+  for (auto it = m_audio_dests.begin(); it != m_audio_dests.end();) {
+    auto p = it->second.lock();
+    if (p) {
+      p->onMetaData(metadata);
+      ++it;
+    } else {
+      m_audio_dests.erase(it++); 
+    }
   }
 
   for (auto it = m_video_dests.begin(); it != m_video_dests.end(); ++it) {
-    (*it)->onMetaData(metadata);
+    auto p = it->second.lock();
+    if (p) {
+      p->onMetaData(metadata);
+      ++it;
+    } else {
+      m_video_dests.erase(it++); 
+    }
   }
 }
 
 /*============================================================================*/
-void FrameDestination::setAudioSource(FrameSource* src) {
-  m_audio_src = src;
+void FrameDestination::setAudioSource(std::weak_ptr<FrameSource> src) {
+  m_audio_src = std::move(src);
 }
 
-void FrameDestination::setVideoSource(FrameSource* src) {
-  m_video_src = src;
+void FrameDestination::setVideoSource(std::weak_ptr<FrameSource> src) {
+  m_video_src = std::move(src);
   onVideoSourceChanged();
 }
 
-void FrameDestination::setDataSource(FrameSource* src) {
-  m_data_src = src;
+void FrameDestination::setDataSource(std::weak_ptr<FrameSource> src) {
+  m_data_src = std::move(src);
 }
 
 void FrameDestination::unsetAudioSource() {
-  m_audio_src = nullptr;
+  m_audio_src.reset();
 }
 
 void FrameDestination::unsetVideoSource() {
-  m_video_src = nullptr;
+  m_video_src.reset();
 }
 
 void FrameDestination::unsetDataSource() {
-  m_data_src = nullptr;
+  m_data_src.reset();
 }
 
 void FrameDestination::deliverFeedbackMsg(const FeedbackMsg& msg) {
   if (msg.type == AUDIO_FEEDBACK) {
-    if (m_audio_src) {
-      m_audio_src->onFeedback(msg);
+    auto p = m_audio_src.lock();
+    if (p) {
+      p->onFeedback(msg);
     }
   } else if (msg.type == VIDEO_FEEDBACK) {
-    if (m_video_src) {
-      m_video_src->onFeedback(msg);
+    auto p = m_video_src.lock();
+    if (p) {
+      p->onFeedback(msg);
     }
   } else {
-    //TODO: log error here.
+    assert(false);
   }
 }
 

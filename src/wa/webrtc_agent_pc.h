@@ -56,9 +56,10 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
     void close() {}
     void onMediaUpdate() {}
     
-    void addDestination(bool isAudio, owt_base::FrameDestination* dest);
+    void addDestination(bool isAudio, 
+        std::shared_ptr<owt_base::FrameDestination> dest);
     void removeDestination(bool isAudio, owt_base::FrameDestination* dest);
-    owt_base::FrameDestination* receiver(bool isAudio);
+    std::shared_ptr<owt_base::FrameDestination> receiver(bool isAudio);
     
     uint32_t ssrc(bool isAudio);
     
@@ -77,9 +78,9 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
     std::string mid_;
   
     std::shared_ptr<owt_base::AudioFramePacketizer> audioFramePacketizer_;
-    std::unique_ptr<owt_base::AudioFrameConstructor> audioFrameConstructor_;
+    std::shared_ptr<owt_base::AudioFrameConstructor> audioFrameConstructor_;
     std::shared_ptr<owt_base::VideoFramePacketizer> videoFramePacketizer_;
-    std::unique_ptr<owt_base::VideoFrameConstructor> videoFrameConstructor_;
+    std::shared_ptr<owt_base::VideoFrameConstructor> videoFrameConstructor_;
   
     int32_t audioFormat_{0};
     int32_t videoFormat_{0};
