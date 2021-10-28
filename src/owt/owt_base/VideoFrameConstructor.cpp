@@ -22,15 +22,9 @@ VideoFrameConstructor::VideoFrameConstructor(
     m_rtcAdapter(std::move(
         RtcAdapterFactory::CreateRtcAdapter(worker->getTaskQueue()))),
     worker_{worker} {
-  OLOG_TRACE_THIS("");
-  m_feedbackTimer = SharedJobTimer::GetSharedFrequencyTimer(1);
-  m_feedbackTimer->addListener(this);
 }
 
 VideoFrameConstructor::~VideoFrameConstructor() {
-  OLOG_TRACE_THIS("");
-
-  m_feedbackTimer->removeListener(this);
   unbindTransport();
   if (m_videoReceive) {
     m_rtcAdapter->destoryVideoReceiver(m_videoReceive);
@@ -43,6 +37,18 @@ void VideoFrameConstructor::maybeCreateReceiveVideo(uint32_t ssrc) {
   if (m_videoReceive) {
     return;
   }
+  
+  auto share_this = 
+        std::dynamic_pointer_cast<VideoFrameConstructor>(shared_from_this());
+  std::weak_ptr<VideoFrameConstructor> weak_this = share_this;
+  worker_->scheduleEvery([weak_this] () {
+    if (auto p = weak_this.lock()) {
+      p->onTimeout();
+      return true;
+    }
+    return false;
+  }, std::chrono::seconds(1));
+  
   m_ssrc = config_.ssrc;
   
   OLOG_INFO_THIS("create CreateReceiveVideo, ssrc:" << m_ssrc << 
