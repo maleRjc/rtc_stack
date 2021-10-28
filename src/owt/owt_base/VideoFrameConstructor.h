@@ -10,7 +10,6 @@
 
 #include "utils/Worker.h"
 #include "erizo/MediaDefinitions.h"
-#include "common/JobTimer.h"
 #include "owt_base/MediaDefinitionExtra.h"
 #include "owt_base/MediaFramePipeline.h"
 #include "rtc_adapter/RtcAdapter.h"
@@ -31,7 +30,6 @@ class VideoFrameConstructor
     : public erizo::MediaSink,
       public erizo::FeedbackSource,
       public FrameSource,
-      public JobTimerListener,
       public rtc_adapter::AdapterFrameListener,
       public rtc_adapter::AdapterStatsListener,
       public rtc_adapter::AdapterDataListener {
@@ -57,7 +55,7 @@ public:
   void unbindTransport();
   void enable(bool enabled);
 
-  // Implements the JobTimerListener.
+  //timer 1s
   void onTimeout();
 
   // Implements the FrameSource interfaces.
@@ -89,7 +87,6 @@ private:
   uint32_t m_ssrc{0};
 
   erizo::MediaSource* m_transport{nullptr};
-  std::shared_ptr<SharedJobTimer> m_feedbackTimer;
   uint32_t m_pendingKeyFrameRequests{0};
 
   VideoInfoListener* m_videoInfoListener;
