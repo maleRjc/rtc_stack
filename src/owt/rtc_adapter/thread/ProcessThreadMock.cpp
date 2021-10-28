@@ -109,13 +109,11 @@ void ProcessThreadMock::Process() {
       // of calculating how long we should wait, to reduce variance.
       int64_t new_now = rtc::TimeMillis();
       m.next_callback = GetNextCallbackTime(m.module, new_now);
-
-      //RTC_DLOG(LS_INFO) << m.location.ToString() << 
-      //    ", next_callback:" << m.next_callback;
     }
 
-    if (m.next_callback < next_checkpoint)
+    if (m.next_callback < next_checkpoint) {
       next_checkpoint = m.next_callback;
+    }
   }
 
   int64_t time_to_wait = next_checkpoint - rtc::TimeMillis();

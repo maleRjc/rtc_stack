@@ -12,7 +12,8 @@ using namespace rtc_adapter;
 
 namespace owt_base {
 
-// To make it consistent with the webrtc library, we allow packets to be transmitted
+// To make it consistent with the webrtc library, 
+// we allow packets to be transmitted
 // in up to 2 times max video bitrate if the bandwidth estimate allows it.
 static const int TRANSMISSION_MAXBITRATE_MULTIPLIER = 2;
 
@@ -20,10 +21,8 @@ DEFINE_LOGGER(VideoFramePacketizer, "owt.VideoFramePacketizer");
 
 VideoFramePacketizer::VideoFramePacketizer(VideoFramePacketizer::Config& config, 
                                          webrtc::TaskQueueBase* task_queue_base)
-    : m_rtcAdapter{std::move(
-        RtcAdapterFactory::CreateRtcAdapter(task_queue_base))} {
-  OLOG_TRACE_THIS("");
-
+    : m_rtcAdapter{
+          std::move(RtcAdapterFactory::CreateRtcAdapter(task_queue_base))} {
   auto factory = rtc_adapter::createDummyTaskQueueFactory(task_queue_base);
   auto task_queue = factory->CreateTaskQueue(
       "deliver_frame", webrtc::TaskQueueFactory::Priority::NORMAL);
@@ -34,7 +33,6 @@ VideoFramePacketizer::VideoFramePacketizer(VideoFramePacketizer::Config& config,
 }
 
 VideoFramePacketizer::~VideoFramePacketizer() {
-  OLOG_TRACE_THIS("");
   close();
   if (m_videoSend) {
     m_rtcAdapter->destoryVideoSender(m_videoSend);
@@ -43,26 +41,26 @@ VideoFramePacketizer::~VideoFramePacketizer() {
 }
 
 bool VideoFramePacketizer::init(VideoFramePacketizer::Config& config) {
-  if (!m_videoSend) {
-    // Create Send Video Stream
-    rtc_adapter::RtcAdapter::Config sendConfig;
-
-    sendConfig.transport_cc = config.transportccExt;
-    sendConfig.red_payload = config.Red;
-    sendConfig.ulpfec_payload = config.Ulpfec;
-    if (!config.mid.empty()) {
-      strncpy(sendConfig.mid, config.mid.c_str(), sizeof(sendConfig.mid) - 1);
-      sendConfig.mid_ext = config.midExtId;
-    }
-    sendConfig.feedback_listener = this;
-    sendConfig.rtp_listener = this;
-    sendConfig.stats_listener = this;
-    m_videoSend = m_rtcAdapter->createVideoSender(sendConfig);
-    m_ssrc = m_videoSend->ssrc();
-    return true;
+  if (m_videoSend) {
+    return false;
   }
+  
+  // Create Send Video Stream
+  rtc_adapter::RtcAdapter::Config sendConfig;
 
-  return false;
+  sendConfig.transport_cc = config.transportccExt;
+  sendConfig.red_payload = config.Red;
+  sendConfig.ulpfec_payload = config.Ulpfec;
+  if (!config.mid.empty()) {
+    strncpy(sendConfig.mid, config.mid.c_str(), sizeof(sendConfig.mid) - 1);
+    sendConfig.mid_ext = config.midExtId;
+  }
+  sendConfig.feedback_listener = this;
+  sendConfig.rtp_listener = this;
+  sendConfig.stats_listener = this;
+  m_videoSend = m_rtcAdapter->createVideoSender(sendConfig);
+  m_ssrc = m_videoSend->ssrc();
+  return true;
 }
 
 void VideoFramePacketizer::bindTransport(erizo::MediaSink* sink) {
@@ -84,16 +82,13 @@ void VideoFramePacketizer::enable(bool enabled) {
   if (m_enabled) {
     m_sendFrameCount = 0;
     if (m_videoSend) {
-        m_videoSend->reset();
+      m_videoSend->reset();
     }
   }
 }
 
 void VideoFramePacketizer::onFeedback(const FeedbackMsg& msg) {
   deliverFeedbackMsg(msg);
-}
-
-void VideoFramePacketizer::onAdapterStats(const AdapterStats& stats) {
 }
 
 void VideoFramePacketizer::onAdapterData(char* data, int len) {

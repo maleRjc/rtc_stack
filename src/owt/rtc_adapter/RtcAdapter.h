@@ -13,16 +13,22 @@ namespace rtc_adapter {
 class AdapterDataListener {
 public:
   virtual void onAdapterData(char* data, int len) = 0;
+
+  virtual ~AdapterDataListener() = default;
 };
 
 class AdapterFrameListener {
 public:
   virtual void onAdapterFrame(const owt_base::Frame& frame) = 0;
+
+  virtual ~AdapterFrameListener() = default;
 };
 
 class AdapterFeedbackListener {
 public:
   virtual void onFeedback(const owt_base::FeedbackMsg& msg) = 0;
+
+  virtual ~AdapterFeedbackListener() = default;
 };
 
 struct AdapterStats {
@@ -35,12 +41,16 @@ struct AdapterStats {
 class AdapterStatsListener {
 public:
   virtual void onAdapterStats(const AdapterStats& stat) = 0;
+
+  virtual ~AdapterStatsListener() = default;
 };
 
 class VideoReceiveAdapter {
 public:
   virtual int onRtpData(char* data, int len) = 0;
   virtual void requestKeyFrame() = 0;
+
+  virtual ~VideoReceiveAdapter() = default;
 };
 
 class VideoSendAdapter {
@@ -49,11 +59,15 @@ public:
   virtual int onRtcpData(char* data, int len) = 0;
   virtual uint32_t ssrc() = 0;
   virtual void reset() = 0;
+
+  virtual ~VideoSendAdapter() = default;
 };
 
 class AudioReceiveAdapter {
 public:
   virtual int onRtpData(char* data, int len) = 0;
+
+  virtual ~AudioReceiveAdapter() = default;
 };
 
 class AudioSendAdapter {
@@ -61,6 +75,8 @@ public:
   virtual void onFrame(const owt_base::Frame&) = 0;
   virtual int onRtcpData(char* data, int len) = 0;
   virtual uint32_t ssrc() = 0;
+
+  virtual ~AudioSendAdapter() = default;
 };
 
 class RtcAdapter {
@@ -99,7 +115,8 @@ public:
   virtual void destoryAudioReceiver(AudioReceiveAdapter*) = 0;
   virtual AudioSendAdapter* createAudioSender(const Config&) = 0;
   virtual void destoryAudioSender(AudioSendAdapter*) = 0;
-  virtual ~RtcAdapter(){}
+
+  virtual ~RtcAdapter() = default;
 };
 
 class RtcAdapterFactory {

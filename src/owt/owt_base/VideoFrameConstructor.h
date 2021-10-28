@@ -8,6 +8,7 @@
 #include <memory>
 #include "common/logger.h"
 
+#include "utils/Worker.h"
 #include "erizo/MediaDefinitions.h"
 #include "common/JobTimer.h"
 #include "owt_base/MediaDefinitionExtra.h"
@@ -26,15 +27,15 @@ public:
 * A class to process the incoming streams by leveraging video coding module from
 * webrtc engine, which will framize the frames.
 */
-class VideoFrameConstructor : public erizo::MediaSink,
-                              public erizo::FeedbackSource,
-                              public FrameSource,
-                              public JobTimerListener,
-                              public rtc_adapter::AdapterFrameListener,
-                              public rtc_adapter::AdapterStatsListener,
-                              public rtc_adapter::AdapterDataListener {
+class VideoFrameConstructor  
+    : public erizo::MediaSink,
+      public erizo::FeedbackSource,
+      public FrameSource,
+      public JobTimerListener,
+      public rtc_adapter::AdapterFrameListener,
+      public rtc_adapter::AdapterStatsListener,
+      public rtc_adapter::AdapterDataListener {
   DECLARE_LOGGER();
-
 public:
   struct config {
     uint32_t ssrc{0};
@@ -48,8 +49,8 @@ public:
   };
 
   VideoFrameConstructor(VideoInfoListener*, 
-                        const config& _config, 
-                        webrtc::TaskQueueBase* task_queue_base);
+                        const config& _config,
+                        wa::Worker* worker);
   virtual ~VideoFrameConstructor();
 
   void bindTransport(erizo::MediaSource* source, erizo::FeedbackSink* fbSink);
@@ -95,6 +96,8 @@ private:
 
   std::shared_ptr<rtc_adapter::RtcAdapter> m_rtcAdapter;
   rtc_adapter::VideoReceiveAdapter* m_videoReceive{nullptr};
+
+  wa::Worker* worker_;
 };
 
 } // namespace owt_base

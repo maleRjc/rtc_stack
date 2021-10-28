@@ -45,11 +45,11 @@ class WebrtcAgentSink
   virtual void onStat() = 0;
 
   void callBack(std::function<void(std::shared_ptr<WebrtcAgentSink>)> f) {
-    if (!task_queue_) {
+    if (!async_callback_) {
       f(shared_from_this());
     } else {
       std::weak_ptr<WebrtcAgentSink> weak_this = shared_from_this();
-      task_queue_->post([weak_this, f] {
+      this->post([weak_this, f] {
       if (auto this_ptr = weak_this.lock()) {
           f(this_ptr);
         }
@@ -57,16 +57,10 @@ class WebrtcAgentSink
     }
   }
 
-  class ITaskQueue {
-   public:
-    virtual ~ITaskQueue() = default;
-  
-    typedef std::function<void()> Task;
-  
-    virtual void post(Task) = 0;
-  };
-
-  ITaskQueue* task_queue_{nullptr};
+ protected:
+  typedef std::function<void()> Task;
+  virtual void post(Task) { }
+  bool async_callback_{false};
 };
 
 struct TOption { 

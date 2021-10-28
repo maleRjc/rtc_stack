@@ -58,7 +58,7 @@ class VideoFramePacketizer
   // Implements the AdapterFeedbackListener interfaces.
   void onFeedback(const FeedbackMsg& msg) override;
   // Implements the AdapterStatsListener interfaces.
-  void onAdapterStats(const rtc_adapter::AdapterStats& stats) override;
+  void onAdapterStats(const rtc_adapter::AdapterStats& stats) override { }
   // Implements the AdapterDataListener interfaces.
   void onAdapterData(char* data, int len) override;
 

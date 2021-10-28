@@ -3,7 +3,7 @@
 
 #include <string>
 #include <vector>
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <mutex>
 
@@ -51,7 +51,7 @@ private:
   using track_id = std::string;
 
   std::mutex pcLock_;
-  std::map<connection_id, std::shared_ptr<WrtcAgentPc>> peerConnections_;
+  std::unordered_map<connection_id, std::shared_ptr<WrtcAgentPc>> peerConnections_;
   //std::map<track_id, TTrackInfo> mediaTracks_;
 
   static std::shared_ptr<ThreadPool>  workers_;

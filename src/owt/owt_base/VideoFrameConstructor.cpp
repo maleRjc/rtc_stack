@@ -7,7 +7,6 @@
 #include <future>
 #include <random>
 #include "common/rtputils.h"
-
 #include "myrtc/api/task_queue_base.h"
 
 using namespace rtc_adapter;
@@ -17,11 +16,12 @@ namespace owt_base {
 DEFINE_LOGGER(VideoFrameConstructor, "owt.VideoFrameConstructor");
 
 VideoFrameConstructor::VideoFrameConstructor(
-  VideoInfoListener* vil, const config& config, webrtc::TaskQueueBase* task_queue_base)
+    VideoInfoListener* vil, const config&config, wa::Worker* worker)
   : config_(config),
     m_videoInfoListener(vil),
     m_rtcAdapter(std::move(
-        RtcAdapterFactory::CreateRtcAdapter(task_queue_base))) {
+        RtcAdapterFactory::CreateRtcAdapter(worker->getTaskQueue()))),
+    worker_{worker} {
   OLOG_TRACE_THIS("");
   m_feedbackTimer = SharedJobTimer::GetSharedFrequencyTimer(1);
   m_feedbackTimer->addListener(this);
@@ -168,16 +168,24 @@ void VideoFrameConstructor::onTimeout() {
 }
 
 void VideoFrameConstructor::onFeedback(const FeedbackMsg& msg) {
-  if (msg.type == owt_base::VIDEO_FEEDBACK) {
-    if (msg.cmd == REQUEST_KEY_FRAME) {
-      if (!m_pendingKeyFrameRequests) {
-          RequestKeyFrame();
-      }
-      ++m_pendingKeyFrameRequests;
-    } else if (msg.cmd == SET_BITRATE) {
-      this->setBitrate(msg.data.kbps);
-    }
+  if (msg.type != owt_base::VIDEO_FEEDBACK) {
+    return;
   }
+  auto share_this = std::dynamic_pointer_cast<VideoFrameConstructor>(shared_from_this());
+  std::weak_ptr<VideoFrameConstructor> weak_this = share_this;
+  
+  worker_->task([msg, weak_this, this]() {
+    if (auto share_this = weak_this.lock()) {
+      if (msg.cmd == REQUEST_KEY_FRAME) {
+        if (!m_pendingKeyFrameRequests) {
+            RequestKeyFrame();
+        }
+        ++m_pendingKeyFrameRequests;
+      } else if (msg.cmd == SET_BITRATE) {
+        this->setBitrate(msg.data.kbps);
+      }      
+    }
+  });
 }
 
 void VideoFrameConstructor::close() {
