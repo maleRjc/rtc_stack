@@ -94,11 +94,7 @@ class LibNiceConnection : public IceConnection {
   GMainLoop* loop_;
 
   unsigned int candsDelivered_;
-
-  //boost::thread m_Thread_;
   std::mutex close_mutex_;
-  //boost::condition_variable cond_;
-
   bool receivedLastCandidate_;
 
   guint stream_id_{0};

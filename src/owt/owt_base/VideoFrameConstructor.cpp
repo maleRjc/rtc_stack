@@ -4,6 +4,7 @@
 
 #include "owt_base/VideoFrameConstructor.h"
 
+#include <iostream>
 #include <future>
 #include <random>
 #include "common/rtputils.h"
@@ -16,61 +17,19 @@ namespace owt_base {
 DEFINE_LOGGER(VideoFrameConstructor, "owt.VideoFrameConstructor");
 
 VideoFrameConstructor::VideoFrameConstructor(
-    VideoInfoListener* vil, const config&config, wa::Worker* worker)
-  : config_(config),
-    m_videoInfoListener(vil),
-    m_rtcAdapter(std::move(
-        RtcAdapterFactory::CreateRtcAdapter(worker->getTaskQueue()))),
-    worker_{worker} {
+    VideoInfoListener* vil, const config& config)
+  : config_{config},
+    m_videoInfoListener{vil},
+    m_rtcAdapter{std::move(config.factory->CreateRtcAdapter())},
+    worker_{config.worker} {
 }
 
 VideoFrameConstructor::~VideoFrameConstructor() {
   unbindTransport();
   if (m_videoReceive) {
     m_rtcAdapter->destoryVideoReceiver(m_videoReceive);
-    m_rtcAdapter.reset();
     m_videoReceive = nullptr;
   }
-}
-
-void VideoFrameConstructor::maybeCreateReceiveVideo(uint32_t ssrc) {
-  if (m_videoReceive) {
-    return;
-  }
-  
-  auto share_this = 
-        std::dynamic_pointer_cast<VideoFrameConstructor>(shared_from_this());
-  std::weak_ptr<VideoFrameConstructor> weak_this = share_this;
-  worker_->scheduleEvery([weak_this] () {
-    if (auto p = weak_this.lock()) {
-      p->onTimeout();
-      return true;
-    }
-    return false;
-  }, std::chrono::seconds(1));
-  
-  m_ssrc = config_.ssrc;
-  
-  OLOG_INFO_THIS("create CreateReceiveVideo, ssrc:" << m_ssrc << 
-                 ", rtx:" << config_.rtx_ssrc << 
-                 ", inpt:" << ssrc);
-
-  // Create Receive Video Stream
-  rtc_adapter::RtcAdapter::Config recvConfig;
-
-  recvConfig.ssrc = config_.ssrc;
-  recvConfig.rtx_ssrc = config_.rtx_ssrc;
-  recvConfig.rtcp_rsize = config_.rtcp_rsize;
-  recvConfig.rtp_payload_type = config_.rtp_payload_type;
-  recvConfig.transport_cc = config_.transportcc;
-  recvConfig.red_payload = config_.red_payload;
-  recvConfig.ulpfec_payload = config_.ulpfec_payload;
-  recvConfig.flex_fec = config_.flex_fec;
-  recvConfig.rtp_listener = this;
-  recvConfig.stats_listener = this;
-  recvConfig.frame_listener = this;
-
-  m_videoReceive = m_rtcAdapter->createVideoReceiver(recvConfig);
 }
 
 void VideoFrameConstructor::bindTransport(
@@ -142,8 +101,13 @@ int VideoFrameConstructor::deliverVideoData_(
   assert(packetType != RTCP_Receiver_PT && 
          packetType != RTCP_PS_Feedback_PT && 
          packetType != RTCP_RTP_Feedback_PT);
-  if (packetType == RTCP_Sender_PT)
-    return 0;
+  if (m_videoReceive && 
+      (packetType == RTCP_SDES_PT || 
+       packetType == RTCP_Sender_PT || 
+       packetType == RTCP_XR_PT) ) {
+    m_videoReceive->onRtpData(video_packet->data, video_packet->length);
+    return video_packet->length;
+  }
 
   if (packetType >= RTCP_MIN_PT && packetType <= RTCP_MAX_PT) {
     return 0;
@@ -151,7 +115,7 @@ int VideoFrameConstructor::deliverVideoData_(
 
   RTPHeader* head = reinterpret_cast<RTPHeader*>(video_packet->data);
   if (!m_ssrc && head->getSSRC()) {
-    maybeCreateReceiveVideo(head->getSSRC());
+    createReceiveVideo(head->getSSRC());
   }
   if (m_videoReceive) {
     m_videoReceive->onRtpData(video_packet->data, video_packet->length);
@@ -196,6 +160,42 @@ void VideoFrameConstructor::onFeedback(const FeedbackMsg& msg) {
 
 void VideoFrameConstructor::close() {
   unbindTransport();
+}
+
+void VideoFrameConstructor::createReceiveVideo(uint32_t ssrc) {
+  if (m_videoReceive) {
+    return;
+  }
+  
+  auto share_this = 
+        std::dynamic_pointer_cast<VideoFrameConstructor>(shared_from_this());
+  std::weak_ptr<VideoFrameConstructor> weak_this = share_this;
+  worker_->scheduleEvery([weak_this] () {
+    if (auto p = weak_this.lock()) {
+      p->onTimeout();
+      return true;
+    }
+    return false;
+  }, std::chrono::seconds(1));
+  
+  m_ssrc = config_.ssrc;
+
+  // Create Receive Video Stream
+  rtc_adapter::RtcAdapter::Config recvConfig;
+
+  recvConfig.ssrc = config_.ssrc;
+  recvConfig.rtx_ssrc = config_.rtx_ssrc;
+  recvConfig.rtcp_rsize = config_.rtcp_rsize;
+  recvConfig.rtp_payload_type = config_.rtp_payload_type;
+  recvConfig.transport_cc = config_.transportcc;
+  recvConfig.red_payload = config_.red_payload;
+  recvConfig.ulpfec_payload = config_.ulpfec_payload;
+  recvConfig.flex_fec = config_.flex_fec;
+  recvConfig.rtp_listener = this;
+  recvConfig.stats_listener = this;
+  recvConfig.frame_listener = this;
+
+  m_videoReceive = m_rtcAdapter->createVideoReceiver(recvConfig);
 }
 
 }

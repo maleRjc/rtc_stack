@@ -25,9 +25,11 @@ void PacketBufferService::insertPacket(std::shared_ptr<DataPacket> packet) {
 std::shared_ptr<DataPacket> PacketBufferService::getVideoPacket(uint16_t seq_num) {
   return video_[getIndexInBuffer(seq_num)];
 }
+
 std::shared_ptr<DataPacket> PacketBufferService::getAudioPacket(uint16_t seq_num) {
   return audio_[getIndexInBuffer(seq_num)];
 }
+
 uint16_t PacketBufferService::getIndexInBuffer(uint16_t seq_num) {
   return seq_num % kServicePacketBufferSize;
 }

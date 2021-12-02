@@ -59,8 +59,6 @@ void PipelineBase::detachHandlers() {
   }
 }
 
-Pipeline::Pipeline() {}
-
 Pipeline::~Pipeline() {
   detachHandlers();
 }

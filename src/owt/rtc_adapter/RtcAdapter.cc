@@ -13,6 +13,7 @@
 #include "rtc_adapter/AdapterInternalDefinitions.h"
 #include "rtc_adapter/AudioSendAdapter.h"
 #include "rtc_adapter/VideoSendAdapter.h"
+#include "rtc_adapter/AudioReceiveAdapter.h"
 #include "rtc_adapter/VideoReceiveAdapter.h"
 
 namespace rtc_adapter {
@@ -96,7 +97,8 @@ void RtcAdapterImpl::destoryVideoSender(VideoSendAdapter* video_send_adapter) {
 }
 
 AudioReceiveAdapter* RtcAdapterImpl::createAudioReceiver(const Config& config) {
-  return nullptr;
+  initCall();
+  return new AudioReceiveAdapterImpl(this, config);
 }
 
 void RtcAdapterImpl::destoryAudioReceiver(AudioReceiveAdapter* audio_recv_adapter) {}
@@ -112,10 +114,16 @@ void RtcAdapterImpl::destoryAudioSender(AudioSendAdapter* audio_send_adapter) {
 
 /////////////////////////
 //RtcAdapterFactory
-std::shared_ptr<RtcAdapter>
-RtcAdapterFactory::CreateRtcAdapter(webrtc::TaskQueueBase* p) {
-  return std::dynamic_pointer_cast<RtcAdapter>(
-             std::make_shared<RtcAdapterImpl>(p));
+RtcAdapterFactory::RtcAdapterFactory(webrtc::TaskQueueBase* task_queue) 
+  : task_queue_(task_queue) {
+}
+
+std::shared_ptr<RtcAdapter> RtcAdapterFactory::CreateRtcAdapter() {
+  if (!adapter_) {
+    adapter_ = std::dynamic_pointer_cast<RtcAdapter>(
+        std::make_shared<RtcAdapterImpl>(task_queue_));
+  }
+  return adapter_;
 }
 
 } // namespace rtc_adapter

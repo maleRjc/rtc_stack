@@ -166,7 +166,7 @@ DtlsTransport::~DtlsTransport() {
 }
 
 void DtlsTransport::start() {
-  ice_->setIceListener(shared_from_this());
+  ice_->setIceListener(weak_from_this());
   ice_->copyLogContextFrom(*this);
   ELOG_DEBUG("%s message: starting ice", toLog());
   ice_->start();
@@ -208,10 +208,8 @@ void DtlsTransport::onIceData(packetPtr packet) {
                toLog(), transport_name.c_str(), component_id);
                
     if (component_id == 1) {
-      //std::lock_guard<std::mutex> guard(dtls_mutex);
       dtlsRtp->read(reinterpret_cast<unsigned char*>(data), len);
     } else {
-      //std::lock_guard<std::mutex> guard(dtls_mutex);
       dtlsRtcp->read(reinterpret_cast<unsigned char*>(data), len);
     }
     return;
@@ -221,8 +219,8 @@ void DtlsTransport::onIceData(packetPtr packet) {
     return;
   }
   
-  std::shared_ptr<DataPacket> unprotect_packet = 
-    std::make_shared<DataPacket>(component_id, data, len, VIDEO_PACKET, packet->received_time_ms);
+  auto unprotect_packet = std::make_shared<DataPacket>(
+      component_id, data, len, VIDEO_PACKET, packet->received_time_ms);
 
   if (dtlsRtcp != NULL && component_id == 2) {
     srtp = srtcp_.get();

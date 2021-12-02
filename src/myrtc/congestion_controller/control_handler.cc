@@ -74,9 +74,10 @@ std::optional<TargetTransferRate> CongestionControlHandler::GetUpdate() {
             new_outgoing.network_estimate.loss_rate_ratio ||
         last_reported_->network_estimate.round_trip_time !=
             new_outgoing.network_estimate.round_trip_time))) {
-    if (encoder_paused_in_last_report_ != pause_encoding)
+    if (encoder_paused_in_last_report_ != pause_encoding) {
       RTC_LOG(LS_INFO) << "Bitrate estimate state changed, BWE: "
                        << ToString(log_target_rate) << ".";
+    }
     encoder_paused_in_last_report_ = pause_encoding;
     last_reported_ = new_outgoing;
     return new_outgoing;

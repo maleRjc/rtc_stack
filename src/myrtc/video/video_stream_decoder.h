@@ -20,7 +20,6 @@
 #include "api/video_sink_interface.h"
 #include "remote_bitrate_estimator/remote_bitrate_estimator.h"
 #include "video/video_coding_defines.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/platform_thread.h"
 
 namespace webrtc {
@@ -49,9 +48,6 @@ class VideoStreamDecoder : public VCMReceiveCallback {
       ReceiveStatisticsProxy* receive_statistics_proxy);
 
  private:
-  // Used for all registered callbacks except rendering.
-  rtc::CriticalSection crit_;
-
   VideoReceiver2* const video_receiver_;
 
   ReceiveStatisticsProxy* const receive_stats_callback_;

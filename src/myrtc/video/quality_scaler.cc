@@ -19,12 +19,6 @@
 #include "rtc_base/exp_filter.h"
 #include "rtc_base/task_queue.h"
 
-// TODO(kthelgason): Some versions of Android have issues with log2.
-// See https://code.google.com/p/android/issues/detail?id=212634 for details
-#if defined(WEBRTC_ANDROID)
-#define log2(x) (log(x) / log(2))
-#endif
-
 namespace webrtc {
 
 namespace {

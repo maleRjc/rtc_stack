@@ -19,11 +19,7 @@
 #include "rtc_base/win32.h"
 #endif
 #if defined(WEBRTC_POSIX) && !defined(__native_client__)
-#if defined(WEBRTC_ANDROID)
-#include "rtc_base/ifaddrs_android.h"
-#else
 #include <ifaddrs.h>
-#endif
 #endif  // defined(WEBRTC_POSIX) && !defined(__native_client__)
 
 #include "rtc_base/logging.h"

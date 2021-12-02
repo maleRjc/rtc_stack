@@ -35,7 +35,6 @@
 #include "video/packet_buffer.h"
 #include "video/rtp_frame_reference_finder.h"
 #include "rtc_base/constructor_magic.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/sequence_number_util.h"
 #include "rtc_base/sequence_checker.h"
 #include "rtc_base/thread_annotations.h"
@@ -212,14 +211,11 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
     NackSender* const nack_sender_;
     LossNotificationSender* const loss_notification_sender_;
 
-    // NACKs are accessible from two threads due to nack_module_ being a module.
-    rtc::CriticalSection cs_;
-
     // Key-frame-request-related state.
-    bool request_key_frame_ RTC_GUARDED_BY(cs_);
+    bool request_key_frame_;
 
     // NACK-related state.
-    std::vector<uint16_t> nack_sequence_numbers_ RTC_GUARDED_BY(cs_);
+    std::vector<uint16_t> nack_sequence_numbers_;
 
     // LNTF-related state.
     struct LossNotificationState {
@@ -234,7 +230,7 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
       uint16_t last_received_seq_num;
       bool decodability_flag;
     };
-    std::optional<LossNotificationState> lntf_state_ RTC_GUARDED_BY(cs_);
+    std::optional<LossNotificationState> lntf_state_;
   };
 
   // Entry point doing non-stats work for a received packet. Called
@@ -274,15 +270,11 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
 
   video_coding::PacketBuffer packet_buffer_;
 
-  rtc::CriticalSection reference_finder_lock_;
-  std::unique_ptr<video_coding::RtpFrameReferenceFinder> reference_finder_
-      RTC_GUARDED_BY(reference_finder_lock_);
+  std::unique_ptr<video_coding::RtpFrameReferenceFinder> reference_finder_;
   std::optional<VideoCodecType> current_codec_;
   uint32_t last_assembled_frame_rtp_timestamp_;
 
-  rtc::CriticalSection last_seq_num_cs_;
-  std::map<int64_t, uint16_t> last_seq_num_for_pic_id_
-      RTC_GUARDED_BY(last_seq_num_cs_);
+  std::map<int64_t, uint16_t> last_seq_num_for_pic_id_;
   video_coding::H264SpsPpsTracker tracker_;
 
   // Maps payload type to codec type, for packetization.
@@ -299,13 +291,8 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   std::vector<RtpPacketSinkInterface*> secondary_sinks_
       RTC_GUARDED_BY(worker_task_checker_);
 
-  // Info for GetSyncInfo is updated on network or worker thread, and queried on
-  // the worker thread.
-  rtc::CriticalSection sync_info_lock_;
-  std::optional<uint32_t> last_received_rtp_timestamp_
-      RTC_GUARDED_BY(sync_info_lock_);
-  std::optional<int64_t> last_received_rtp_system_time_ms_
-      RTC_GUARDED_BY(sync_info_lock_);
+  std::optional<uint32_t> last_received_rtp_timestamp_;
+  std::optional<int64_t> last_received_rtp_system_time_ms_;
 
   // Used to validate the buffered frame decryptor is always run on the correct
   // thread.

@@ -14,7 +14,7 @@
 #include <memory>
 #include <vector>
 
-#include "optional"
+#include "absl/types/optional.h"
 #include "api/audio_codec_pair_id.h"
 #include "api/audio_decoder.h"
 #include "api/audio_format.h"
@@ -43,7 +43,7 @@ class AudioDecoderFactory : public rtc::RefCountInterface {
   // work.
   virtual std::unique_ptr<AudioDecoder> MakeAudioDecoder(
       const SdpAudioFormat& format,
-      std::optional<AudioCodecPairId> codec_pair_id) = 0;
+      absl::optional<AudioCodecPairId> codec_pair_id) = 0;
 };
 
 }  // namespace webrtc

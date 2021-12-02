@@ -14,7 +14,6 @@
 
 #include "call/rtp_demuxer.h"
 #include "call/rtp_stream_receiver_controller_interface.h"
-#include "rtc_base/critical_section.h"
 
 namespace webrtc {
 
@@ -58,13 +57,7 @@ class RtpStreamReceiverController
     RtpPacketSinkInterface* const sink_;
   };
 
-  // TODO(nisse): Move to a TaskQueue for synchronization. When used
-  // by Call, we expect construction and all methods but OnRtpPacket
-  // to be called on the same thread, and OnRtpPacket to be called
-  // by a single, but possibly distinct, thread. But applications not
-  // using Call may have use threads differently.
-  rtc::CriticalSection lock_;
-  RtpDemuxer demuxer_ RTC_GUARDED_BY(&lock_);
+  RtpDemuxer demuxer_;
 };
 
 }  // namespace webrtc

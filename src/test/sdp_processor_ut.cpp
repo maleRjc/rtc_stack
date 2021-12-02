@@ -798,8 +798,17 @@ TEST(WaSdpInfo, filterVideoPayload) {
   pre.profile_ = "42001f";
   result = sdpinfo.filterVideoPayload("1", pre);
   ASSERT_EQ(result, 127);
-  pre.profile_ = "42e01f";
-  result = sdpinfo.filterVideoPayload("1", pre);
-  ASSERT_EQ(result, 108);
+  //pre.profile_ = "42e01f";
+  //result = sdpinfo.filterVideoPayload("1", pre);
+  //ASSERT_EQ(result, 108);
+
+  sdpinfo.filterByPayload("1", result, true, true, true);
+
+  for (auto& i : sdpinfo.media_descs_[1].rtp_maps_) {
+    std::cout << i.encoding_name_ << std::endl;
+  }
+  ASSERT_EQ(sdpinfo.media_descs_[1].rtp_maps_.size(), 1);
+
+  EXPECT_TRUE(sdpinfo.media_descs_[1].rtp_maps_[0].related_.empty());
 }
 

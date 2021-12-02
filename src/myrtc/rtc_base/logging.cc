@@ -8,25 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#if defined(WEBRTC_WIN)
-#include <windows.h>
-#if _MSC_VER < 1900
-#define snprintf _snprintf
-#endif
-#undef ERROR  // wingdi.h
-#endif
-
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
-#include <CoreServices/CoreServices.h>
-#elif defined(WEBRTC_ANDROID)
-#include <android/log.h>
-
-// Android has a 1024 limit on log inputs. We use 60 chars as an
-// approx for the header/tag portion.
-// See android/system/core/liblog/logd_write.c
-static const int kMaxLogLineSize = 1024 - 60;
-#endif  // WEBRTC_MAC && !defined(WEBRTC_IOS) || WEBRTC_ANDROID
-
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -125,12 +106,7 @@ LogMessage::LogMessage(const char* file,
   }
 
   if (file != nullptr) {
-#if defined(WEBRTC_ANDROID)
-    tag_ = FilenameFromPath(file);
-    print_stream_ << "(line " << line << "): ";
-#else
     print_stream_ << "(" << FilenameFromPath(file) << ":" << line << "): ";
-#endif
   }
 
   if (err_ctx != ERRCTX_NONE) {
@@ -141,40 +117,12 @@ LogMessage::LogMessage(const char* file,
       case ERRCTX_ERRNO:
         tmp << " " << strerror(err);
         break;
-#ifdef WEBRTC_WIN
-      case ERRCTX_HRESULT: {
-        char msgbuf[256];
-        DWORD flags =
-            FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
-        if (DWORD len = FormatMessageA(
-                flags, nullptr, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                msgbuf, sizeof(msgbuf) / sizeof(msgbuf[0]), nullptr)) {
-          while ((len > 0) &&
-                 isspace(static_cast<unsigned char>(msgbuf[len - 1]))) {
-            msgbuf[--len] = 0;
-          }
-          tmp << " " << msgbuf;
-        }
-        break;
-      }
-#endif  // WEBRTC_WIN
       default:
         break;
     }
     extra_ = tmp.str();
   }
 }
-
-#if defined(WEBRTC_ANDROID)
-LogMessage::LogMessage(const char* file,
-                       int line,
-                       LoggingSeverity sev,
-                       const char* tag)
-    : LogMessage(file, line, sev, ERRCTX_NONE, 0 /* err */) {
-  tag_ = tag;
-  print_stream_ << tag << ": ";
-}
-#endif
 
 // DEPRECATED. Currently only used by downstream projects that use
 // implementation details of logging.h. Work is ongoing to remove those
@@ -193,29 +141,18 @@ LogMessage::~LogMessage() {
   const std::string str = print_stream_.Release();
 
   if (severity_ >= g_dbg_sev) {
-#if defined(WEBRTC_ANDROID)
-    OutputToDebug(str, severity_, tag_);
-#else
     OutputToDebug(str, severity_);
-#endif
   }
 
   GlobalLockScope cs(&g_log_crit);
   for (auto& kv : streams_) {
     if (severity_ >= kv.second) {
-#if defined(WEBRTC_ANDROID)
-      kv.first->OnLogMessage(str, severity_, tag_);
-#else
       kv.first->OnLogMessage(str, severity_);
-#endif
     }
   }
 }
 
 void LogMessage::AddTag(const char* tag) {
-#ifdef WEBRTC_ANDROID
-  tag_ = tag;
-#endif
 }
 
 rtc::StringBuilder& LogMessage::stream() {
@@ -320,17 +257,6 @@ void LogMessage::ConfigureLogging(const char* params) {
     }
   }
 
-#if defined(WEBRTC_WIN) && !defined(WINUWP)
-  if ((LS_NONE != debug_level) && !::IsDebuggerPresent()) {
-    // First, attempt to attach to our parent's console... so if you invoke
-    // from the command line, we'll see the output there.  Otherwise, create
-    // our own console window.
-    // Note: These methods fail if a console already exists, which is fine.
-    if (!AttachConsole(ATTACH_PARENT_PROCESS))
-      ::AllocConsole();
-  }
-#endif  // defined(WEBRTC_WIN) && !defined(WINUWP)
-
   LogToDebug(debug_level);
 }
 
@@ -344,92 +270,10 @@ void LogMessage::UpdateMinLogSeverity()
   g_min_sev = min_sev;
 }
 
-#if defined(WEBRTC_ANDROID)
-void LogMessage::OutputToDebug(const std::string& str,
-                               LoggingSeverity severity,
-                               const char* tag) {
-#else
 void LogMessage::OutputToDebug(const std::string& str,
                                LoggingSeverity severity) {
-#endif
   bool log_to_stderr = log_to_stderr_;
-#if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS) && defined(NDEBUG)
-  // On the Mac, all stderr output goes to the Console log and causes clutter.
-  // So in opt builds, don't log to stderr unless the user specifically sets
-  // a preference to do so.
-  CFStringRef key = CFStringCreateWithCString(
-      kCFAllocatorDefault, "logToStdErr", kCFStringEncodingUTF8);
-  CFStringRef domain = CFBundleGetIdentifier(CFBundleGetMainBundle());
-  if (key != nullptr && domain != nullptr) {
-    Boolean exists_and_is_valid;
-    Boolean should_log =
-        CFPreferencesGetAppBooleanValue(key, domain, &exists_and_is_valid);
-    // If the key doesn't exist or is invalid or is false, we will not log to
-    // stderr.
-    log_to_stderr = exists_and_is_valid && should_log;
-  }
-  if (key != nullptr) {
-    CFRelease(key);
-  }
-#endif  // defined(WEBRTC_MAC) && !defined(WEBRTC_IOS) && defined(NDEBUG)
 
-#if defined(WEBRTC_WIN)
-  // Always log to the debugger.
-  // Perhaps stderr should be controlled by a preference, as on Mac?
-  OutputDebugStringA(str.c_str());
-  if (log_to_stderr) {
-    // This handles dynamically allocated consoles, too.
-    if (HANDLE error_handle = ::GetStdHandle(STD_ERROR_HANDLE)) {
-      log_to_stderr = false;
-      DWORD written = 0;
-      ::WriteFile(error_handle, str.data(), static_cast<DWORD>(str.size()),
-                  &written, 0);
-    }
-  }
-#endif  // WEBRTC_WIN
-
-#if defined(WEBRTC_ANDROID)
-  // Android's logging facility uses severity to log messages but we
-  // need to map libjingle's severity levels to Android ones first.
-  // Also write to stderr which maybe available to executable started
-  // from the shell.
-  int prio;
-  switch (severity) {
-    case LS_VERBOSE:
-      prio = ANDROID_LOG_VERBOSE;
-      break;
-    case LS_INFO:
-      prio = ANDROID_LOG_INFO;
-      break;
-    case LS_WARNING:
-      prio = ANDROID_LOG_WARN;
-      break;
-    case LS_ERROR:
-      prio = ANDROID_LOG_ERROR;
-      break;
-    default:
-      prio = ANDROID_LOG_UNKNOWN;
-  }
-
-  int size = str.size();
-  int line = 0;
-  int idx = 0;
-  const int max_lines = size / kMaxLogLineSize + 1;
-  if (max_lines == 1) {
-    __android_log_print(prio, tag, "%.*s", size, str.c_str());
-  } else {
-    while (size > 0) {
-      const int len = std::min(size, kMaxLogLineSize);
-      // Use the size of the string in the format (str may have \0 in the
-      // middle).
-      __android_log_print(prio, tag, "[%d/%d] %.*s", line + 1, max_lines, len,
-                          str.c_str() + idx);
-      idx += len;
-      size -= len;
-      ++line;
-    }
-  }
-#endif  // WEBRTC_ANDROID
   if (log_to_stderr) {
     fprintf(stderr, "%s", str.c_str());
     fflush(stderr);
@@ -474,14 +318,6 @@ void Log(const LogArgType* fmt, ...) {
       meta = va_arg(args, LogMetadataErr);
       break;
     }
-#ifdef WEBRTC_ANDROID
-    case LogArgType::kLogMetadataTag: {
-      const LogMetadataTag tag_meta = va_arg(args, LogMetadataTag);
-      meta = {{nullptr, 0, tag_meta.severity}, ERRCTX_NONE, 0};
-      tag = tag_meta.tag;
-      break;
-    }
-#endif
     default: {
       RTC_NOTREACHED();
       va_end(args);

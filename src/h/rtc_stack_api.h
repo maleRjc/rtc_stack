@@ -65,6 +65,7 @@ class WebrtcAgentSink
 
 struct TOption { 
   std::string connectId_;
+  std::string stream_name_;
   std::vector<TTrackInfo> tracks_; 
   std::shared_ptr<WebrtcAgentSink> call_back_;
 };

@@ -8,10 +8,17 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include "api/video_stream_encoder_observer.h"
+#include "call/audio_receive_stream.h"
 
 namespace webrtc {
 
-VideoStreamEncoderObserver::AdaptationSteps::AdaptationSteps() = default;
+AudioReceiveStream::Stats::Stats() = default;
+AudioReceiveStream::Stats::~Stats() = default;
+
+AudioReceiveStream::Config::Config() = default;
+AudioReceiveStream::Config::~Config() = default;
+
+AudioReceiveStream::Config::Rtp::Rtp() = default;
+AudioReceiveStream::Config::Rtp::~Rtp() = default;
 
 }  // namespace webrtc

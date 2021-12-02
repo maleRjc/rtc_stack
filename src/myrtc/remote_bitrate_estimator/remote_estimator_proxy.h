@@ -17,7 +17,6 @@
 #include "api/network_control.h"
 #include "api/webrtc_key_value_config.h"
 #include "remote_bitrate_estimator/remote_bitrate_estimator.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/field_trial_parser.h"
 #include "rtc_base/sequence_number_util.h"
 
@@ -39,20 +38,24 @@ class RemoteEstimatorProxy : public RemoteBitrateEstimator {
                        TransportFeedbackSenderInterface* feedback_sender,
                        const WebRtcKeyValueConfig* key_value_config,
                        NetworkStateEstimator* network_state_estimator);
-  ~RemoteEstimatorProxy() override;
+  ~RemoteEstimatorProxy() override = default;
 
   void IncomingPacket(int64_t arrival_time_ms,
                       size_t payload_size,
                       const RTPHeader& header) override;
   void RemoveStream(uint32_t ssrc) override {}
   bool LatestEstimate(std::vector<unsigned int>* ssrcs,
-                      unsigned int* bitrate_bps) const override;
+                      unsigned int* bitrate_bps) const override {
+    return false;
+  }
   void OnRttUpdate(int64_t avg_rtt_ms, int64_t max_rtt_ms) override {}
   void SetMinBitrate(int min_bitrate_bps) override {}
   int64_t TimeUntilNextProcess() override;
   void Process() override;
   void OnBitrateChanged(int bitrate);
-  void SetSendPeriodicFeedback(bool send_periodic_feedback);
+  void SetSendPeriodicFeedback(bool send_periodic_feedback) {
+    send_periodic_feedback_ = send_periodic_feedback;
+  }
 
  private:
   struct TransportWideFeedbackConfig {
@@ -72,7 +75,7 @@ class RemoteEstimatorProxy : public RemoteBitrateEstimator {
 
   static const int kMaxNumberOfPackets;
 
-  void SendPeriodicFeedbacks() RTC_EXCLUSIVE_LOCKS_REQUIRED(&lock_);
+  void SendPeriodicFeedbacks();
   void SendFeedbackOnRequest(int64_t sequence_number,
                              const FeedbackRequest& feedback_request)
       RTC_EXCLUSIVE_LOCKS_REQUIRED(&lock_);
@@ -91,22 +94,20 @@ class RemoteEstimatorProxy : public RemoteBitrateEstimator {
   const TransportWideFeedbackConfig send_config_;
   int64_t last_process_time_ms_;
 
-  //rtc::CriticalSection lock_;
   //  |network_state_estimator_| may be null.
-  NetworkStateEstimator* const network_state_estimator_
-      RTC_PT_GUARDED_BY(&lock_);
-  uint32_t media_ssrc_ RTC_GUARDED_BY(&lock_);
-  uint8_t feedback_packet_count_ RTC_GUARDED_BY(&lock_);
-  SeqNumUnwrapper<uint16_t> unwrapper_ RTC_GUARDED_BY(&lock_);
-  std::optional<int64_t> periodic_window_start_seq_ RTC_GUARDED_BY(&lock_);
+  NetworkStateEstimator* const network_state_estimator_;
+  uint32_t media_ssrc_;
+  uint8_t feedback_packet_count_;
+  SeqNumUnwrapper<uint16_t> unwrapper_;
+  std::optional<int64_t> periodic_window_start_seq_;
   // Map unwrapped seq -> time.
-  std::map<int64_t, int64_t> packet_arrival_times_ RTC_GUARDED_BY(&lock_);
-  int64_t send_interval_ms_ RTC_GUARDED_BY(&lock_);
-  bool send_periodic_feedback_ RTC_GUARDED_BY(&lock_);
+  std::map<int64_t, int64_t> packet_arrival_times_;
+  int64_t send_interval_ms_;
+  bool send_periodic_feedback_;
 
   // Unwraps absolute send times.
-  uint32_t previous_abs_send_time_ RTC_GUARDED_BY(&lock_);
-  Timestamp abs_send_timestamp_ RTC_GUARDED_BY(&lock_);
+  uint32_t previous_abs_send_time_;
+  Timestamp abs_send_timestamp_;
 };
 
 }  // namespace webrtc

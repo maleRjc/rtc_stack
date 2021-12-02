@@ -113,15 +113,8 @@ void LibNiceConnection::close() {
   ELOG_DEBUG("%s message:closing", toLog());
   
   this->updateIceState(IceState::FINISHED);
-//  cond_.notify_one();
   listener_.reset();
- // boost::system_time const timeout = boost::get_system_time() + boost::posix_time::milliseconds(5);
   ELOG_DEBUG("%s message: m_thread join, this: %p", toLog(), this);
-  
- // if (!m_Thread_.timed_join(timeout)) {
-  //  ELOG_DEBUG("%s message: interrupt thread to close, this: %p", toLog(), this);
- //   m_Thread_.interrupt();
- // }
   
   if (agent_ != NULL) {
     ELOG_DEBUG("%s message: unrefing agent", toLog());
@@ -279,7 +272,6 @@ void LibNiceConnection::mainLoop() {
   if (agent_ == NULL || loop_ == NULL) {
     return;
   }
-  // g_main_loop_run(loop_);
   ELOG_DEBUG("%s message: finished g_main_loop, this: %p", toLog(), this);
 }
 

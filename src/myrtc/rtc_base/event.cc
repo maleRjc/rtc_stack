@@ -68,9 +68,6 @@ bool Event::Wait(const int give_up_after_ms, int /*warn_after_ms*/) {
 // default, we target a new enough version for 64-bit platforms but not for
 // 32-bit platforms. For older versions, use
 // pthread_cond_timedwait_monotonic_np.
-#elif defined(WEBRTC_ANDROID) && (__ANDROID_API__ < 21)
-#define USE_CLOCK_GETTIME 1
-#define USE_PTHREAD_COND_TIMEDWAIT_MONOTONIC_NP 1
 #else
 #define USE_CLOCK_GETTIME 1
 #define USE_PTHREAD_COND_TIMEDWAIT_MONOTONIC_NP 0

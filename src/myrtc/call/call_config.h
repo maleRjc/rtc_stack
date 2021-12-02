@@ -16,11 +16,9 @@
 #include "api/task_queue_factory.h"
 #include "api/bitrate_settings.h"
 #include "api/network_control.h"
-//#include "call/audio_state.h"
 
 namespace webrtc {
 
-class AudioProcessing;
 class RtcEventLog;
 
 struct CallConfig {
@@ -34,18 +32,12 @@ struct CallConfig {
   // used to cap total bitrate used. This comes from the remote connection.
   BitrateConstraints bitrate_config;
 
-  // AudioState which is possibly shared between multiple calls.
-  //rtc::scoped_refptr<AudioState> audio_state;
-
-  // Audio Processing Module to be used in this call.
-  //AudioProcessing* audio_processing = nullptr;
-
   // RtcEventLog to use for this call. Required.
   // Use webrtc::RtcEventLog::CreateNull() for a null implementation.
   RtcEventLog* event_log = nullptr;
 
   // FecController to use for this call.
-  FecControllerFactoryInterface* fec_controller_factory = nullptr;
+  //FecControllerFactoryInterface* fec_controller_factory = nullptr;
 
   // Task Queue Factory to be used in this call. Required.
   TaskQueueFactory* task_queue_factory = nullptr;

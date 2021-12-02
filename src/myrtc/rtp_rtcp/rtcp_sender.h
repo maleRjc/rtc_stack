@@ -31,7 +31,6 @@
 #include "rtp_rtcp/report_block.h"
 #include "rtp_rtcp/tmmb_item.h"
 #include "rtc_base/constructor_magic.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/random.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -145,77 +144,58 @@ class RTCPSender {
   class RtcpContext;
 
   // Determine which RTCP messages should be sent and setup flags.
-  void PrepareReport(const FeedbackState& feedback_state)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
+  void PrepareReport(const FeedbackState& feedback_state);
 
   std::vector<rtcp::ReportBlock> CreateReportBlocks(
-      const FeedbackState& feedback_state)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
+      const FeedbackState& feedback_state);
 
-  std::unique_ptr<rtcp::RtcpPacket> BuildSR(const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildRR(const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildSDES(const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildPLI(const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildREMB(const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildTMMBR(const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildTMMBN(const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildAPP(const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
+  std::unique_ptr<rtcp::RtcpPacket> BuildSR(const RtcpContext& context);
+  std::unique_ptr<rtcp::RtcpPacket> BuildRR(const RtcpContext& context);
+  std::unique_ptr<rtcp::RtcpPacket> BuildSDES(const RtcpContext& context);
+  std::unique_ptr<rtcp::RtcpPacket> BuildPLI(const RtcpContext& context);
+  std::unique_ptr<rtcp::RtcpPacket> BuildREMB(const RtcpContext& context);
+  std::unique_ptr<rtcp::RtcpPacket> BuildTMMBR(const RtcpContext& context);
+  std::unique_ptr<rtcp::RtcpPacket> BuildTMMBN(const RtcpContext& context);
+  std::unique_ptr<rtcp::RtcpPacket> BuildAPP(const RtcpContext& context);
   std::unique_ptr<rtcp::RtcpPacket> BuildLossNotification(
-      const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
+      const RtcpContext& context);
   std::unique_ptr<rtcp::RtcpPacket> BuildExtendedReports(
-      const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildBYE(const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildFIR(const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  std::unique_ptr<rtcp::RtcpPacket> BuildNACK(const RtcpContext& context)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
+      const RtcpContext& context);
+  std::unique_ptr<rtcp::RtcpPacket> BuildBYE(const RtcpContext& context);
+  std::unique_ptr<rtcp::RtcpPacket> BuildFIR(const RtcpContext& context);
+  std::unique_ptr<rtcp::RtcpPacket> BuildNACK(const RtcpContext& context);
 
  private:
   const bool audio_;
   const uint32_t ssrc_;
   Clock* const clock_;
-  Random random_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  RtcpMode method_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  Random random_;
+  RtcpMode method_;
 
   RtcEventLog* const event_log_;
   Transport* const transport_;
 
   const int report_interval_ms_;
 
-  rtc::CriticalSection critical_section_rtcp_sender_;
-  bool sending_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  bool sending_;
 
-  int64_t next_time_to_send_rtcp_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  int64_t next_time_to_send_rtcp_;
 
-  uint32_t timestamp_offset_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  uint32_t last_rtp_timestamp_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  int64_t last_frame_capture_time_ms_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  uint32_t timestamp_offset_;
+  uint32_t last_rtp_timestamp_;
+  int64_t last_frame_capture_time_ms_;
   // SSRC that we receive on our RTP channel
-  uint32_t remote_ssrc_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  std::string cname_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  uint32_t remote_ssrc_;
+  std::string cname_;
 
-  ReceiveStatisticsProvider* receive_statistics_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  std::map<uint32_t, std::string> csrc_cnames_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  ReceiveStatisticsProvider* receive_statistics_;
+  std::map<uint32_t, std::string> csrc_cnames_;
 
   // send CSRCs
-  std::vector<uint32_t> csrcs_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  std::vector<uint32_t> csrcs_;
 
   // Full intra request
-  uint8_t sequence_number_fir_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  uint8_t sequence_number_fir_ ;
 
   // Loss Notification
   struct LossNotificationState {
@@ -223,60 +203,46 @@ class RTCPSender {
     uint16_t last_received_seq_num;
     bool decodability_flag;
   };
-  LossNotificationState loss_notification_state_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  LossNotificationState loss_notification_state_;
 
   // REMB
-  int64_t remb_bitrate_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  std::vector<uint32_t> remb_ssrcs_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  int64_t remb_bitrate_;
+  std::vector<uint32_t> remb_ssrcs_;
 
-  std::vector<rtcp::TmmbItem> tmmbn_to_send_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  uint32_t tmmbr_send_bps_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  uint32_t packet_oh_send_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  size_t max_packet_size_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  std::vector<rtcp::TmmbItem> tmmbn_to_send_;
+  uint32_t tmmbr_send_bps_;
+  uint32_t packet_oh_send_;
+  size_t max_packet_size_;
 
   // APP
-  uint8_t app_sub_type_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  uint32_t app_name_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  uint8_t app_sub_type_;
+  uint32_t app_name_;
   std::unique_ptr<uint8_t[]> app_data_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  uint16_t app_length_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+     ;
+  uint16_t app_length_;
 
   // True if sending of XR Receiver reference time report is enabled.
-  bool xr_send_receiver_reference_time_enabled_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  bool xr_send_receiver_reference_time_enabled_;
 
   RtcpPacketTypeCounterObserver* const packet_type_counter_observer_;
-  RtcpPacketTypeCounter packet_type_counter_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  RtcpPacketTypeCounter packet_type_counter_;
 
-  RtcpNackStats nack_stats_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  RtcpNackStats nack_stats_;
 
-  VideoBitrateAllocation video_bitrate_allocation_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  bool send_video_bitrate_allocation_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  VideoBitrateAllocation video_bitrate_allocation_;
+  bool send_video_bitrate_allocation_;
 
-  std::map<int8_t, int> rtp_clock_rates_khz_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
-  int8_t last_payload_type_ RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  std::map<int8_t, int> rtp_clock_rates_khz_;
+  int8_t last_payload_type_;
 
   std::optional<VideoBitrateAllocation> CheckAndUpdateLayerStructure(
-      const VideoBitrateAllocation& bitrate) const
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
+      const VideoBitrateAllocation& bitrate) const;
 
-  void SetFlag(uint32_t type, bool is_volatile)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  void SetFlags(const std::set<RTCPPacketType>& types, bool is_volatile)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  bool IsFlagPresent(uint32_t type) const
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  bool ConsumeFlag(uint32_t type, bool forced = false)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
-  bool AllVolatileFlagsConsumed() const
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(critical_section_rtcp_sender_);
+  void SetFlag(uint32_t type, bool is_volatile);
+  void SetFlags(const std::set<RTCPPacketType>& types, bool is_volatile);
+  bool IsFlagPresent(uint32_t type) const;
+  bool ConsumeFlag(uint32_t type, bool forced = false);
+  bool AllVolatileFlagsConsumed() const;
   struct ReportFlag {
     ReportFlag(uint32_t type, bool is_volatile)
         : type(type), is_volatile(is_volatile) {}
@@ -286,8 +252,7 @@ class RTCPSender {
     const bool is_volatile;
   };
 
-  std::set<ReportFlag> report_flags_
-      RTC_GUARDED_BY(critical_section_rtcp_sender_);
+  std::set<ReportFlag> report_flags_;
 
   typedef std::unique_ptr<rtcp::RtcpPacket> (RTCPSender::*BuilderFunc)(
       const RtcpContext&);

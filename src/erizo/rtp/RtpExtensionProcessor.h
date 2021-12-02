@@ -34,7 +34,7 @@ enum RTPExtensions {
 
 constexpr uint32_t kRtpExtSize = 20;
 
-class RtpExtensionProcessor final{
+class RtpExtensionProcessor final {
   DECLARE_LOGGER();
 
  public:

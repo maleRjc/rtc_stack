@@ -1,4 +1,3 @@
-#include <cstdio>
 #include <map>
 #include <algorithm>
 #include <string>
@@ -12,7 +11,7 @@
 #include "erizo/WebRtcConnection.h"
 #include "erizo/rtp/RtpHeaders.h"
 #include "erizo/rtp/RtcpForwarder.h"
-#include "erizo/rtp/RtcpProcessorHandler.h"
+//#include "erizo/rtp/RtcpProcessorHandler.h"
 #include "erizo/rtp/RtpUtils.h"
 #include "erizo/WoogeenHandler.h"
 
@@ -73,13 +72,13 @@ MediaStream::MediaStream(wa::Worker* worker,
     bool is_publisher) 
     : connection_{std::move(connection)},
       stream_id_{media_stream_id},
-      mslabel_ {media_stream_label},
-      rtcp_processor_{std::make_shared<RtcpForwarder>(
-        static_cast<MediaSink*>(this), static_cast<MediaSource*>(this))},
+      mslabel_{media_stream_label},
+      //rtcp_processor_{std::make_shared<RtcpForwarder>(
+      //  static_cast<MediaSink*>(this), static_cast<MediaSource*>(this))},
       stats_{std::make_shared<Stats>()},
       log_stats_{std::make_shared<Stats>()},
-      quality_manager_{std::make_shared<QualityManager>()},
-      packet_buffer_{std::make_shared<PacketBufferService>()},
+      //quality_manager_{std::make_shared<QualityManager>()},
+      //packet_buffer_{std::make_shared<PacketBufferService>()},
       pipeline_{Pipeline::create()},
       worker_{worker},
       is_publisher_{is_publisher} {
@@ -96,11 +95,13 @@ MediaStream::~MediaStream() {
   OLOG_TRACE_THIS(toLog());
 }
 
+
 uint32_t MediaStream::getMaxVideoBW() {
   uint32_t bitrate = rtcp_processor_ ? rtcp_processor_->getMaxVideoBW() : 0;
   return bitrate;
 }
 
+/*
 void MediaStream::setMaxVideoBW(uint32_t max_video_bw) {
   if (rtcp_processor_) {
     rtcp_processor_->setMaxVideoBW(max_video_bw * 1000);
@@ -110,6 +111,7 @@ void MediaStream::setMaxVideoBW(uint32_t max_video_bw) {
   }
 
 }
+*/
 
 void MediaStream::close()  {
   OLOG_TRACE_THIS("Close called" << toLog());
@@ -151,7 +153,7 @@ bool MediaStream::setRemoteSdp(std::shared_ptr<SdpInfo> sdp)  {
   remote_sdp_ =  std::make_shared<SdpInfo>(*sdp.get());
   if (remote_sdp_->videoBandwidth != 0) {
     ELOG_DEBUG("%s Setting remote BW, maxVideoBW: %u", toLog(), remote_sdp_->videoBandwidth);
-    this->rtcp_processor_->setMaxVideoBW(remote_sdp_->videoBandwidth*1000);
+    //this->rtcp_processor_->setMaxVideoBW(remote_sdp_->videoBandwidth*1000);
   }
 
   auto video_ssrc_list_it = remote_sdp_->video_ssrc_map.find(getLabel());
@@ -193,17 +195,12 @@ bool MediaStream::setRemoteSdp(std::shared_ptr<SdpInfo> sdp)  {
   audio_enabled_ = remote_sdp_->hasAudio;
   video_enabled_ = remote_sdp_->hasVideo;
 
-  rtcp_processor_->addSourceSsrc(getAudioSourceSSRC());
+  /*rtcp_processor_->addSourceSsrc(getAudioSourceSSRC());
   std::for_each(video_source_ssrc_list_.begin(), video_source_ssrc_list_.end(), 
     [this] (uint32_t new_ssrc){
       rtcp_processor_->addSourceSsrc(new_ssrc);
   });
-
-  if (remote_sdp_->rids().size() > 1) {
-    OLOG_DEBUG(toLog() << ", simulcast model");
-    simulcast_ = true;
-  }
-
+  */
   initializePipeline();
 
   initializeStats();
@@ -349,13 +346,13 @@ void MediaStream::printStats() {
 }
 
 void MediaStream::initializePipeline() {
-  handler_manager_ = std::make_shared<HandlerManager>(weak_from_this());
+  //handler_manager_ = std::make_shared<HandlerManager>(weak_from_this());
   pipeline_->addService(shared_from_this());
-  pipeline_->addService(handler_manager_);
-  pipeline_->addService(rtcp_processor_);
+  //pipeline_->addService(handler_manager_);
+  //pipeline_->addService(rtcp_processor_);
   pipeline_->addService(stats_);
-  pipeline_->addService(quality_manager_);
-  pipeline_->addService(packet_buffer_);
+  //pipeline_->addService(quality_manager_);
+  //pipeline_->addService(packet_buffer_);
 
   pipeline_->addFront(std::make_shared<PacketReader>(this));
   pipeline_->addFront(WoogeenHandler(this));
@@ -391,6 +388,7 @@ int MediaStream::deliverFeedback_(std::shared_ptr<DataPacket> fb_packet) {
       }
     }
   }
+  
   if (isVideoSourceSSRC(recvSSRC)) {
     fb_packet->type = VIDEO_PACKET;
     sendPacketAsync(std::make_shared<DataPacket>(*fb_packet));
@@ -417,11 +415,9 @@ int MediaStream::deliverEvent_(MediaEventPtr event) {
   return 1;
 }
 
-void MediaStream::onTransportData(
-    std::shared_ptr<DataPacket> incoming_packet, Transport*) {
-  if (audio_sink_ == nullptr && 
-       video_sink_ == nullptr && 
-       fb_sink_ == nullptr) {
+void MediaStream::onTransportData(std::shared_ptr<DataPacket> incoming_packet, 
+                                  Transport*) {
+  if (audio_sink_ == nullptr && video_sink_ == nullptr && fb_sink_ == nullptr) {
     return;
   }
 
@@ -435,13 +431,30 @@ void MediaStream::onTransportData(
   char* buf = packet->data;
   RtpHeader *head = reinterpret_cast<RtpHeader*> (buf);
   RtcpHeader *chead = reinterpret_cast<RtcpHeader*> (buf);
-  if (!chead->isRtcp()) {
-    uint32_t recvSSRC = head->getSSRC();
-    if (isVideoSourceSSRC(recvSSRC)) {
-      packet->type = VIDEO_PACKET;
-    } else if (isAudioSourceSSRC(recvSSRC)) {
-      packet->type = AUDIO_PACKET;      
+
+  // PROCESS RTCP
+  if (chead->isRtcp()) {
+    if (is_publisher_) {
+      assert(fb_sink_ == nullptr);
+      if (video_sink_) {
+        video_sink_->deliverVideoData(std::move(packet));
+      }
+    } else {
+      if (chead->isFeedback()) { // DELIVER FEEDBACK (RR, FEEDBACK PACKETS)
+        if (fb_sink_ != nullptr && should_send_feedback_) {
+          fb_sink_->deliverFeedback(std::move(packet));
+        }
+      } else { //other
+      }
     }
+    return;
+  }
+  
+  uint32_t recvSSRC = head->getSSRC();
+  if (isVideoSourceSSRC(recvSSRC)) {
+    packet->type = VIDEO_PACKET;
+  } else if (isAudioSourceSSRC(recvSSRC)) {
+    packet->type = AUDIO_PACKET;      
   }
 
   if (pipeline_) {
@@ -452,26 +465,11 @@ void MediaStream::onTransportData(
 void MediaStream::read(std::shared_ptr<DataPacket> packet) {
   char* buf = packet->data;
  
-  // PROCESS RTCP
-  RtcpHeader *chead = reinterpret_cast<RtcpHeader*> (buf);
-  
-  // DELIVER FEEDBACK (RR, FEEDBACK PACKETS)
-  if (chead->isFeedback()) {
-    if (fb_sink_ != nullptr && should_send_feedback_) {
-      fb_sink_->deliverFeedback(std::move(packet));
-    }
-    return;
-  } 
-
-  if (chead->isRtcp()) {
-    return;
-  }
-
   RtpHeader *head = reinterpret_cast<RtpHeader*> (buf);
   uint32_t recvSSRC = 0;
   recvSSRC = head->getSSRC();
 
-  // RTP or RTCP Sender Report
+  // RTP
   if (bundle_) {
     // Check incoming SSRC
     // Deliver data
@@ -488,29 +486,9 @@ void MediaStream::read(std::shared_ptr<DataPacket> packet) {
                 toLog(), recvSSRC, 
                 this->getVideoSourceSSRC(), this->getAudioSourceSSRC());
     }
-
-    return;
   } 
 
-  // if not bundle
-  if (packet->type == AUDIO_PACKET && audio_sink_) {
-    //parseIncomingPayloadType(buf, len, AUDIO_PACKET);
-    // Firefox does not send SSRC in SDP
-    if (getAudioSourceSSRC() == 0) {
-      ELOG_DEBUG("%s discoveredAudioSourceSSRC:%u", toLog(), recvSSRC);
-      this->setAudioSourceSSRC(recvSSRC);
-    }
-    audio_sink_->deliverAudioData(std::move(packet));
-  } else if (packet->type == VIDEO_PACKET && video_sink_) {
-    //parseIncomingPayloadType(buf, len, VIDEO_PACKET);
-    // Firefox does not send SSRC in SDP
-    if (getVideoSourceSSRC() == 0) {
-      ELOG_DEBUG("%s discoveredVideoSourceSSRC:%u", toLog(), recvSSRC);
-      this->setVideoSourceSSRC(recvSSRC);
-    }
-    // change ssrc for RTP packets, don't touch here if RTCP
-    video_sink_->deliverVideoData(std::move(packet));
-  }
+  //TODO if not bundle
 }
 
 void MediaStream::setMediaStreamEventListener(MediaStreamEventListener* listener) {
@@ -576,10 +554,12 @@ void MediaStream::muteStream(bool mute_video, bool mute_audio) {
   }
 }
 
+/*
 void MediaStream::setVideoConstraints(
     int max_video_width, int max_video_height, int max_video_frame_rate) {
   quality_manager_->setVideoConstraints(max_video_width, max_video_height, max_video_frame_rate);
 }
+*/
 
 void MediaStream::setTransportInfo(std::string audio_info, std::string video_info) {
   if (video_enabled_) {
@@ -607,17 +587,15 @@ void MediaStream::setTransportInfo(std::string audio_info, std::string video_inf
   }
 }
 
+/*
 void MediaStream::setFeedbackReports(bool will_send_fb, uint32_t target_bitrate) {
-  if (slide_show_mode_) {
-    target_bitrate = 0;
-  }
-
   this->should_send_feedback_ = will_send_fb;
   if (target_bitrate == 1) {
     this->video_enabled_ = false;
   }
-  this->rate_control_ = target_bitrate;
+  rate_control_ = target_bitrate;
 }
+*/
 
 void MediaStream::setMetadata(std::map<std::string, std::string> metadata) {
   for (const auto &item : metadata) {
@@ -704,7 +682,7 @@ void MediaStream::sendPacket(std::shared_ptr<DataPacket> p) {
   uint64_t sentVideoBytes = 0;
   uint64_t lastSecondVideoBytes = 0;
 
-  if (rate_control_ && !slide_show_mode_) {
+  if (rate_control_) {
     if (p->type == VIDEO_PACKET) {
       if (rate_control_ == 1) {
         return;
@@ -721,6 +699,7 @@ void MediaStream::sendPacket(std::shared_ptr<DataPacket> p) {
       sentVideoBytes += p->length;
     }
   }
+  
   if (!pipeline_initialized_) {
     ELOG_DEBUG("%s message: Pipeline not initialized yet.", toLog());
     return;

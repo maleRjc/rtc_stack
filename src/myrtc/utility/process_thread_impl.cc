@@ -168,7 +168,6 @@ void ProcessThreadImpl::Run(void* obj) {
 }
 
 bool ProcessThreadImpl::Process() {
-  TRACE_EVENT1("webrtc", "ProcessThreadImpl", "name", thread_name_);
   int64_t now = rtc::TimeMillis();
   int64_t next_checkpoint = now + (1000 * 60);
 
@@ -186,12 +185,7 @@ bool ProcessThreadImpl::Process() {
 
       if (m.next_callback <= now ||
           m.next_callback == kCallProcessImmediately) {
-        {
-          TRACE_EVENT2("webrtc", "ModuleProcess", "function",
-                       m.location.function_name(), "file",
-                       m.location.file_and_line());
           m.module->Process();
-        }
         // Use a new 'now' reference to calculate when the next callback
         // should occur.  We'll continue to use 'now' above for the baseline
         // of calculating how long we should wait, to reduce variance.

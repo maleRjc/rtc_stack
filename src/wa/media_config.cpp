@@ -3,16 +3,17 @@
 
 namespace wa {
 
-const std::string extMappings[EXT_MAP_SIZE] = {
-  "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-  "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
+const std::vector<std::string> extMappings {
+  {"urn:ietf:params:rtp-hdrext:ssrc-audio-level"},
+  {"http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01"},
+#ifdef WA_ENABLE_SDESMID
   "urn:ietf:params:rtp-hdrext:sdes:mid",
-/*  "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id",
+#endif
+/*
+  "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id",
   "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id",
   "urn:ietf:params:rtp-hdrext:toffset",
-*/
   "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
-/*
   "urn:3gpp:video-orientation",
   "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay"
 */
@@ -24,20 +25,20 @@ const std::map<std::string, int> extMappings2Id = {
     "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01", 
     EExtmap::TransportCC
   },
+#ifdef WA_ENABLE_SDESMID
   {"urn:ietf:params:rtp-hdrext:sdes:mid", EExtmap::SdesMid},
-/*  
+#endif
+/*
   {"urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id", EExtmap::SdesRtpStreamId},
   {
     "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id", 
     EExtmap::SdesRepairedRtpStreamId
   }, 
-  {"urn:ietf:params:rtp-hdrext:toffset", EExtmap::Toffset},
-*/  
+  {"urn:ietf:params:rtp-hdrext:toffset", EExtmap::Toffset},  
   {
     "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
     EExtmap::AbsSendTime
   },
-/*
   {"urn:3gpp:video-orientation", EExtmap::videoOrientation},
   {
     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay", 

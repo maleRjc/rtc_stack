@@ -507,9 +507,6 @@ void MessageQueue::ClearInternal(MessageHandler* phandler,
 }
 
 void MessageQueue::Dispatch(Message* pmsg) {
-  TRACE_EVENT2("webrtc", "MessageQueue::Dispatch", "src_file_and_line",
-               pmsg->posted_from.file_and_line(), "src_func",
-               pmsg->posted_from.function_name());
   int64_t start_time = TimeMillis();
   pmsg->phandler->OnMessage(pmsg);
   int64_t end_time = TimeMillis();

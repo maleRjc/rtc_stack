@@ -19,7 +19,10 @@ class WoogeenHandler: public Handler, public std::enable_shared_from_this<Woogee
   DECLARE_LOGGER();
 
  public:
-  explicit WoogeenHandler(MediaStream *connection) : connection_{connection}, enabled_{true} {}
+  explicit WoogeenHandler(MediaStream *connection) 
+      : connection_{connection}, 
+        enabled_{true} {
+  }
 
   // Enabled always
   void enable() override {}

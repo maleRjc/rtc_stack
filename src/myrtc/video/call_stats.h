@@ -18,7 +18,6 @@
 #include "module/module_common_types.h"
 #include "rtp_rtcp/rtp_rtcp_defines.h"
 #include "rtc_base/constructor_magic.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/thread_checker.h"
 #include "rtc_base/clock.h"
 
@@ -86,9 +85,6 @@ class CallStats : public Module, public RtcpRttStats {
   // |avg_rtt_ms_lock_| must be held elsewhere for reading.
   // |avg_rtt_ms_lock_| must be held on the process thread for writing.
   int64_t avg_rtt_ms_;
-
-  // Protects |avg_rtt_ms_|.
-  rtc::CriticalSection avg_rtt_ms_lock_;
 
   // |sum_avg_rtt_ms_|, |num_avg_rtt_| and |time_of_first_rtt_ms_| are only used
   // on the ProcessThread when running. When the Process Thread is not running,

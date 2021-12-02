@@ -17,7 +17,8 @@ namespace erizo {
 
 class MediaStream;
 
-class QualityManager: public Service, public std::enable_shared_from_this<QualityManager> {
+class QualityManager: public Service, 
+                      public std::enable_shared_from_this<QualityManager> {
   DECLARE_LOGGER();
 
  public:
@@ -26,7 +27,8 @@ class QualityManager: public Service, public std::enable_shared_from_this<Qualit
   static constexpr float kIncreaseLayerBitrateThreshold = 0.1;
 
  public:
-  explicit QualityManager(std::shared_ptr<wa::Clock> the_clock = std::make_shared<wa::SteadyClock>());
+  explicit QualityManager(std::shared_ptr<wa::Clock> the_clock = 
+                              std::make_shared<wa::SteadyClock>());
   void enable();
   void disable();
 

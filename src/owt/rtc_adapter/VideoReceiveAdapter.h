@@ -8,6 +8,7 @@
 #include <atomic>
 #include "common/logger.h"
 
+#include "api/transport.h"
 #include "api/video_codec.h"
 #include "api/video_decoder.h"
 #include "api/video_decoder_factory.h"

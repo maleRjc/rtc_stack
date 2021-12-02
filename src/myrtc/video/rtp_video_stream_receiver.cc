@@ -98,6 +98,7 @@ std::unique_ptr<RtpRtcp> CreateRtpRtcpModule(
 
 static const int kPacketLogIntervalMs = 10000;
 
+//RtcpFeedbackBuffer
 RtpVideoStreamReceiver::RtcpFeedbackBuffer::RtcpFeedbackBuffer(
     KeyFrameRequestSender* key_frame_request_sender,
     NackSender* nack_sender,
@@ -112,7 +113,6 @@ RtpVideoStreamReceiver::RtcpFeedbackBuffer::RtcpFeedbackBuffer(
 }
 
 void RtpVideoStreamReceiver::RtcpFeedbackBuffer::RequestKeyFrame() {
-  rtc::CritScope lock(&cs_);
   request_key_frame_ = true;
 }
 
@@ -120,7 +120,6 @@ void RtpVideoStreamReceiver::RtcpFeedbackBuffer::SendNack(
     const std::vector<uint16_t>& sequence_numbers,
     bool buffering_allowed) {
   RTC_DCHECK(!sequence_numbers.empty());
-  rtc::CritScope lock(&cs_);
   nack_sequence_numbers_.insert(nack_sequence_numbers_.end(),
                                 sequence_numbers.cbegin(),
                                 sequence_numbers.cend());
@@ -137,7 +136,6 @@ void RtpVideoStreamReceiver::RtcpFeedbackBuffer::SendLossNotification(
     bool decodability_flag,
     bool buffering_allowed) {
   RTC_DCHECK(buffering_allowed);
-  rtc::CritScope lock(&cs_);
   RTC_DCHECK(!lntf_state_)
       << "SendLossNotification() called twice in a row with no call to "
          "SendBufferedRtcpFeedback() in between.";
@@ -151,7 +149,6 @@ void RtpVideoStreamReceiver::RtcpFeedbackBuffer::SendBufferedRtcpFeedback() {
   std::optional<LossNotificationState> lntf_state;
 
   {
-    rtc::CritScope lock(&cs_);
     std::swap(request_key_frame, request_key_frame_);
     std::swap(nack_sequence_numbers, nack_sequence_numbers_);
     std::swap(lntf_state, lntf_state_);
@@ -177,6 +174,7 @@ void RtpVideoStreamReceiver::RtcpFeedbackBuffer::SendBufferedRtcpFeedback() {
   }
 }
 
+//RtpVideoStreamReceiver
 RtpVideoStreamReceiver::RtpVideoStreamReceiver(
     Clock* clock,
     Transport* transport,
@@ -307,7 +305,6 @@ std::optional<Syncable::Info> RtpVideoStreamReceiver::GetSyncInfo() const {
     return std::nullopt;
   }
   {
-    rtc::CritScope lock(&sync_info_lock_);
     if (!last_received_rtp_timestamp_ || !last_received_rtp_system_time_ms_) {
       return std::nullopt;
     }
@@ -428,11 +425,9 @@ void RtpVideoStreamReceiver::OnRtpPacket(const RtpPacketReceived& packet) {
   if (!packet.recovered()) {
     // TODO(nisse): Exclude out-of-order packets?
     int64_t now_ms = clock_->TimeInMilliseconds();
-    {
-      rtc::CritScope cs(&sync_info_lock_);
-      last_received_rtp_timestamp_ = packet.Timestamp();
-      last_received_rtp_system_time_ms_ = now_ms;
-    }
+    last_received_rtp_timestamp_ = packet.Timestamp();
+    last_received_rtp_system_time_ms_ = now_ms;
+
     // Periodically log the RTP header of incoming packets.
     if (now_ms - last_packet_log_ms_ > kPacketLogIntervalMs) {
       rtc::StringBuilder ss;
@@ -529,7 +524,6 @@ void RtpVideoStreamReceiver::OnAssembledFrame(
     has_received_frame_ = true;
   }
 
-  rtc::CritScope lock(&reference_finder_lock_);
   // Reset |reference_finder_| if |frame| is new and the codec have changed.
   if (current_codec_) {
     bool frame_is_newer =
@@ -569,13 +563,12 @@ void RtpVideoStreamReceiver::OnAssembledFrame(
 
 void RtpVideoStreamReceiver::OnCompleteFrame(
     std::unique_ptr<video_coding::EncodedFrame> frame) {
-  {
-    rtc::CritScope lock(&last_seq_num_cs_);
-    video_coding::RtpFrameObject* rtp_frame =
-        static_cast<video_coding::RtpFrameObject*>(frame.get());
-    last_seq_num_for_pic_id_[rtp_frame->id.picture_id] =
-        rtp_frame->last_seq_num();
-  }
+
+  video_coding::RtpFrameObject* rtp_frame =
+      static_cast<video_coding::RtpFrameObject*>(frame.get());
+  last_seq_num_for_pic_id_[rtp_frame->id.picture_id] =
+      rtp_frame->last_seq_num();
+  
   last_completed_picture_id_ =
       std::max(last_completed_picture_id_, frame->id.picture_id);
   complete_frame_callback_->OnCompleteFrame(std::move(frame));
@@ -583,7 +576,6 @@ void RtpVideoStreamReceiver::OnCompleteFrame(
 
 void RtpVideoStreamReceiver::OnDecryptedFrame(
     std::unique_ptr<video_coding::RtpFrameObject> frame) {
-  rtc::CritScope lock(&reference_finder_lock_);
   reference_finder_->ManageFrame(std::move(frame));
 }
 
@@ -782,10 +774,8 @@ void RtpVideoStreamReceiver::ParseAndHandleEncapsulatingHeader(
 // RtpFrameReferenceFinder will need to know about padding to
 // correctly calculate frame references.
 void RtpVideoStreamReceiver::NotifyReceiverOfEmptyPacket(uint16_t seq_num) {
-  {
-    rtc::CritScope lock(&reference_finder_lock_);
-    reference_finder_->PaddingReceived(seq_num);
-  }
+  reference_finder_->PaddingReceived(seq_num);
+
   packet_buffer_.PaddingReceived(seq_num);
   if (nack_module_) {
     nack_module_->OnReceivedPacket(seq_num, /* is_keyframe = */ false,
@@ -840,30 +830,27 @@ void RtpVideoStreamReceiver::FrameContinuous(int64_t picture_id) {
     return;
 
   int seq_num = -1;
-  {
-    rtc::CritScope lock(&last_seq_num_cs_);
-    auto seq_num_it = last_seq_num_for_pic_id_.find(picture_id);
-    if (seq_num_it != last_seq_num_for_pic_id_.end())
-      seq_num = seq_num_it->second;
-  }
+
+  auto seq_num_it = last_seq_num_for_pic_id_.find(picture_id);
+  if (seq_num_it != last_seq_num_for_pic_id_.end())
+    seq_num = seq_num_it->second;
+
   if (seq_num != -1)
     nack_module_->ClearUpTo(seq_num);
 }
 
 void RtpVideoStreamReceiver::FrameDecoded(int64_t picture_id) {
   int seq_num = -1;
-  {
-    rtc::CritScope lock(&last_seq_num_cs_);
-    auto seq_num_it = last_seq_num_for_pic_id_.find(picture_id);
-    if (seq_num_it != last_seq_num_for_pic_id_.end()) {
-      seq_num = seq_num_it->second;
-      last_seq_num_for_pic_id_.erase(last_seq_num_for_pic_id_.begin(),
-                                     ++seq_num_it);
-    }
+  
+  auto seq_num_it = last_seq_num_for_pic_id_.find(picture_id);
+  if (seq_num_it != last_seq_num_for_pic_id_.end()) {
+    seq_num = seq_num_it->second;
+    last_seq_num_for_pic_id_.erase(last_seq_num_for_pic_id_.begin(),
+                                   ++seq_num_it);
   }
+  
   if (seq_num != -1) {
     packet_buffer_.ClearTo(seq_num);
-    rtc::CritScope lock(&reference_finder_lock_);
     reference_finder_->ClearTo(seq_num);
   }
 }

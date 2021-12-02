@@ -41,6 +41,7 @@ const char* FrameTypeToString(AudioFrameType frame_type) {
     case AudioFrameType::kAudioFrameCN:
       return "audio_cn";
   }
+  return "unknown";
 }
 
 }  // namespace

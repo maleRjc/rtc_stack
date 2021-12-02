@@ -15,10 +15,6 @@
 #include <cstdio>
 #include <cstdlib>
 
-#if defined(WEBRTC_ANDROID)
-#define RTC_LOG_TAG_ANDROID "rtc"
-#include <android/log.h>  // NOLINT
-#endif
 
 #if defined(WEBRTC_WIN)
 #include <windows.h>
@@ -149,10 +145,6 @@ RTC_NORETURN void FatalLog(const char* file,
   va_end(args);
 
   const char* output = s.c_str();
-
-#if defined(WEBRTC_ANDROID)
-  __android_log_print(ANDROID_LOG_ERROR, RTC_LOG_TAG_ANDROID, "%s\n", output);
-#endif
 
   fflush(stdout);
   fprintf(stderr, "%s", output);

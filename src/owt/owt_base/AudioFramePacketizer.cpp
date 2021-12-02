@@ -9,12 +9,9 @@ namespace owt_base {
 
 DEFINE_LOGGER(AudioFramePacketizer, "owt.AudioFramePacketizer");
 
-AudioFramePacketizer::AudioFramePacketizer(AudioFramePacketizer::Config& config, 
-                                         webrtc::TaskQueueBase* task_queue_base)
-    : m_rtcAdapter(std::move(
-        RtcAdapterFactory::CreateRtcAdapter(task_queue_base))) {
-  OLOG_TRACE_THIS("");
-  auto factory = rtc_adapter::createDummyTaskQueueFactory(task_queue_base);
+AudioFramePacketizer::AudioFramePacketizer(AudioFramePacketizer::Config& config)
+    : m_rtcAdapter(std::move(config.factory->CreateRtcAdapter())) {
+  auto factory = rtc_adapter::createDummyTaskQueueFactory(config.task_queue);
   auto task_queue = factory->CreateTaskQueue(
       "deliver_frame", webrtc::TaskQueueFactory::Priority::NORMAL);
   task_queue_ = std::move(
@@ -24,7 +21,6 @@ AudioFramePacketizer::AudioFramePacketizer(AudioFramePacketizer::Config& config,
 }
 
 AudioFramePacketizer::~AudioFramePacketizer() {
-  OLOG_TRACE_THIS("");
   close();
   if (m_audioSend) {
     m_rtcAdapter->destoryAudioSender(m_audioSend);

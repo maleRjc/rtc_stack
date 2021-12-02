@@ -31,21 +31,20 @@ namespace wa {
 enum EExtmap {
   AudioLevel,
   TransportCC,
+#ifdef WA_ENABLE_SDESMID
   SdesMid,
-/*  SdesRtpStreamId,
+#endif
+/*  
+  SdesRtpStreamId,
   SdesRepairedRtpStreamId,
-  Toffset,
-*/  
+  Toffset,  
   AbsSendTime,
-/*
   videoOrientation,
   PlayoutDelay
 */
 };
 
-#define EXT_MAP_SIZE  4
-
-extern const std::string extMappings[EXT_MAP_SIZE];
+extern const std::vector<std::string> extMappings;
 
 extern erizo::RtpMap rtpH264;
 

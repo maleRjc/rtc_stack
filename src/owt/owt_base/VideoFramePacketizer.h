@@ -39,8 +39,10 @@ class VideoFramePacketizer
       bool selfRequestKeyframe{false};
       std::string mid{""};
       uint32_t midExtId{0};
+      rtc_adapter::RtcAdapterFactory* factory{nullptr};
+      webrtc::TaskQueueBase* task_queue{nullptr};
   };
-  VideoFramePacketizer(Config& config, webrtc::TaskQueueBase* task_queue_base);
+  VideoFramePacketizer(Config& config);
   ~VideoFramePacketizer();
 
   void bindTransport(erizo::MediaSink* sink);

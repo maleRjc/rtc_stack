@@ -34,14 +34,14 @@ class OldStyleEncodedFrame final : public AudioDecoder::EncodedAudioFrame {
     return ret < 0 ? 0 : static_cast<size_t>(ret);
   }
 
-  std::optional<DecodeResult> Decode(
+  absl::optional<DecodeResult> Decode(
       rtc::ArrayView<int16_t> decoded) const override {
     auto speech_type = AudioDecoder::kSpeech;
     const int ret = decoder_->Decode(
         payload_.data(), payload_.size(), decoder_->SampleRateHz(),
         decoded.size() * sizeof(int16_t), decoded.data(), &speech_type);
-    return ret < 0 ? std::nullopt
-                   : std::optional<DecodeResult>(
+    return ret < 0 ? absl::nullopt
+                   : absl::optional<DecodeResult>(
                          {static_cast<size_t>(ret), speech_type});
   }
 

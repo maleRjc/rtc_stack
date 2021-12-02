@@ -103,8 +103,7 @@ class Transport : public std::enable_shared_from_this<Transport>,
 
   //IceConnectionListener implement
   void onPacketReceived(packetPtr packet) {
-    std::weak_ptr<Transport> weak_transport = Transport::shared_from_this();
-    worker_->task([weak_transport, packet]() {
+    worker_->task([weak_transport = weak_from_this(), packet]() {
       if (auto this_ptr = weak_transport.lock()) {
         if (packet->length > 0) {
           this_ptr->onIceData(packet);

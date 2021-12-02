@@ -69,7 +69,7 @@ class ServiceContextImplBase : public PipelineServiceContext {
   }
 
  protected:
-  Context* impl_;
+  Context* impl_;  // ServiceContextImpl
   std::weak_ptr<PipelineBase> pipeline_weak_;
   PipelineBase* pipeline_raw_;
   std::weak_ptr<S> service_;

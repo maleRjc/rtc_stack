@@ -22,6 +22,7 @@ namespace {
 static const uint32_t kTimeOffsetSwitchThreshold = 30;
 }  // namespace
 
+//WrappingBitrateEstimator
 ReceiveSideCongestionController::WrappingBitrateEstimator::
     WrappingBitrateEstimator(RemoteBitrateObserver* observer, Clock* clock)
     : observer_(observer),
@@ -38,45 +39,38 @@ void ReceiveSideCongestionController::WrappingBitrateEstimator::IncomingPacket(
     int64_t arrival_time_ms,
     size_t payload_size,
     const RTPHeader& header) {
-  rtc::CritScope cs(&crit_sect_);
   PickEstimatorFromHeader(header);
   rbe_->IncomingPacket(arrival_time_ms, payload_size, header);
 }
 
 void ReceiveSideCongestionController::WrappingBitrateEstimator::Process() {
-  rtc::CritScope cs(&crit_sect_);
   rbe_->Process();
 }
 
 int64_t ReceiveSideCongestionController::WrappingBitrateEstimator::
     TimeUntilNextProcess() {
-  rtc::CritScope cs(&crit_sect_);
   return rbe_->TimeUntilNextProcess();
 }
 
 void ReceiveSideCongestionController::WrappingBitrateEstimator::OnRttUpdate(
     int64_t avg_rtt_ms,
     int64_t max_rtt_ms) {
-  rtc::CritScope cs(&crit_sect_);
   rbe_->OnRttUpdate(avg_rtt_ms, max_rtt_ms);
 }
 
 void ReceiveSideCongestionController::WrappingBitrateEstimator::RemoveStream(
     unsigned int ssrc) {
-  rtc::CritScope cs(&crit_sect_);
   rbe_->RemoveStream(ssrc);
 }
 
 bool ReceiveSideCongestionController::WrappingBitrateEstimator::LatestEstimate(
     std::vector<unsigned int>* ssrcs,
     unsigned int* bitrate_bps) const {
-  rtc::CritScope cs(&crit_sect_);
   return rbe_->LatestEstimate(ssrcs, bitrate_bps);
 }
 
 void ReceiveSideCongestionController::WrappingBitrateEstimator::SetMinBitrate(
     int min_bitrate_bps) {
-  rtc::CritScope cs(&crit_sect_);
   rbe_->SetMinBitrate(min_bitrate_bps);
   min_bitrate_bps_ = min_bitrate_bps;
 }
@@ -118,6 +112,7 @@ void ReceiveSideCongestionController::WrappingBitrateEstimator::
   rbe_->SetMinBitrate(min_bitrate_bps_);
 }
 
+//ReceiveSideCongestionController
 ReceiveSideCongestionController::ReceiveSideCongestionController(
     Clock* clock,
     PacketRouter* packet_router)
@@ -127,7 +122,7 @@ ReceiveSideCongestionController::ReceiveSideCongestionController(
     Clock* clock,
     PacketRouter* packet_router,
     NetworkStateEstimator* network_state_estimator)
-    : remote_bitrate_estimator_(packet_router, clock),
+    : //remote_bitrate_estimator_(packet_router, clock),
       remote_estimator_proxy_(clock,
                               packet_router,
                               &field_trial_config_,
@@ -140,8 +135,9 @@ void ReceiveSideCongestionController::OnReceivedPacket(
   remote_estimator_proxy_.IncomingPacket(arrival_time_ms, payload_size, header);
   if (!header.extension.hasTransportSequenceNumber) {
     // Receive-side BWE.
-    remote_bitrate_estimator_.IncomingPacket(arrival_time_ms, payload_size,
-                                             header);
+    assert(false);
+    //remote_bitrate_estimator_.IncomingPacket(arrival_time_ms, payload_size,
+    //                                         header);
   }
 }
 
@@ -155,7 +151,7 @@ ReceiveSideCongestionController::GetRemoteBitrateEstimator(bool send_side_bwe) {
   if (send_side_bwe) {
     return &remote_estimator_proxy_;
   } else {
-    return &remote_bitrate_estimator_;
+    return nullptr; //&remote_bitrate_estimator_;
   }
 }
 
@@ -165,13 +161,13 @@ ReceiveSideCongestionController::GetRemoteBitrateEstimator(
   if (send_side_bwe) {
     return &remote_estimator_proxy_;
   } else {
-    return &remote_bitrate_estimator_;
+    return nullptr; //&remote_bitrate_estimator_;
   }
 }
 
 void ReceiveSideCongestionController::OnRttUpdate(int64_t avg_rtt_ms,
                                                   int64_t max_rtt_ms) {
-  remote_bitrate_estimator_.OnRttUpdate(avg_rtt_ms, max_rtt_ms);
+  //remote_bitrate_estimator_.OnRttUpdate(avg_rtt_ms, max_rtt_ms);
 }
 
 void ReceiveSideCongestionController::OnBitrateChanged(int bitrate_bps) {
@@ -179,11 +175,12 @@ void ReceiveSideCongestionController::OnBitrateChanged(int bitrate_bps) {
 }
 
 int64_t ReceiveSideCongestionController::TimeUntilNextProcess() {
-  return remote_bitrate_estimator_.TimeUntilNextProcess();
+  return 1;
+  //return remote_bitrate_estimator_.TimeUntilNextProcess();
 }
 
 void ReceiveSideCongestionController::Process() {
-  remote_bitrate_estimator_.Process();
+  //remote_bitrate_estimator_.Process();
 }
 
 }  // namespace webrtc

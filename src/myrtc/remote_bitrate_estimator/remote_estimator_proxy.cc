@@ -49,10 +49,9 @@ RemoteEstimatorProxy::RemoteEstimatorProxy(
       abs_send_timestamp_(clock->CurrentTime()) {
   RTC_LOG(LS_INFO)
       << "Maximum interval between transport feedback RTCP messages (ms): "
-      << send_config_.max_interval->ms();
+      << send_config_.max_interval->ms()
+      << ", default (ms) " << send_interval_ms_;
 }
-
-RemoteEstimatorProxy::~RemoteEstimatorProxy() {}
 
 void RemoteEstimatorProxy::IncomingPacket(int64_t arrival_time_ms,
                                           size_t payload_size,
@@ -61,7 +60,6 @@ void RemoteEstimatorProxy::IncomingPacket(int64_t arrival_time_ms,
     RTC_LOG(LS_WARNING) << "Arrival time out of bounds: " << arrival_time_ms;
     return;
   }
-  //rtc::CritScope cs(&lock_);
   media_ssrc_ = header.ssrc;
   int64_t seq = 0;
 
@@ -128,14 +126,8 @@ void RemoteEstimatorProxy::IncomingPacket(int64_t arrival_time_ms,
   }
 }
 
-bool RemoteEstimatorProxy::LatestEstimate(std::vector<unsigned int>* ssrcs,
-                                          unsigned int* bitrate_bps) const {
-  return false;
-}
-
 int64_t RemoteEstimatorProxy::TimeUntilNextProcess() {
   int64_t restult = 0;
-  //rtc::CritScope cs(&lock_);
   if (!send_periodic_feedback_) {
     // Wait a day until next process.
     restult = 24 * 60 * 60 * 1000;
@@ -149,7 +141,6 @@ int64_t RemoteEstimatorProxy::TimeUntilNextProcess() {
 }
 
 void RemoteEstimatorProxy::Process() {
-  //rtc::CritScope cs(&lock_);
   if (!send_periodic_feedback_) {
     return;
   }
@@ -171,17 +162,10 @@ void RemoteEstimatorProxy::OnBitrateChanged(int bitrate_bps) {
       kTwccReportSize * 8.0 * 1000.0 / send_config_.min_interval->ms();
 
   // Let TWCC reports occupy 5% of total bandwidth.
-  //tc::CritScope cs(&lock_);
   send_interval_ms_ = static_cast<int>(
       0.5 + kTwccReportSize * 8.0 * 1000.0 /
                 rtc::SafeClamp(send_config_.bandwidth_fraction * bitrate_bps,
                                kMinTwccRate, kMaxTwccRate));
-}
-
-void RemoteEstimatorProxy::SetSendPeriodicFeedback(
-    bool send_periodic_feedback) {
-  //rtc::CritScope cs(&lock_);
-  send_periodic_feedback_ = send_periodic_feedback;
 }
 
 void RemoteEstimatorProxy::SendPeriodicFeedbacks() {

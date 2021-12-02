@@ -25,7 +25,9 @@ class RtcpForwarder: public RtcpProcessor{
   DECLARE_LOGGER();
 
  public:
-  RtcpForwarder(MediaSink* msink, MediaSource* msource, uint32_t max_video_bw = 300000);
+  RtcpForwarder(MediaSink* msink, 
+                MediaSource* msource, 
+                uint32_t max_video_bw = 300000);
   virtual ~RtcpForwarder() {}
   void addSourceSsrc(uint32_t ssrc) override;
   void analyzeSr(RtcpHeader* chead) override;
@@ -37,7 +39,8 @@ class RtcpForwarder: public RtcpProcessor{
   static const int REMB_TIMEOUT = 1000;
   std::map<uint32_t, std::shared_ptr<RtcpData>> rtcpData_;
   int addREMB(char* buf, int len, uint32_t bitrate);
-  int addNACK(char* buf, int len, uint16_t seqNum, uint16_t blp, uint32_t sourceSsrc, uint32_t sinkSsrc);
+  int addNACK(char* buf, int len, uint16_t seqNum, 
+              uint16_t blp, uint32_t sourceSsrc, uint32_t sinkSsrc);
 };
 
 }  // namespace erizo

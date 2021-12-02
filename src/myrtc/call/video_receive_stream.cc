@@ -122,6 +122,7 @@ std::string VideoReceiveStream::Config::Rtp::ToString() const {
   ss << ", nack: {rtp_history_ms: " << nack.rtp_history_ms << '}';
   ss << ", ulpfec_payload_type: " << ulpfec_payload_type;
   ss << ", red_type: " << red_payload_type;
+  ss << ", flex_fec:" << (protected_by_flexfec?"on":"off");
   ss << ", rtx_ssrc: " << rtx_ssrc;
   ss << ", rtx_payload_types: {";
   for (auto& kv : rtx_associated_payload_types) {

@@ -3,11 +3,9 @@
 #include <iostream>
 #include <sstream>
 #include <string.h>
-
 #include <string_view>
-#include "libsdptransform/include/sdptransform.hpp"
 
-//#define ORDERED_JSON
+#include "libsdptransform/include/sdptransform.hpp"
 
 #ifdef ORDERED_JSON
 #include "libsdptransform/include/fifo_map.hpp"
@@ -50,7 +48,7 @@ inline std::string get_preference_name(EFormatPreference t) {
   }
 }
 
-int32_t filer_h264(const std::vector<MediaDesc::rtpmap>& rtpMaps, 
+int32_t filer_h264(std::vector<MediaDesc::rtpmap>& rtpMaps, 
                    const std::string& profile) {
   int32_t result = 0;
   for (auto& item : rtpMaps) {
@@ -77,6 +75,8 @@ int32_t filer_h264(const std::vector<MediaDesc::rtpmap>& rtpMaps,
 
     std::string_view str_level = 
         view_fmtp.substr(level_found + strlen("profile-level-id="), 6);
+
+    //found
     if (str_level == profile) {
       result = item.payload_type_;
       break;
@@ -155,18 +155,6 @@ MediaDesc::rtpmap::rtpmap(rtpmap&& r)
     related_(std::move(r.related_)) {
 }
 
-/*
-void MediaDesc::rtpmap::operator=(const rtpmap& r)
-{
-  payload_type_ = r.payload_type_;
-  encoding_name_ = r.encoding_name_;
-  clock_rate_ = r.clock_rate_;
-  encoding_param_ = r.encoding_param_;
-  rtcp_fb_ = r.rtcp_fb_;
-  fmtp_ = r.fmtp_;
-  related_ = r.related_;
-}
-*/
 void MediaDesc::rtpmap::encode_rtp(JSON_TYPE& session) {
   session["payload"] = payload_type_;
   session["codec"] = encoding_name_;
@@ -442,7 +430,8 @@ void MediaDesc::parse(const JSON_TYPE& media) {
   //extmap
   auto& ext = media.at("ext");
   for(size_t i = 0; i < ext.size(); ++i){
-    desc.extmaps_.insert(std::make_pair<int, std::string>(ext[i].at("value"), ext[i].at("uri")));
+    desc.extmaps_.insert(
+      std::make_pair<int, std::string>(ext[i].at("value"), ext[i].at("uri")));
   }
 
   desc.direction_ = media.at("direction");
@@ -533,16 +522,6 @@ void MediaDesc::encode(JSON_TYPE& media) {
   connection["version"] = 4;
   connection["ip"] = "0.0.0.0";
   media["connection"] = connection;
-
-/*
-  //a=rtcp:0 IN IP4 0.0.0.0
-  JSON_TYPE rtcp = JSON_OBJECT;
-  rtcp["port"] = rtcport_;
-  rtcp["netType"] = "IN";
-  rtcp["ipVer"] = 4;
-  rtcp["address"] = "0.0.0.0";
-  media["rtcp"] = rtcp;
-*/
 
   session_info_.encode(media);
 
@@ -643,6 +622,13 @@ media_setting MediaDesc::get_media_settings() {
       settings.ssrcs.push_back(ssrc_infos_[0].ssrc_);
     }
 
+    auto found = std::find_if(extmaps_.begin(), extmaps_.end(),[](auto& item) {
+      return item.second == extMappings[EExtmap::TransportCC];
+    });
+    if (found != extmaps_.end()) {
+      settings.transportcc = found->first;
+    }
+
   }else if(type_ == "video"){
     // Video ssrcs
     if (!ssrc_groups_.empty()) {
@@ -650,8 +636,6 @@ media_setting MediaDesc::get_media_settings() {
       if ( ssrc_groups_[0].semantic_ == "FID" ){
         LOG_ASSERT(ssrc_groups_[0].ssrcs_.size() == 2);
         settings.ssrcs = ssrc_groups_[0].ssrcs_;
-
-        settings.rtcp_rsize = rtcp_rsize_.empty() ? false : true;
       
         // Video ulpfec red transport-cc
         std::for_each(rtp_maps_.begin(), 
@@ -681,12 +665,17 @@ media_setting MediaDesc::get_media_settings() {
     }
   }
 
+  settings.rtcp_rsize = rtcp_rsize_.empty() ? false : true;
+
+#ifdef WA_ENABLE_SDESMID
   for(auto& i : extmaps_){
     if(i.second == extMappings[EExtmap::SdesMid]){
       settings.mid = mid_;
       settings.mid_ext = i.first;
     }
   }
+#endif
+
   return settings;
 }
 
@@ -746,7 +735,6 @@ std::string MediaDesc::setSsrcs(const std::vector<uint32_t>& ssrcs,
   ssrc_infos_[0].ssrc_ = ssrc;
   ssrc_infos_[0].cname_ = "o/i14u9pJrxRKAsu";
   ssrc_infos_[0].msid_ = msid + " " + mtype + "0";
-  //ssrc_infos_[0].msid_tracker_ = 
   ssrc_infos_[0].mslabel_ = msid;
   ssrc_infos_[0].label_ = msid + mtype + "0";
 
@@ -761,28 +749,44 @@ std::string MediaDesc::setSsrcs(const std::vector<uint32_t>& ssrcs,
   return msid;
 }
 
-bool MediaDesc::filterByPayload(int32_t payload) {
+bool MediaDesc::filterByPayload(int32_t payload,
+                                bool disable_red,
+                                bool disable_rtx,
+                                bool disable_ulpfec) {
   bool ret = false;
-  rtpmap map;
-  for(auto& i : rtp_maps_){
-    if(payload == i.payload_type_){
-      map = i;
-      ret = true;
-    }
-  }
+  
+  auto found = std::find_if(rtp_maps_.begin(), rtp_maps_.end(), 
+      [payload](auto& i) {
+        return payload == i.payload_type_;
+  });
 
-  if(!ret){
+  if(found == rtp_maps_.end()) {
     return ret;
   }
 
+  rtpmap map = *found;
+
+  ret = true;
   rtp_maps_.clear();
 
-  rtp_maps_.push_back(std::move(map));
+  auto& related = map.related_;
+  related.erase(std::remove_if(related.begin(), related.end(), 
+      [disable_red, disable_rtx, disable_ulpfec](auto& i)->bool {
+    return ((disable_red && i.encoding_name_ == "red") ||
+            (disable_rtx && i.encoding_name_ == "rtx") ||
+            (disable_ulpfec && i.encoding_name_ == "ulpfec"))? true : false;
+  }), related.end());
+
+  //remove recive side cc
+  auto& rtcp_fb = map.rtcp_fb_;
+  rtcp_fb.erase(std::remove(rtcp_fb.begin(), rtcp_fb.end(), "goog-remb"));
+
+  rtp_maps_.emplace_back(std::move(map));
 
   std::ostringstream oss;
   oss << rtp_maps_[0].payload_type_;
 
-  for(size_t i=0; i<rtp_maps_[0].related_.size(); ++i){
+  for(size_t i = 0; i < rtp_maps_[0].related_.size(); ++i) {
     oss << " ";
     oss << rtp_maps_[0].related_[i].payload_type_;
     rtp_maps_.push_back(rtp_maps_[0].related_[i]);
@@ -802,21 +806,28 @@ bool MediaDesc::filterByPayload(int32_t payload) {
 }
 
 void MediaDesc::filterExtmap() {
-  for(auto x = extmaps_.begin(); x != extmaps_.end();){
+  for(auto x = extmaps_.begin(); x != extmaps_.end();) {
     size_t i = 0;
-    for(; i < EXT_MAP_SIZE; ++i){
-      if(x->second == extMappings[i]){
+    size_t ext_map_size = extMappings.size();
+    for(; i < ext_map_size; ++i) {
+      if(x->second == extMappings[i]) {
         break;
       }
     }
 
-    if(i >= EXT_MAP_SIZE){
+    if(i >= ext_map_size) {
       //not found
       extmaps_.erase(x++);
     }else{
       // found
       ++x;
     }
+  }
+
+  if (disable_audio_gcc_ && type_ == "audio") {
+    extmaps_.erase(std::find_if(extmaps_.begin(), extmaps_.end(), [](auto& item) {
+        return item.second == extMappings[EExtmap::TransportCC];
+      }));
   }
 }
 
@@ -828,17 +839,17 @@ WaSdpInfo::WaSdpInfo(const std::string& strSdp) {
 }
 
 int WaSdpInfo::init(const std::string& strSdp) {
-  if(!media_descs_.empty()){
+  if(!media_descs_.empty()) {
     return wa_e_already_initialized;
   }
 
-  if(strSdp.empty()){
+  if(strSdp.empty()) {
     return wa_e_invalid_param;
   }
 
   auto session = sdptransform::parse(strSdp);
   
-  if(session.find("media") == session.end()){
+  if(session.find("media") == session.end()) {
     return wa_e_parse_offer_failed;
   }
 
@@ -859,14 +870,14 @@ int WaSdpInfo::init(const std::string& strSdp) {
   start_time_ = session.at("timing").at("start");
   end_time_ = session.at("timing").at("stop");
 
-  if(session.find("icelite") != session.end()){
+  if(session.find("icelite") != session.end()) {
     ice_lite_ = true;
   }
 
   //SessionInfo
   {
     int result = session_info_.decode(session); 
-    if(wa_failed == result){
+    if(wa_failed == result) {
       session_in_medias_ = true;
     }
   }
@@ -883,9 +894,11 @@ int WaSdpInfo::init(const std::string& strSdp) {
     }
   }
 
-  auto extmapAllowMixed_found = session.find("extmapAllowMixed");
-  if(extmapAllowMixed_found != session.end()){
-    extmapAllowMixed_ = *extmapAllowMixed_found;
+  if (enable_extmapAllowMixed_) {
+    auto extmapAllowMixed_found = session.find("extmapAllowMixed");
+    if(extmapAllowMixed_found != session.end()){
+      extmapAllowMixed_ = *extmapAllowMixed_found;
+    }
   }
   
   //msid_semantic
@@ -1045,9 +1058,8 @@ WaSdpInfo* WaSdpInfo::answer() {
   answer->unicast_address_ = "127.0.0.1";
 
   std::for_each(answer->media_descs_.begin(), answer->media_descs_.end(), 
-        [](MediaDesc& mediaInfo){
+        [](MediaDesc& mediaInfo) {
     mediaInfo.port_ = 1;
-//  mediaInfo.rtcport_ = 1;
 
     if(mediaInfo.session_info_.setup_ == "active"){
       mediaInfo.session_info_.setup_ = "passive";
@@ -1062,9 +1074,9 @@ WaSdpInfo* WaSdpInfo::answer() {
       mediaInfo.direction_ = "sendonly";
     }
     else if(mediaInfo.direction_ == "sendonly"){
-      mediaInfo.msid_.clear();
-      mediaInfo.ssrc_groups_.clear();
-      mediaInfo.ssrc_infos_.clear();
+      //mediaInfo.msid_.clear();
+      //mediaInfo.ssrc_groups_.clear();
+      //mediaInfo.ssrc_infos_.clear();
       mediaInfo.direction_ = "recvonly";
     }
 
@@ -1132,10 +1144,15 @@ int32_t WaSdpInfo::filterVideoPayload(const std::string& mid,
   return type;
 }
 
-bool WaSdpInfo::filterByPayload(const std::string& mid, int32_t payload) {
+bool WaSdpInfo::filterByPayload(const std::string& mid, 
+                                int32_t payload,
+                                bool disable_red/* = false*/,
+                                bool disable_rtx/* = false*/,
+                                bool disable_ulpfec/* = false*/) {
   for(auto& item : media_descs_){
     if(item.mid_ == mid){
-      return item.filterByPayload(payload);
+      return item.filterByPayload(
+          payload, disable_red, disable_rtx, disable_ulpfec);
     }
   }
 
@@ -1204,17 +1221,19 @@ void WaSdpInfo::setCandidates(const WaSdpInfo& sdpInfo) {
   }
 }
 
-/*
-void WaSdpInfo::mergeMediaMaps(const WaSdpInfo& sdpinfo) {
-  LOG_ASSERT(media_descs_.size() == sdpinfo.media_descs_.size());
 
-  for(size_t i=0; i<media_descs_.size(); ++i){
-    media_descs_[i].protocols_ = sdpinfo.media_descs_[i].protocols_;
-    media_descs_[i].payloads_ = sdpinfo.media_descs_[i].payloads_;
-    media_descs_[i].extmaps_ = sdpinfo.media_descs_[i].extmaps_;
-    media_descs_[i].rtp_maps_ = sdpinfo.media_descs_[i].rtp_maps_;
+media_setting WaSdpInfo::get_media_settings(const std::string& mid) {
+  auto found = std::find_if(media_descs_.begin(), media_descs_.end(), 
+      [mid](auto& item) {
+    return item.mid_ == mid;
+  });
+
+  if (found != media_descs_.end()) {
+    return (*found).get_media_settings();
   }
+
+  return media_setting();
 }
-*/
+
 } //namespace wa
 
