@@ -21,15 +21,13 @@
 namespace erizo {
 
 constexpr std::chrono::milliseconds kBitrateControlPeriod(100);
-constexpr uint32_t kDefaultVideoSinkSSRC = 55543;
+constexpr uint32_t kDefaultVideoSinkSSRC = 55555;
 constexpr uint32_t kDefaultAudioSinkSSRC = 44444;
 
 
 class MediaStream;
 class SdpInfo;
 class RtpExtensionProcessor;
-class Worker;
-class IOWorker;
 
 /**
  * WebRTC Events
@@ -48,13 +46,16 @@ enum WebRTCEvent {
 
 class WebRtcConnectionEventListener {
  public:
-    virtual ~WebRtcConnectionEventListener() { }
-    virtual void notifyEvent(WebRTCEvent newEvent, const std::string& message, const std::string &stream_id = "") = 0;
+  virtual ~WebRtcConnectionEventListener() { }
+  virtual void notifyEvent(WebRTCEvent newEvent,
+                           const std::string& message, 
+                           const std::string &stream_id = "") = 0;
 };
 
 
 /**
- * A WebRTC Connection. This class represents a WebRTC Connection that can be established with other peers via a SDP negotiation
+ * A WebRTC Connection. This class represents a WebRTC Connection that
+ * can be established with other peers via a SDP negotiation
  * it comprises all the necessary Transport components.
  */
 class WebRtcConnection: public TransportListener, 
@@ -63,12 +64,6 @@ class WebRtcConnection: public TransportListener,
   DECLARE_LOGGER();
 
  public:
-  //typedef typename Handler::Context Context;
-
-  /**
-   * Constructor.
-   * Constructs an empty WebRTCConnection without any configuration.
-   */
   WebRtcConnection(wa::Worker* worker, 
                    wa::IOWorker* io_worker,
                    const std::string& connection_id, 
@@ -76,10 +71,8 @@ class WebRtcConnection: public TransportListener,
                    const std::vector<RtpMap>& rtp_mappings, 
                    const std::vector<erizo::ExtMap>& ext_mappings,
                    WebRtcConnectionEventListener* listener);
-  /**
-   * Destructor.
-   */
-  virtual ~WebRtcConnection();
+ 
+  ~WebRtcConnection() override;
   /**
    * Inits the WebConnection by starting ICE Candidate Gathering.
    * @return True if the candidates are gathered.

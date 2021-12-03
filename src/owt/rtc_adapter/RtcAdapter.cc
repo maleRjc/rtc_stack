@@ -101,7 +101,10 @@ AudioReceiveAdapter* RtcAdapterImpl::createAudioReceiver(const Config& config) {
   return new AudioReceiveAdapterImpl(this, config);
 }
 
-void RtcAdapterImpl::destoryAudioReceiver(AudioReceiveAdapter* audio_recv_adapter) {}
+void RtcAdapterImpl::destoryAudioReceiver(AudioReceiveAdapter* audio_recv_adapter) {
+  AudioReceiveAdapterImpl* impl = static_cast<AudioReceiveAdapterImpl*>(audio_recv_adapter);
+  delete impl;
+}
 
 AudioSendAdapter* RtcAdapterImpl::createAudioSender(const Config& config) {
   return new AudioSendAdapterImpl(this, config);

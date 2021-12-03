@@ -294,7 +294,7 @@ void WrtcAgentPc::signalling(const std::string& signal, const std::string& conte
       result = this_ptr->removeRemoteCandidates(content);
     }
     if (result != srs_success) {
-      WLOG_ERROR("process %s error, code:%d, desc:%s", 
+      WLOG_ERROR("process %s error, code:%d, desc:%s",
           signal.c_str(), srs_error_code(result), srs_error_desc(result).c_str());
       delete result;
     }

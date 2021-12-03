@@ -32,6 +32,14 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
                           public owt_base::FrameDestination,
                           public owt_base::VideoInfoListener,
                           public std::enable_shared_from_this<WrtcAgentPc> {
+ /*
+ * WebrtcTrack represents a stream object
+ * of WrtcAgentPc. It has media source
+ * functions (addDestination) and media sink
+ * functions (receiver) which will be used
+ * in connection link-up. Each rtp-stream-id
+ * in simulcast refers to one WebrtcTrack.
+ */
   class WebrtcTrack {
   /*
    * audio: { format, ssrc, mid, midExtId }
