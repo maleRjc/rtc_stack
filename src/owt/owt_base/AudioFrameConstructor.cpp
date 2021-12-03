@@ -102,6 +102,9 @@ int AudioFrameConstructor::deliverAudioData_(
     return 0;
   }
 
+  // support audio transport-cc, 
+  // see @https://github.com/anjisuan783/media_lib/issues/8
+
   RTCPHeader* chead = reinterpret_cast<RTCPHeader*>(audio_packet->data);
   uint8_t packetType = chead->getPacketType();
   assert(packetType != RTCP_Receiver_PT && 
