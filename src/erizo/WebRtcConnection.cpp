@@ -1,7 +1,3 @@
-/*
- * WebRTCConnection.cpp
- */
-
 #include <cstdio>
 #include <map>
 #include <algorithm>

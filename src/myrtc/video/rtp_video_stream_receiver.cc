@@ -304,13 +304,11 @@ std::optional<Syncable::Info> RtpVideoStreamReceiver::GetSyncInfo() const {
                            &info.capture_time_source_clock) != 0) {
     return std::nullopt;
   }
-  {
-    if (!last_received_rtp_timestamp_ || !last_received_rtp_system_time_ms_) {
-      return std::nullopt;
-    }
-    info.latest_received_capture_timestamp = *last_received_rtp_timestamp_;
-    info.latest_receive_time_ms = *last_received_rtp_system_time_ms_;
+  if (!last_received_rtp_timestamp_ || !last_received_rtp_system_time_ms_) {
+    return std::nullopt;
   }
+  info.latest_received_capture_timestamp = *last_received_rtp_timestamp_;
+  info.latest_receive_time_ms = *last_received_rtp_system_time_ms_;
 
   // Leaves info.current_delay_ms uninitialized.
   return info;
@@ -414,7 +412,6 @@ void RtpVideoStreamReceiver::OnRecoveredPacket(const uint8_t* rtp_packet,
 }
 
 // This method handles both regular RTP packets and packets recovered
-// via FlexFEC.
 void RtpVideoStreamReceiver::OnRtpPacket(const RtpPacketReceived& packet) {
   RTC_DCHECK_RUN_ON(&worker_task_checker_);
 
@@ -427,7 +424,7 @@ void RtpVideoStreamReceiver::OnRtpPacket(const RtpPacketReceived& packet) {
     int64_t now_ms = clock_->TimeInMilliseconds();
     last_received_rtp_timestamp_ = packet.Timestamp();
     last_received_rtp_system_time_ms_ = now_ms;
-
+/*
     // Periodically log the RTP header of incoming packets.
     if (now_ms - last_packet_log_ms_ > kPacketLogIntervalMs) {
       rtc::StringBuilder ss;
@@ -447,6 +444,7 @@ void RtpVideoStreamReceiver::OnRtpPacket(const RtpPacketReceived& packet) {
       RTC_LOG(LS_INFO) << ss.str();
       last_packet_log_ms_ = now_ms;
     }
+*/
   }
 
   ReceivePacket(packet);

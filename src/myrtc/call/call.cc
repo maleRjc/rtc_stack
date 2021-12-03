@@ -352,7 +352,7 @@ Call::Call(Clock* clock,
 
 Call::~Call() {
   RTC_DCHECK_RUN_ON(&configuration_sequence_checker_);
-  RTC_CHECK( audio_receive_streams_.empty());
+  RTC_CHECK(audio_receive_streams_.empty());
   RTC_CHECK(video_receive_streams_.empty());
 
   module_process_thread_->Stop();

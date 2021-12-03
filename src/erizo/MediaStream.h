@@ -42,7 +42,8 @@ class MediaStreamStatsListener {
 class MediaStreamEventListener {
  public:
     virtual ~MediaStreamEventListener() { }
-    virtual void notifyMediaStreamEvent(const std::string& type, const std::string& message) = 0;
+    virtual void notifyMediaStreamEvent(const std::string& type, 
+                                        const std::string& message) = 0;
 };
 
 /**
@@ -61,23 +62,15 @@ class MediaStream final : public MediaSink,
   static log4cxx::LoggerPtr statsLogger;
 
  public:
-  typedef typename Handler::Context Context;
   bool audio_enabled_{false};
   bool video_enabled_{false};
 
-  /**
-   * Constructor.
-   * Constructs an empty MediaStream without any configuration.
-   */
   MediaStream(wa::Worker* worker, 
               std::shared_ptr<WebRtcConnection> connection,
               const std::string& media_stream_id, 
               const std::string& media_stream_label,
               bool is_publisher);
-  /**
-   * Destructor.
-   */
-  virtual ~MediaStream();
+  ~MediaStream() override;
   
   bool init();
   void close() override;
@@ -113,8 +106,6 @@ class MediaStream final : public MediaSink,
   void getJSONStats(std::function<void(std::string)> callback);
 
   void onTransportData(std::shared_ptr<DataPacket> packet, Transport *transport);
-
-  void sendPacketAsync(std::shared_ptr<DataPacket> packet);
 
   void setTransportInfo(std::string audio_info, std::string video_info);
 
@@ -164,6 +155,7 @@ class MediaStream final : public MediaSink,
 
  private:
   void sendPacket(std::shared_ptr<DataPacket> packet);
+  void sendPacket_i(std::shared_ptr<DataPacket> packet);
   int deliverAudioData_(std::shared_ptr<DataPacket> audio_packet) override;
   int deliverVideoData_(std::shared_ptr<DataPacket> video_packet) override;
   int deliverFeedback_(std::shared_ptr<DataPacket> fb_packet) override;
@@ -210,4 +202,6 @@ class MediaStream final : public MediaSink,
 };
 
 }  // namespace erizo
+
 #endif  // ERIZO_SRC_ERIZO_MEDIASTREAM_H_
+

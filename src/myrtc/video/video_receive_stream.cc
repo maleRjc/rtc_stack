@@ -247,7 +247,8 @@ VideoReceiveStream::VideoReceiveStream(
   } else {
     // Register with RtpStreamReceiverController.
     media_receiver_ = 
-      receiver_controller->CreateReceiver(config_.rtp.remote_ssrc, &rtp_video_stream_receiver_);
+      receiver_controller->CreateReceiver(config_.rtp.remote_ssrc, 
+                                          &rtp_video_stream_receiver_);
         
     if (config_.rtp.rtx_ssrc) {
       rtx_receive_stream_ = std::make_unique<RtxReceiveStream>(
@@ -257,9 +258,11 @@ VideoReceiveStream::VideoReceiveStream(
           rtp_receive_statistics_.get());
       
       rtx_receiver_ = 
-          receiver_controller->CreateReceiver(config_.rtp.rtx_ssrc, rtx_receive_stream_.get());
+          receiver_controller->CreateReceiver(config_.rtp.rtx_ssrc, 
+                                              rtx_receive_stream_.get());
     } else {
-      rtp_receive_statistics_->EnableRetransmitDetection(config.rtp.remote_ssrc, true);
+      rtp_receive_statistics_->EnableRetransmitDetection(
+            config.rtp.remote_ssrc, true);
     }
   }
 }
