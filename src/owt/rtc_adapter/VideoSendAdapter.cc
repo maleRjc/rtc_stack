@@ -122,83 +122,91 @@ static void dump(void* index, FrameFormat format, uint8_t* buf, int len) {
 //VideoSendAdapterImpl
 VideoSendAdapterImpl::VideoSendAdapterImpl(CallOwner* callowner, 
                                            const RtcAdapter::Config& config)
-    : m_config(config)
-    , m_frameFormat(FRAME_FORMAT_UNKNOWN)
-    , m_random(rtc::TimeMicros())
-    , m_ssrcGenerator(SsrcGenerator::GetSsrcGenerator())
-    , m_feedbackListener(config.feedback_listener)
-    , m_dataListener(config.rtp_listener)
-    , m_statsListener(config.stats_listener)
-    , m_taskRunner{std::make_unique<ProcessThreadMock>(callowner->taskQueue().get())} {
-    m_ssrc = m_ssrcGenerator->CreateSsrc();
-    m_ssrcGenerator->RegisterSsrc(m_ssrc);
-    //m_taskRunner = TaskRunnerPool::GetInstance().GetTaskRunner();
+    : config_(config)
+    , frameFormat_(FRAME_FORMAT_UNKNOWN)
+    , ssrcGenerator_(SsrcGenerator::GetSsrcGenerator())
+    , feedbackListener_(config.feedback_listener)
+    , dataListener_(config.rtp_listener)
+    , statsListener_(config.stats_listener)
+    , taskRunner_{std::make_unique<ProcessThreadMock>(callowner->taskQueue().get())} {
+    ssrc_ = ssrcGenerator_->CreateSsrc();
+    ssrcGenerator_->RegisterSsrc(ssrc_);
     init();
 }
 
 VideoSendAdapterImpl::~VideoSendAdapterImpl() {
-    m_taskRunner->DeRegisterModule(m_rtpRtcp.get());
-    m_ssrcGenerator->ReturnSsrc(m_ssrc);
+    taskRunner_->DeRegisterModule(rtpRtcp_.get());
+    ssrcGenerator_->ReturnSsrc(ssrc_);
 }
 
 bool VideoSendAdapterImpl::init() {
   m_clock = webrtc::Clock::GetRealTimeClock();
-   m_retransmissionRateLimiter = std::move(std::make_unique<webrtc::RateLimiter>(
+  retransmissionRateLimiter_ = std::move(std::make_unique<webrtc::RateLimiter>(
       webrtc::Clock::GetRealTimeClock(), 1000));
 
-  m_eventLog = std::make_unique<webrtc::RtcEventLogNull>();
+  //configure rtp_rtcp
+  eventLog_ = std::make_unique<webrtc::RtcEventLogNull>();
   webrtc::RtpRtcp::Configuration configuration;
   configuration.clock = m_clock;
   configuration.audio = false;
   configuration.receiver_only = false;
   configuration.outgoing_transport = this;
   configuration.intra_frame_callback = this;
-  configuration.event_log = m_eventLog.get();
-  configuration.retransmission_rate_limiter = m_retransmissionRateLimiter.get();
-  configuration.local_media_ssrc = m_ssrc;
+  configuration.event_log = eventLog_.get();
+  configuration.retransmission_rate_limiter = retransmissionRateLimiter_.get();
+  configuration.local_media_ssrc = ssrc_;
 
-  m_rtpRtcp = webrtc::RtpRtcp::Create(configuration);
-  m_rtpRtcp->SetSendingStatus(true);
-  m_rtpRtcp->SetSendingMediaStatus(true);
-  m_rtpRtcp->SetRTCPStatus(webrtc::RtcpMode::kReducedSize);
+  rtpRtcp_ = webrtc::RtpRtcp::Create(configuration);
+  rtpRtcp_->SetSendingStatus(true);
+  rtpRtcp_->SetSendingMediaStatus(true);
+
+  webrtc::RtcpMode mode = webrtc::RtcpMode::kCompound;
+  if (config_.rtcp_rsize) {
+    mode = webrtc::RtcpMode::kReducedSize;
+  }
+  rtpRtcp_->SetRTCPStatus(mode);
+  
   // Set NACK.
-  m_rtpRtcp->SetStorePacketsStatus(true, 600);
-  if (m_config.transport_cc) {
-    m_rtpRtcp->RegisterRtpHeaderExtension(
-      webrtc::RtpExtension::kTransportSequenceNumberUri, m_config.transport_cc);
+  rtpRtcp_->SetStorePacketsStatus(true, 600);
+  
+  if (config_.transport_cc != -1) {
+    rtpRtcp_->RegisterRtpHeaderExtension(
+      webrtc::RtpExtension::kTransportSequenceNumberUri, config_.transport_cc);
   }
-  if (m_config.mid_ext) {
-    m_config.mid[sizeof(m_config.mid) - 1] = '\0';
-    std::string mid(m_config.mid);
+  
+  if (config_.mid_ext) {
+    config_.mid[sizeof(config_.mid) - 1] = '\0';
+    std::string mid(config_.mid);
     // Register MID extension
-    m_rtpRtcp->RegisterRtpHeaderExtension(
-        webrtc::RtpExtension::kMidUri, m_config.mid_ext);
-    m_rtpRtcp->SetMid(mid);
+    rtpRtcp_->RegisterRtpHeaderExtension(
+        webrtc::RtpExtension::kMidUri, config_.mid_ext);
+    rtpRtcp_->SetMid(mid);
   }
 
+  // configure rtp sender
   webrtc::RTPSenderVideo::Config video_config;
-  m_playoutDelayOracle = std::make_unique<webrtc::PlayoutDelayOracle>();
-  m_fieldTrialConfig = std::make_unique<webrtc::FieldTrialBasedConfig>();
+  playoutDelayOracle_ = std::make_unique<webrtc::PlayoutDelayOracle>();
+  fieldTrialConfig_ = std::make_unique<webrtc::FieldTrialBasedConfig>();
   video_config.clock = configuration.clock;
-  video_config.rtp_sender = m_rtpRtcp->RtpSender();
-  video_config.field_trials = m_fieldTrialConfig.get();
-  video_config.playout_delay_oracle = m_playoutDelayOracle.get();
-  if (m_config.red_payload) {
-    video_config.red_payload_type = m_config.red_payload;
+  video_config.rtp_sender = rtpRtcp_->RtpSender();
+  video_config.field_trials = fieldTrialConfig_.get();
+  video_config.playout_delay_oracle = playoutDelayOracle_.get();
+  if (config_.red_payload != -1) {
+    video_config.red_payload_type = config_.red_payload;
   }
-  if (m_config.ulpfec_payload) {
-    video_config.ulpfec_payload_type = m_config.ulpfec_payload;
+  if (config_.ulpfec_payload != -1) {
+    video_config.ulpfec_payload_type = config_.ulpfec_payload;
   }
 
-  m_senderVideo = std::make_unique<webrtc::RTPSenderVideo>(video_config);
-  m_taskRunner->RegisterModule(m_rtpRtcp.get(), RTC_FROM_HERE);
+  senderVideo_ = std::make_unique<webrtc::RTPSenderVideo>(video_config);
+  taskRunner_->RegisterModule(rtpRtcp_.get(), RTC_FROM_HERE);
 
   return true;
 }
 
 void VideoSendAdapterImpl::reset() {
-  m_keyFrameArrived = false;
-  m_timeStampOffset = 0;
+  keyFrameArrived_ = false;
+  timeStampOffset_ = 0;
 }
 
 void VideoSendAdapterImpl::onFrame(const Frame& frame) {
@@ -209,45 +217,45 @@ void VideoSendAdapterImpl::onFrame(const Frame& frame) {
   
   using namespace webrtc;
 
-  if (!m_keyFrameArrived) {
+  if (!keyFrameArrived_) {
     if (!frame.additionalInfo.video.isKeyFrame) {
       RTC_DLOG(LS_INFO) << "Key frame has not arrived, send key-frame-request.";
-      if (m_feedbackListener) {
+      if (feedbackListener_) {
         FeedbackMsg feedback = {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
-        m_feedbackListener->onFeedback(feedback);
+        feedbackListener_->onFeedback(feedback);
       }
       return;
     }
     
     // Recalculate timestamp offset
     const uint32_t kMsToRtpTimestamp = 90;
-    m_timeStampOffset = 
+    timeStampOffset_ = 
         kMsToRtpTimestamp * m_clock->TimeInMilliseconds() - frame.timeStamp;
-    m_keyFrameArrived = true;
+    keyFrameArrived_ = true;
   }
 
   // Recalculate timestamp for stream substitution
-  uint32_t timeStamp = frame.timeStamp + m_timeStampOffset;
+  uint32_t timeStamp = frame.timeStamp + timeStampOffset_;
   webrtc::RTPVideoHeader h;
   memset(&h, 0, sizeof(webrtc::RTPVideoHeader));
 
-  if (frame.format != m_frameFormat
-      || frame.additionalInfo.video.width != m_frameWidth
-      || frame.additionalInfo.video.height != m_frameHeight) {
-      m_frameFormat = frame.format;
-      m_frameWidth = frame.additionalInfo.video.width;
-      m_frameHeight = frame.additionalInfo.video.height;
+  if (frame.format != frameFormat_
+      || frame.additionalInfo.video.width != frameWidth_
+      || frame.additionalInfo.video.height != frameHeight_) {
+      frameFormat_ = frame.format;
+      frameWidth_ = frame.additionalInfo.video.width;
+      frameHeight_ = frame.additionalInfo.video.height;
   }
 
   h.frame_type = frame.additionalInfo.video.isKeyFrame ? 
                  VideoFrameType::kVideoFrameKey : 
                  VideoFrameType::kVideoFrameDelta;
  
-  h.width = m_frameWidth;
-  h.height = m_frameHeight;
+  h.width = frameWidth_;
+  h.height = frameHeight_;
 
   int frame_length = frame.length;
-  if (m_enableDump) {
+  if (enableDump_) {
     dump(this, frame.format, frame.payload, frame_length);
   }
 
@@ -289,7 +297,7 @@ void VideoSendAdapterImpl::onFrame(const Frame& frame) {
   }
 
   h.video_type_header.emplace<RTPVideoHeaderH264>();
-  m_senderVideo->SendVideo(
+  senderVideo_->SendVideo(
       H264_90000_PT,
       webrtc::kVideoCodecH264,
       timeStamp,
@@ -297,12 +305,12 @@ void VideoSendAdapterImpl::onFrame(const Frame& frame) {
       rtc::ArrayView<const uint8_t>(frame.payload, frame.length),
       &frag_info,
       h,
-      m_rtpRtcp->ExpectedRetransmissionTimeMs());
+      rtpRtcp_->ExpectedRetransmissionTimeMs());
 }
 
 int VideoSendAdapterImpl::onRtcpData(char* data, int len) {
-  if (m_rtpRtcp) {
-    m_rtpRtcp->IncomingRtcpPacket(reinterpret_cast<uint8_t*>(data), len);
+  if (rtpRtcp_) {
+    rtpRtcp_->IncomingRtcpPacket(reinterpret_cast<uint8_t*>(data), len);
     return len;
   }
   return 0;
@@ -312,8 +320,8 @@ bool VideoSendAdapterImpl::SendRtp(
     const uint8_t* data,
     size_t length,
     const webrtc::PacketOptions&) {
-  if (m_dataListener) {
-    m_dataListener->onAdapterData(
+  if (dataListener_) {
+    dataListener_->onAdapterData(
         reinterpret_cast<char*>(const_cast<uint8_t*>(data)), length);
     return true;
   }
@@ -324,8 +332,8 @@ bool VideoSendAdapterImpl::SendRtcp(const uint8_t* data, size_t length) {
   const RTCPHeader* chead = reinterpret_cast<const RTCPHeader*>(data);
   uint8_t packetType = chead->getPacketType();
   if (packetType == RTCP_Sender_PT) {
-    if (m_dataListener) {
-      m_dataListener->onAdapterData(
+    if (dataListener_) {
+      dataListener_->onAdapterData(
           reinterpret_cast<char*>(const_cast<uint8_t*>(data)), length);
       return true;
     }
@@ -335,9 +343,9 @@ bool VideoSendAdapterImpl::SendRtcp(const uint8_t* data, size_t length) {
 
 void VideoSendAdapterImpl::OnReceivedIntraFrameRequest(uint32_t ssrc) {
   RTC_DLOG(LS_INFO) << "onReceivedIntraFrameRequest.";
-  if (m_feedbackListener) {
+  if (feedbackListener_) {
     FeedbackMsg feedback = {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
-    m_feedbackListener->onFeedback(feedback);
+    feedbackListener_->onFeedback(feedback);
   }
 }
 
