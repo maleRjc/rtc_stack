@@ -545,17 +545,8 @@ void WebRtcConnection::onCandidate(const CandidateInfo& cand, Transport *transpo
   }
 }
 
-void WebRtcConnection::onREMBFromTransport(RtcpHeader *chead, Transport *transport) {
-  std::vector<std::shared_ptr<MediaStream>> streams;
-
-  for (uint8_t index = 0; index < chead->getREMBNumSSRC(); index++) {
-    uint32_t ssrc_feed = chead->getREMBFeedSSRC(index);
-    forEachMediaStream([ssrc_feed, &streams] (const std::shared_ptr<MediaStream> &media_stream) {
-      if (media_stream->isSinkSSRC(ssrc_feed)) {
-        streams.push_back(media_stream);
-      }
-    });
-  }
+void WebRtcConnection::onREMBFromTransport(RtcpHeader *, Transport *) {
+  //TODO not implement
 }
 
 void WebRtcConnection::onRtcpFromTransport(
@@ -603,11 +594,10 @@ void WebRtcConnection::onTransportData(
       streamId = mid + ":" + rid;
     }
 
-    if (mapping_ssrcs_.count(streamId) == 0) {
+    if (mapping_ssrcs_.find(streamId) == mapping_ssrcs_.end()) {
       // Set SSRC for mid/rsid
       forEachMediaStream([this, streamId, ssrc] (const std::shared_ptr<MediaStream> &media_stream) {
         if (media_stream->getId() == streamId) {
-          media_stream->setVideoSourceSSRC(ssrc);
           media_stream->setVideoSourceSSRC(ssrc);
           mapping_ssrcs_[streamId] = ssrc;
         }

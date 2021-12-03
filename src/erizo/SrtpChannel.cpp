@@ -88,10 +88,10 @@ int SrtpChannel::protectRtp(char* buffer, int *len) {
     RtcpHeader* head = reinterpret_cast<RtcpHeader*>(buffer);
     RtpHeader* headrtp = reinterpret_cast<RtpHeader*>(buffer);
 
-    if (val != 10) {  // Do not warn about reply errors
-      ELOG_DEBUG("Error SrtpChannel::protectRtp %u packettype %d pt %d seqnum %u",
+    //if (val != 10) {  // Do not warn about reply errors
+      ELOG_ERROR("Error SrtpChannel::protectRtp %u packettype %d pt %d seqnum %u",
                  val, head->packettype, headrtp->payloadtype, headrtp->seqnum);
-    }
+    //}
     return -1;
   }
 }
@@ -106,10 +106,10 @@ int SrtpChannel::unprotectRtp(char* buffer, int *len) {
   } else {
     RtcpHeader* head = reinterpret_cast<RtcpHeader*>(buffer);
     RtpHeader* headrtp = reinterpret_cast<RtpHeader*>(buffer);
-    if (val != 10) {  // Do not warn about reply errors
-      ELOG_DEBUG("Error SrtpChannel::unprotectRtp %u packettype %d pt %d",
+    //if (val != 10) {  // Do not warn about reply errors
+      ELOG_ERROR("Error SrtpChannel::unprotectRtp %u packettype %d pt %d",
                  val, head->packettype, headrtp->payloadtype);
-    }
+    //}
     return -1;
   }
 }
@@ -123,9 +123,9 @@ int SrtpChannel::protectRtcp(char* buffer, int *len) {
     return 0;
   } else {
     RtcpHeader* head = reinterpret_cast<RtcpHeader*>(buffer);
-    if (val != 10) {  // Do not warn about reply errors
-      ELOG_DEBUG("Error SrtpChannel::protectRtcp %upackettype %d ", val, head->packettype);
-    }
+    //if (val != 10) {  // Do not warn about reply errors
+      ELOG_ERROR("Error SrtpChannel::protectRtcp %upackettype %d ", val, head->packettype);
+    //}
     return -1;
   }
 }
@@ -138,9 +138,9 @@ int SrtpChannel::unprotectRtcp(char* buffer, int *len) {
   if (val == 0) {
     return 0;
   } else {
-    if (val != 10) {  // Do not warn about reply errors
-      ELOG_DEBUG("Error SrtpChannel::unprotectRtcp %u", val);
-    }
+    //if (val != 10) {  // Do not warn about reply errors
+      ELOG_ERROR("Error SrtpChannel::unprotectRtcp %u", val);
+    //}
     return -1;
   }
 }

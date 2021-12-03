@@ -144,13 +144,6 @@ struct LogMetadataErr {
   int err;
 };
 
-#ifdef WEBRTC_ANDROID
-struct LogMetadataTag {
-  LoggingSeverity severity;
-  const char* tag;
-};
-#endif
-
 enum class LogArgType : int8_t {
   kEnd = 0,
   kInt,
@@ -167,9 +160,6 @@ enum class LogArgType : int8_t {
   kVoidP,
   kLogMetadata,
   kLogMetadataErr,
-#ifdef WEBRTC_ANDROID
-  kLogMetadataTag,
-#endif
 };
 
 // Wrapper for log arguments. Only ever make values of this type with the
@@ -251,13 +241,6 @@ inline decltype(MakeVal(std::declval<absl::underlying_type_t<T>>())) MakeVal(
   return {static_cast<absl::underlying_type_t<T>>(x)};
 }
 
-#ifdef WEBRTC_ANDROID
-inline Val<LogArgType::kLogMetadataTag, LogMetadataTag> MakeVal(
-    const LogMetadataTag& x) {
-  return {x};
-}
-#endif
-
 template <typename T, class = void>
 struct has_to_log_string : std::false_type {};
 template <typename T>
@@ -274,9 +257,6 @@ template <
                       !std::is_same<T1, std::string>::value &&
                       !std::is_same<T1, LogMetadata>::value &&
                       !has_to_log_string<T1>::value &&
-#ifdef WEBRTC_ANDROID
-                      !std::is_same<T1, LogMetadataTag>::value &&
-#endif
                       !std::is_same<T1, LogMetadataErr>::value>* = nullptr>
 ToStringVal MakeVal(const T& x) {
   std::ostringstream os;  // no-presubmit-check TODO(webrtc:8982)
@@ -393,10 +373,6 @@ class LogMessage {
              LogErrorContext err_ctx,
              int err);
 
-#if defined(WEBRTC_ANDROID)
-  LogMessage(const char* file, int line, LoggingSeverity sev, const char* tag);
-#endif
-
   // DEPRECATED - DO NOT USE - PLEASE USE THE MACROS INSTEAD OF THE CLASS.
   // Android code should use the 'const char*' version since tags are static
   // and we want to avoid allocating a std::string copy per log line.
@@ -471,13 +447,7 @@ class LogMessage {
   static void UpdateMinLogSeverity();
 
 // These write out the actual log messages.
-#if defined(WEBRTC_ANDROID)
-  static void OutputToDebug(const std::string& msg,
-                            LoggingSeverity severity,
-                            const char* tag);
-#else
   static void OutputToDebug(const std::string& msg, LoggingSeverity severity);
-#endif
 
   // Called from the dtor (or from a test) to append optional extra error
   // information to the log stream and a newline character.
@@ -488,11 +458,6 @@ class LogMessage {
 
   // The severity level of this message
   LoggingSeverity severity_;
-
-#if defined(WEBRTC_ANDROID)
-  // The default Android debug output tag.
-  const char* tag_ = "libjingle";
-#endif
 
   // String data generated in the constructor, that should be appended to
   // the message before output.
@@ -553,44 +518,14 @@ inline bool LogCheckLevel(LoggingSeverity sev) {
 #define RTC_LOG_ERRNO_EX(sev, err) RTC_LOG_E(sev, ERRNO, err)
 #define RTC_LOG_ERRNO(sev) RTC_LOG_ERRNO_EX(sev, errno)
 
-#if defined(WEBRTC_WIN)
-#define RTC_LOG_GLE_EX(sev, err) RTC_LOG_E(sev, HRESULT, err)
-#define RTC_LOG_GLE(sev) RTC_LOG_GLE_EX(sev, static_cast<int>(GetLastError()))
-#define RTC_LOG_ERR_EX(sev, err) RTC_LOG_GLE_EX(sev, err)
-#define RTC_LOG_ERR(sev) RTC_LOG_GLE(sev)
-#elif defined(__native_client__) && __native_client__
-#define RTC_LOG_ERR_EX(sev, err) RTC_LOG(sev)
-#define RTC_LOG_ERR(sev) RTC_LOG(sev)
-#elif defined(WEBRTC_POSIX)
+#if defined(WEBRTC_POSIX)
 #define RTC_LOG_ERR_EX(sev, err) RTC_LOG_ERRNO_EX(sev, err)
 #define RTC_LOG_ERR(sev) RTC_LOG_ERRNO(sev)
-#endif  // WEBRTC_WIN
+#endif
 
-#ifdef WEBRTC_ANDROID
-
-namespace webrtc_logging_impl {
-// TODO(kwiberg): Replace these with std::string_view.
-inline const char* AdaptString(const char* str) {
-  return str;
-}
-inline const char* AdaptString(const std::string& str) {
-  return str.c_str();
-}
-}  // namespace webrtc_logging_impl
-
-#define RTC_LOG_TAG(sev, tag)                           \
-  rtc::webrtc_logging_impl::LogCall() &                 \
-      rtc::webrtc_logging_impl::LogStreamer<>()         \
-          << rtc::webrtc_logging_impl::LogMetadataTag { \
-    sev, rtc::webrtc_logging_impl::AdaptString(tag)     \
-  }
-
-#else
 
 // DEPRECATED. This macro is only intended for Android.
 #define RTC_LOG_TAG(sev, tag) RTC_LOG_V(sev)
-
-#endif
 
 // The RTC_DLOG macros are equivalent to their RTC_LOG counterparts except that
 // they only generate code in debug builds.

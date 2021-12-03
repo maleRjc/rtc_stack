@@ -282,8 +282,6 @@ void RemoteBitrateEstimatorAbsSendTime::IncomingPacketInfo(
   uint32_t target_bitrate_bps = 0;
   std::vector<uint32_t> ssrcs;
   {
-    rtc::CritScope lock(&crit_);
-
     TimeoutStreams(now_ms);
     RTC_DCHECK(inter_arrival_.get());
     RTC_DCHECK(estimator_.get());
@@ -390,12 +388,10 @@ void RemoteBitrateEstimatorAbsSendTime::TimeoutStreams(int64_t now_ms) {
 
 void RemoteBitrateEstimatorAbsSendTime::OnRttUpdate(int64_t avg_rtt_ms,
                                                     int64_t max_rtt_ms) {
-  rtc::CritScope lock(&crit_);
   remote_rate_.SetRtt(TimeDelta::ms(avg_rtt_ms));
 }
 
 void RemoteBitrateEstimatorAbsSendTime::RemoveStream(uint32_t ssrc) {
-  rtc::CritScope lock(&crit_);
   ssrcs_.erase(ssrc);
 }
 
@@ -408,7 +404,6 @@ bool RemoteBitrateEstimatorAbsSendTime::LatestEstimate(
   // thread.
   RTC_DCHECK(ssrcs);
   RTC_DCHECK(bitrate_bps);
-  rtc::CritScope lock(&crit_);
   if (!remote_rate_.ValidEstimate()) {
     return false;
   }
@@ -424,7 +419,6 @@ bool RemoteBitrateEstimatorAbsSendTime::LatestEstimate(
 void RemoteBitrateEstimatorAbsSendTime::SetMinBitrate(int min_bitrate_bps) {
   // Called from both the configuration thread and the network thread. Shouldn't
   // be called from the network thread in the future.
-  rtc::CritScope lock(&crit_);
   remote_rate_.SetMinBitrate(DataRate::bps(min_bitrate_bps));
 }
 }  // namespace webrtc

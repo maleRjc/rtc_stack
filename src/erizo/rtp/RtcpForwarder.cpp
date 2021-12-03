@@ -13,7 +13,8 @@ using std::memcpy;
 namespace erizo {
 DEFINE_LOGGER(RtcpForwarder, "rtp.RtcpForwarder");
 
-RtcpForwarder::RtcpForwarder(MediaSink* msink, MediaSource* msource, uint32_t max_video_bw)
+RtcpForwarder::RtcpForwarder(MediaSink* msink, 
+      MediaSource* msource, uint32_t max_video_bw)
   : RtcpProcessor(msink, msource, max_video_bw) {
     ELOG_DEBUG("Starting RtcpForwarder");
   }

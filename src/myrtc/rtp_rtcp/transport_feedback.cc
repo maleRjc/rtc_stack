@@ -387,8 +387,7 @@ int64_t TransportFeedback::GetBaseDeltaUs(int64_t prev_timestamp_us) const {
 bool TransportFeedback::Parse(const CommonHeader& packet) {
   RTC_DCHECK_EQ(packet.type(), kPacketType);
   RTC_DCHECK_EQ(packet.fmt(), kFeedbackMessageType);
-  TRACE_EVENT0("webrtc", "TransportFeedback::Parse");
-
+ 
   if (packet.payload_size_bytes() < kMinPayloadSizeBytes) {
     RTC_LOG(LS_WARNING) << "Buffer too small (" << packet.payload_size_bytes()
                         << " bytes) to fit a "

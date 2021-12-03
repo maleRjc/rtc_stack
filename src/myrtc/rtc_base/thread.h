@@ -304,13 +304,6 @@ class RTC_EXPORT RTC_LOCKABLE Thread : public MessageQueue {
   // irrevocable. Must be called on this thread.
   void DisallowBlockingCalls() { SetAllowBlockingCalls(false); }
 
-#ifdef WEBRTC_ANDROID
-  // Sets the per-thread allow-blocking-calls flag to true, sidestepping the
-  // invariants upheld by DisallowBlockingCalls() and
-  // ScopedDisallowBlockingCalls. Must be called on this thread.
-  void DEPRECATED_AllowBlockingCalls() { SetAllowBlockingCalls(true); }
-#endif
-
  protected:
   // Same as WrapCurrent except that it never fails as it does not try to
   // acquire the synchronization access of the thread. The caller should never

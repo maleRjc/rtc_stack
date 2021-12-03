@@ -55,8 +55,8 @@ class MediaStream final : public MediaSink,
                           public FeedbackSource, 
                           public LogContext, 
                           public HandlerManagerListener,
-                          public std::enable_shared_from_this<MediaStream>, 
-                          public Service {
+                          public Service,
+                          public std::enable_shared_from_this<MediaStream> {
   DECLARE_LOGGER();
   static log4cxx::LoggerPtr statsLogger;
 
@@ -81,9 +81,11 @@ class MediaStream final : public MediaSink,
   
   bool init();
   void close() override;
-  virtual uint32_t getMaxVideoBW();
-  void setMaxVideoBW(uint32_t max_video_bw);
+  uint32_t getMaxVideoBW();
+  //void setMaxVideoBW(uint32_t max_video_bw);
   bool setRemoteSdp(std::shared_ptr<SdpInfo> sdp);
+
+  void setSimulcast(bool) { }
 
   /**
    * Sends a PLI Packet
@@ -116,9 +118,9 @@ class MediaStream final : public MediaSink,
 
   void setTransportInfo(std::string audio_info, std::string video_info);
 
-  void setFeedbackReports(bool will_send_feedback, uint32_t target_bitrate = 0);
+  //void setFeedbackReports(bool will_send_feedback, uint32_t target_bitrate = 0);
   void muteStream(bool mute_video, bool mute_audio);
-  void setVideoConstraints(int max_video_width, int max_video_height, int max_video_frame_rate);
+  //void setVideoConstraints(int max_video_width, int max_video_height, int max_video_frame_rate);
 
   void setMetadata(std::map<std::string, std::string> metadata);
 
@@ -138,11 +140,6 @@ class MediaStream final : public MediaSink,
   bool isVideoMuted() { return video_muted_; }
 
   std::shared_ptr<SdpInfo> getRemoteSdpInfo() { return remote_sdp_; }
-
-  virtual bool isSlideShowModeEnabled() { return slide_show_mode_; }
-
-  virtual bool isSimulcast() { return simulcast_; }
-  void setSimulcast(bool simulcast) { simulcast_ = simulcast; }
 
   RtpExtensionProcessor& getRtpExtensionProcessor() { return connection_->getRtpExtensionProcessor(); }
   wa::Worker* getWorker() { return worker_; }
@@ -181,25 +178,23 @@ class MediaStream final : public MediaSink,
  private:
   MediaStreamEventListener* media_stream_event_listener_{nullptr};
   std::shared_ptr<WebRtcConnection> connection_;
-  std::string stream_id_;
-  std::string mslabel_;
   bool should_send_feedback_{true};
-  bool slide_show_mode_{false};
   bool sending_{true};
   int bundle_{false};
 
-  uint32_t rate_control_{0};  // Target bitrate for hacky rate control in BPS
+  std::string stream_id_;
+  std::string mslabel_;
 
-  std::string stun_server_;
+  uint32_t rate_control_{0};  // Target bitrate for hacky rate control in BPS
 
   wa::time_point now_, mark_;
 
   std::shared_ptr<RtcpProcessor> rtcp_processor_;
   std::shared_ptr<Stats> stats_;
   std::shared_ptr<Stats> log_stats_;
-  std::shared_ptr<QualityManager> quality_manager_;
-  std::shared_ptr<PacketBufferService> packet_buffer_;
-  std::shared_ptr<HandlerManager> handler_manager_;
+  //std::shared_ptr<QualityManager> quality_manager_;
+  //std::shared_ptr<PacketBufferService> packet_buffer_;
+  //std::shared_ptr<HandlerManager> handler_manager_;
 
   Pipeline::Ptr pipeline_;
 
@@ -207,12 +202,9 @@ class MediaStream final : public MediaSink,
 
   bool audio_muted_{false};
   bool video_muted_{false};
-
   bool pipeline_initialized_{false};
-
   bool is_publisher_;
 
-  std::atomic_bool simulcast_{false};
  protected:
   std::shared_ptr<SdpInfo> remote_sdp_;
 };

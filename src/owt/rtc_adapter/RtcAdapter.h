@@ -120,8 +120,12 @@ public:
 };
 
 class RtcAdapterFactory {
-public:
-  static std::shared_ptr<RtcAdapter> CreateRtcAdapter(webrtc::TaskQueueBase*);
+ public:
+  RtcAdapterFactory(webrtc::TaskQueueBase*);
+  std::shared_ptr<RtcAdapter> CreateRtcAdapter();
+ private:
+  std::shared_ptr<RtcAdapter> adapter_;
+  webrtc::TaskQueueBase* task_queue_;
 };
 
 } // namespace rtc_adapter

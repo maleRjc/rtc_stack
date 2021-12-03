@@ -19,11 +19,9 @@ static const int TRANSMISSION_MAXBITRATE_MULTIPLIER = 2;
 
 DEFINE_LOGGER(VideoFramePacketizer, "owt.VideoFramePacketizer");
 
-VideoFramePacketizer::VideoFramePacketizer(VideoFramePacketizer::Config& config, 
-                                         webrtc::TaskQueueBase* task_queue_base)
-    : m_rtcAdapter{
-          std::move(RtcAdapterFactory::CreateRtcAdapter(task_queue_base))} {
-  auto factory = rtc_adapter::createDummyTaskQueueFactory(task_queue_base);
+VideoFramePacketizer::VideoFramePacketizer(VideoFramePacketizer::Config& config)
+    : m_rtcAdapter{std::move(config.factory->CreateRtcAdapter())} {
+  auto factory = rtc_adapter::createDummyTaskQueueFactory(config.task_queue);
   auto task_queue = factory->CreateTaskQueue(
       "deliver_frame", webrtc::TaskQueueFactory::Priority::NORMAL);
   task_queue_ = std::move(

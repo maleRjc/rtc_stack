@@ -170,7 +170,7 @@ class VideoReceiveStream {
       struct RtcpXr {
         // True if RTCP Receiver Reference Time Report Block extension
         // (RFC 3611) should be enabled.
-        bool receiver_reference_time_report = false;
+        bool receiver_reference_time_report = true;
       } rtcp_xr;
 
       // See draft-holmer-rmcat-transport-wide-cc-extensions for details.

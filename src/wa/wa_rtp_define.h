@@ -15,6 +15,8 @@
 #define RTCP_APP               204
 #define RTCP_RTP_Feedback_PT   205 // RTCP Transport Layer Feedback Packet
 #define RTCP_PS_Feedback_PT    206 // RTCP Payload Specific Feedback Packet
+#define RTCP_XR_PT             207 // RTCP Payload Specific Feedback Packet
+
 
 #define RTCP_PLI_FMT        1
 #define RTCP_SLI_FMT        2

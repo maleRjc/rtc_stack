@@ -30,7 +30,7 @@ static int DetectNumberOfCores() {
   SYSTEM_INFO si;
   GetNativeSystemInfo(&si);
   number_of_cores = static_cast<int>(si.dwNumberOfProcessors);
-#elif defined(WEBRTC_LINUX) || defined(WEBRTC_ANDROID)
+#elif defined(WEBRTC_LINUX)
   number_of_cores = static_cast<int>(sysconf(_SC_NPROCESSORS_ONLN));
   if (number_of_cores < 0) {
     RTC_LOG(LS_ERROR) << "Failed to get number of cores";

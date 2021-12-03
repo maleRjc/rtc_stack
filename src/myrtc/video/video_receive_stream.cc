@@ -465,7 +465,6 @@ bool VideoReceiveStream::SetBaseMinimumPlayoutDelayMs(int delay_ms) {
     return false;
   }
 
-  rtc::CritScope cs(&playout_delay_lock_);
   base_minimum_playout_delay_ms_ = delay_ms;
   UpdatePlayoutDelays();
   return true;
@@ -474,7 +473,6 @@ bool VideoReceiveStream::SetBaseMinimumPlayoutDelayMs(int delay_ms) {
 int VideoReceiveStream::GetBaseMinimumPlayoutDelayMs() const {
   RTC_DCHECK_RUN_ON(&worker_sequence_checker_);
 
-  rtc::CritScope cs(&playout_delay_lock_);
   return base_minimum_playout_delay_ms_;
 }
 
@@ -532,13 +530,11 @@ void VideoReceiveStream::OnCompleteFrame(
 
   const PlayoutDelay& playout_delay = frame->EncodedImage().playout_delay_;
   if (playout_delay.min_ms >= 0) {
-    rtc::CritScope cs(&playout_delay_lock_);
     frame_minimum_playout_delay_ms_ = playout_delay.min_ms;
     UpdatePlayoutDelays();
   }
 
   if (playout_delay.max_ms >= 0) {
-    rtc::CritScope cs(&playout_delay_lock_);
     frame_maximum_playout_delay_ms_ = playout_delay.max_ms;
     UpdatePlayoutDelays();
   }
@@ -588,7 +584,6 @@ uint32_t VideoReceiveStream::GetPlayoutTimestamp() const {
 
 void VideoReceiveStream::SetMinimumPlayoutDelay(int delay_ms) {
   RTC_DCHECK_RUN_ON(&module_process_sequence_checker_);
-  rtc::CritScope cs(&playout_delay_lock_);
   syncable_minimum_playout_delay_ms_ = delay_ms;
   UpdatePlayoutDelays();
 }
@@ -599,7 +594,6 @@ int64_t VideoReceiveStream::GetWaitMs() const {
 }
 
 void VideoReceiveStream::StartNextDecode() {
-  TRACE_EVENT0("webrtc", "VideoReceiveStream::StartNextDecode");
   frame_buffer_->NextFrame(
       GetWaitMs(), 
       keyframe_required_, 

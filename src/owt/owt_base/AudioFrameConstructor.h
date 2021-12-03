@@ -9,6 +9,7 @@
 #include "owt_base/MediaDefinitionExtra.h"
 #include "erizo/MediaDefinitions.h"
 #include "common/logger.h"
+#include "rtc_adapter/RtcAdapter.h"
 
 namespace owt_base {
 
@@ -18,29 +19,45 @@ namespace owt_base {
  */
 class AudioFrameConstructor final : public erizo::MediaSink,
                                     public erizo::FeedbackSource,
-                                    public FrameSource {
-    DECLARE_LOGGER();
+                                    public FrameSource,
+                                    public rtc_adapter::AdapterDataListener {
+  DECLARE_LOGGER();
 
-public:
-    AudioFrameConstructor();
-    virtual ~AudioFrameConstructor();
+ public:
+  struct config {
+    uint32_t ssrc{0};
+    bool rtcp_rsize{false};
+    int rtp_payload_type{0};
+    int transportcc{-1};
+    rtc_adapter::RtcAdapterFactory* factory{nullptr};
+  };
+  
+  AudioFrameConstructor(const config&);
+  virtual ~AudioFrameConstructor();
 
-    void bindTransport(erizo::MediaSource* source, erizo::FeedbackSink* fbSink);
-    void unbindTransport();
-    void enable(bool enabled) { m_enabled = enabled; }
+  void bindTransport(erizo::MediaSource* source, erizo::FeedbackSink* fbSink);
+  void unbindTransport();
+  void enable(bool enabled) { enabled_ = enabled; }
 
-    // Implements the FrameSource interfaces.
-    void onFeedback(const FeedbackMsg& msg);
+  // Implements the FrameSource interfaces.
+  void onFeedback(const FeedbackMsg& msg);
 
-private:
-    bool m_enabled;
-    erizo::MediaSource* m_transport;
+ private:
+  // Implement erizo::MediaSink
+  int deliverAudioData_(std::shared_ptr<erizo::DataPacket> audio_packet) override;
+  int deliverVideoData_(std::shared_ptr<erizo::DataPacket> video_packet) override;
+  int deliverEvent_(erizo::MediaEventPtr event) override;
 
-    // Implement erizo::MediaSink
-    int deliverAudioData_(std::shared_ptr<erizo::DataPacket> audio_packet) override;
-    int deliverVideoData_(std::shared_ptr<erizo::DataPacket> video_packet) override;
-    int deliverEvent_(erizo::MediaEventPtr event) override;
-    void close();
+  void onAdapterData(char* data, int len) override;
+  void close();
+  void createAudioReceiver();
+ private:
+  bool enabled_{true};
+  uint32_t ssrc_{0};
+  erizo::MediaSource* transport_{nullptr};
+  config config_;
+  std::shared_ptr<rtc_adapter::RtcAdapter> rtcAdapter_;
+  rtc_adapter::AudioReceiveAdapter* audioReceive_{nullptr};
 };
 
 }

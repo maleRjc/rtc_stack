@@ -20,10 +20,10 @@ struct media_setting {
   int32_t format;
   std::vector<uint32_t> ssrcs;
   std::string mid;
-  uint32_t mid_ext{0};
+  int32_t mid_ext{0};   //urn:ietf:params:rtp-hdrext:sdes:mid 
   bool rtcp_rsize{false};
-  uint32_t red{0};
-  uint32_t ulpfec{0};
+  int red{-1};
+  int ulpfec{-1};
   bool flexfec{false};
   int transportcc{-1};
 };
@@ -121,7 +121,7 @@ class MediaDesc {
   std::string setSsrcs(const std::vector<uint32_t>& ssrcs, 
                        const std::string& inmsid);
 
-  bool filterByPayload(int32_t payload);
+  bool filterByPayload(int32_t payload, bool, bool, bool);
   
   void filterExtmap();
  private:
@@ -141,16 +141,17 @@ class MediaDesc {
 
  public:
   std::string type_;
+  
   int32_t port_{0};
+  
   int32_t numPorts_{0};
 
   std::string protocols_;
 
   std::string payloads_;
 
-  //int32_t rtcport_{0};
-
   std::vector<Candidate> candidates_;
+  
   SessionInfo session_info_;
 
   std::string mid_;
@@ -158,8 +159,8 @@ class MediaDesc {
   std::map<int, std::string> extmaps_;
 
   std::string direction_;  // "recvonly" "sendonly" "sendrecv"
+  
   std::string msid_;
-  //std::string msid_tracker_;
 
   std::string rtcp_mux_;
 
@@ -173,6 +174,8 @@ class MediaDesc {
 
   //rids for simulcast not support
   std::vector<RidInfo> rids_;
+
+  bool disable_audio_gcc_{false};
 };
 
 class WaSdpInfo {
@@ -183,7 +186,7 @@ class WaSdpInfo {
 
   int init(const std::string& sdp);
 
-  const std::vector<MediaDesc>& mids() { return media_descs_; }
+  bool empty() { return media_descs_.empty(); }
 
   void media() {}
 
@@ -199,7 +202,11 @@ class WaSdpInfo {
   int32_t filterVideoPayload(const std::string& mid, 
                              const FormatPreference& type);
 
-  bool filterByPayload(const std::string& mid, int32_t payload);
+  bool filterByPayload(const std::string& mid, 
+                       int32_t payload,
+                       bool disable_red = false,
+                       bool disable_rtx = false,
+                       bool disable_ulpfec = false);
 
   void filterExtmap();
 
@@ -215,7 +222,7 @@ class WaSdpInfo {
 
   void setCandidates(const WaSdpInfo&);
   
-  //void mergeMediaMaps(const WaSdpInfo&);
+  media_setting get_media_settings(const std::string& mid);
 
   void mergeMedia() {}
   
@@ -253,8 +260,6 @@ class WaSdpInfo {
   std::vector<std::string> groups_;
   std::string group_policy_;
 
-  std::string extmapAllowMixed_;
-
   std::string msid_semantic_;
   std::vector<std::string> msids_;
 
@@ -262,6 +267,8 @@ class WaSdpInfo {
   std::vector<MediaDesc> media_descs_;
 
   bool ice_lite_{false};
+  bool enable_extmapAllowMixed_{false};
+  std::string extmapAllowMixed_;
 };
 
 } //namespace wa

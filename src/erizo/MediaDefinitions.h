@@ -96,11 +96,6 @@ struct DataPacket {
   unsigned int clock_rate = 0;
 };
 
-class Monitor {
-protected:
-//  boost::mutex monitor_mutex_;
-};
-
 class MediaEvent {
 public:
   MediaEvent() = default;
@@ -136,7 +131,7 @@ public:
 /*
 * A MediaSink
 */
-class MediaSink: public virtual Monitor {
+class MediaSink {
  public:
   MediaSink() : audio_sink_ssrc_{0},
               video_sink_ssrc_{0}, 
@@ -154,21 +149,17 @@ class MediaSink: public virtual Monitor {
   }
   
   inline uint32_t getVideoSinkSSRC() {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     return video_sink_ssrc_;
   }
   
   inline void setVideoSinkSSRC(uint32_t ssrc) {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     video_sink_ssrc_ = ssrc;
   }
   inline uint32_t getAudioSinkSSRC() {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     return audio_sink_ssrc_;
   }
   
   inline void setAudioSinkSSRC(uint32_t ssrc) {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     audio_sink_ssrc_ = ssrc;
   }
   
@@ -181,7 +172,6 @@ class MediaSink: public virtual Monitor {
   }
   
   inline FeedbackSource* getFeedbackSource() {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     return sink_fb_source_;
   }
   
@@ -207,7 +197,7 @@ class MediaSink: public virtual Monitor {
 /**
 * A MediaSource is any class that produces audio or video data.
 */
-class MediaSource: public virtual Monitor {
+class MediaSource {
 public:
   MediaSource() 
   : audio_source_ssrc_{0},
@@ -220,25 +210,20 @@ public:
   virtual ~MediaSource() = default;
     
   inline void setAudioSink(MediaSink* audio_sink) {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     this->audio_sink_ = audio_sink;
   }
   inline void setVideoSink(MediaSink* video_sink) {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     this->video_sink_ = video_sink;
   }
   inline void setEventSink(MediaSink* event_sink) {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     this->event_sink_ = event_sink;
   }
 
   inline FeedbackSink* getFeedbackSink() {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     return source_fb_sink_;
   }
 
   uint32_t getVideoSourceSSRC() {
-   // boost::mutex::scoped_lock lock(monitor_mutex_);
     if (video_source_ssrc_list_.empty()) {
       return 0;
     }
@@ -246,7 +231,6 @@ public:
   }
   
   void setVideoSourceSSRC(uint32_t ssrc) {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     if (video_source_ssrc_list_.empty()) {
       video_source_ssrc_list_.push_back(ssrc);
       return;
@@ -255,22 +239,18 @@ public:
   }
   
   inline std::vector<uint32_t> getVideoSourceSSRCList() {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     return video_source_ssrc_list_;  //  return by copy to avoid concurrent access
   }
   
   inline void setVideoSourceSSRCList(const std::vector<uint32_t>& new_ssrc_list) {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     video_source_ssrc_list_ = new_ssrc_list;
   }
   
   inline uint32_t getAudioSourceSSRC() {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     return audio_source_ssrc_;
   }
   
   inline void setAudioSourceSSRC(uint32_t ssrc) {
-    //boost::mutex::scoped_lock lock(monitor_mutex_);
     audio_source_ssrc_ = ssrc;
   }
 

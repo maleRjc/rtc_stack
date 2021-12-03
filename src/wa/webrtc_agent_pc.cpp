@@ -24,8 +24,14 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid,
   if (isPublish) {
     if (setting.is_audio) {
       audioFormat_ = setting.format;
+      owt_base::AudioFrameConstructor::config config;
+      config.ssrc = setting.ssrcs[0];
+      config.rtcp_rsize = setting.rtcp_rsize;
+      config.rtp_payload_type = setting.format;
+      config.transportcc = setting.transportcc;
+      config.factory = pc->adapter_factory_.get();
       audioFrameConstructor_ = 
-          std::move(std::make_shared<owt_base::AudioFrameConstructor>());
+          std::move(std::make_shared<owt_base::AudioFrameConstructor>(config));
       audioFrameConstructor_->bindTransport(
           dynamic_cast<erizo::MediaSource*>(ms),
           dynamic_cast<erizo::FeedbackSink*>(ms));
@@ -42,10 +48,12 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid,
       config.flex_fec = setting.flexfec;
       config.transportcc = setting.transportcc;
       config.red_payload = setting.red?setting.red:-1;
+      config.worker = pc->worker_.get();
+      config.factory = pc->adapter_factory_.get();
       
       videoFrameConstructor_ = 
           std::move(std::make_shared<owt_base::VideoFrameConstructor>(
-              pc, config, pc->worker_.get()));
+              pc, config));
       videoFrameConstructor_->bindTransport(
           dynamic_cast<erizo::MediaSource*>(ms),
           dynamic_cast<erizo::FeedbackSink*>(ms));
@@ -58,9 +66,10 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid,
       owt_base::AudioFramePacketizer::Config config;
       config.mid = setting.mid;
       config.midExtId = setting.mid_ext;
+      config.factory = pc->adapter_factory_.get();
+      config.task_queue = pc->worker_->getTaskQueue();
       audioFramePacketizer_ = 
-          std::move(std::make_shared<owt_base::AudioFramePacketizer>(
-              config, pc->worker_->getTaskQueue()));
+          std::move(std::make_shared<owt_base::AudioFramePacketizer>(config));
       audioFramePacketizer_->bindTransport(dynamic_cast<erizo::MediaSink*>(ms));
       audioFormat_ = setting.format;
       name_ = "audio";
@@ -72,9 +81,10 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid,
       config.selfRequestKeyframe = true,
       config.mid = setting.mid,
       config.midExtId = setting.mid_ext;
-      videoFramePacketizer_ = 
-          std::move(std::make_shared<owt_base::VideoFramePacketizer>(
-              config, pc->worker_->getTaskQueue()));
+      config.factory = pc->adapter_factory_.get();
+      config.task_queue = pc->worker_->getTaskQueue();
+      videoFramePacketizer_ =
+          std::move(std::make_shared<owt_base::VideoFramePacketizer>(config));
       videoFramePacketizer_->bindTransport(dynamic_cast<erizo::MediaSink*>(ms));
       videoFormat_ = setting.format;
       name_ = "video";
@@ -192,6 +202,9 @@ int WrtcAgentPc::init(std::shared_ptr<Worker>& worker,
   worker_ = worker;
   ioworker_ = ioworker;
 
+  adapter_factory_ = std::move(std::make_unique<rtc_adapter::RtcAdapterFactory>(
+      worker->getTaskQueue()));
+
   asyncTask([ipAddresses, stun_addr](std::shared_ptr<WrtcAgentPc> pc){
     pc->init_i(ipAddresses, stun_addr);
   });
@@ -213,12 +226,12 @@ void WrtcAgentPc::init_i(const std::vector<std::string>& ipAddresses,
   std::istringstream iss(stun_addr.substr(pos2+1));
   iss >> ice_config.stun_port;
   
-  std::vector<erizo::RtpMap> rtp_mappings{
-      rtpH264, rtpRed, rtpRtx, rtpUlpfec, rtpOpus};
+  std::vector<erizo::RtpMap> rtp_mappings{rtpH264, rtpRed, rtpOpus};
   
   std::vector<erizo::ExtMap> ext_mappings;
 
-  for(unsigned int i = 0; i < EXT_MAP_SIZE; ++i){
+  size_t extMappings_size = extMappings.size();
+  for(size_t i = 0; i < extMappings_size; ++i) {
     ext_mappings.emplace_back(i, extMappings[i]);
   }
   
@@ -334,7 +347,7 @@ void WrtcAgentPc::processSendAnswer(const std::string& streamId,
     try{
       WaSdpInfo tempSdp(sdpMsg);
 
-      if (!tempSdp.mids().empty()) {
+      if (!tempSdp.empty()) {
         local_sdp_->session_name_ = "wa/0.1(ly)";
         local_sdp_->setMsidSemantic(tempSdp);
         local_sdp_->setCredentials(tempSdp);
@@ -398,14 +411,14 @@ srs_error_t WrtcAgentPc::processOffer(const std::string& sdp) {
     }
     
     for(auto& x : operation_map_){
-      local_sdp_->filterByPayload(x.first, x.second.final_format_);
+      local_sdp_->filterByPayload(x.first, x.second.final_format_, true, false, true);
     }
 
     local_sdp_->filterExtmap();
     
     // Setup transport
     //let opId = null;
-    for (auto& mid : remote_sdp_->media_descs_) {
+    for (auto& mid : local_sdp_->media_descs_) {
       if (mid.port_ != 0) {
         if((result = setupTransport(mid)) != srs_success){
           return srs_error_wrap(result, "setupTransport failed");

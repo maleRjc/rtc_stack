@@ -95,7 +95,6 @@ void RemoteBitrateEstimatorSingleStream::IncomingPacket(
   uint32_t rtp_timestamp =
       header.timestamp + header.extension.transmissionTimeOffset;
   int64_t now_ms = clock_->TimeInMilliseconds();
-  rtc::CritScope cs(&crit_sect_);
   SsrcOveruseEstimatorMap::iterator it = overuse_detectors_.find(ssrc);
   if (it == overuse_detectors_.end()) {
     // This is a new SSRC. Adding to map.
@@ -156,10 +155,7 @@ void RemoteBitrateEstimatorSingleStream::IncomingPacket(
 }
 
 void RemoteBitrateEstimatorSingleStream::Process() {
-  {
-    rtc::CritScope cs(&crit_sect_);
-    UpdateEstimate(clock_->TimeInMilliseconds());
-  }
+  UpdateEstimate(clock_->TimeInMilliseconds());
   last_process_time_ = clock_->TimeInMilliseconds();
 }
 
@@ -167,7 +163,6 @@ int64_t RemoteBitrateEstimatorSingleStream::TimeUntilNextProcess() {
   if (last_process_time_ < 0) {
     return 0;
   }
-  rtc::CritScope cs_(&crit_sect_);
   RTC_DCHECK_GT(process_interval_ms_, 0);
   return last_process_time_ + process_interval_ms_ -
          clock_->TimeInMilliseconds();
@@ -216,12 +211,10 @@ void RemoteBitrateEstimatorSingleStream::UpdateEstimate(int64_t now_ms) {
 
 void RemoteBitrateEstimatorSingleStream::OnRttUpdate(int64_t avg_rtt_ms,
                                                      int64_t max_rtt_ms) {
-  rtc::CritScope cs(&crit_sect_);
   GetRemoteRate()->SetRtt(TimeDelta::ms(avg_rtt_ms));
 }
 
 void RemoteBitrateEstimatorSingleStream::RemoveStream(unsigned int ssrc) {
-  rtc::CritScope cs(&crit_sect_);
   SsrcOveruseEstimatorMap::iterator it = overuse_detectors_.find(ssrc);
   if (it != overuse_detectors_.end()) {
     delete it->second;
@@ -232,7 +225,6 @@ void RemoteBitrateEstimatorSingleStream::RemoveStream(unsigned int ssrc) {
 bool RemoteBitrateEstimatorSingleStream::LatestEstimate(
     std::vector<uint32_t>* ssrcs,
     uint32_t* bitrate_bps) const {
-  rtc::CritScope cs(&crit_sect_);
   assert(bitrate_bps);
   if (!remote_rate_->ValidEstimate()) {
     return false;
@@ -263,7 +255,6 @@ AimdRateControl* RemoteBitrateEstimatorSingleStream::GetRemoteRate() {
 }
 
 void RemoteBitrateEstimatorSingleStream::SetMinBitrate(int min_bitrate_bps) {
-  rtc::CritScope cs(&crit_sect_);
   remote_rate_->SetMinBitrate(DataRate::bps(min_bitrate_bps));
 }
 

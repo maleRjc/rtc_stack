@@ -469,9 +469,6 @@ bool Thread::PopSendMessageFromThread(const Thread* source, _SendMessage* msg) {
 
 void Thread::InvokeInternal(const Location& posted_from,
                             MessageHandler* handler) {
-  TRACE_EVENT2("webrtc", "Thread::Invoke", "src_file_and_line",
-               posted_from.file_and_line(), "src_func",
-               posted_from.function_name());
   Send(posted_from, handler);
 }
 

@@ -204,15 +204,12 @@ VCMGenericDecoder::~VCMGenericDecoder() {
 
 int32_t VCMGenericDecoder::InitDecode(const VideoCodec* settings,
                                       int32_t numberOfCores) {
-  TRACE_EVENT0("webrtc", "VCMGenericDecoder::InitDecode");
   _codecType = settings->codecType;
 
   return decoder_->InitDecode(settings, numberOfCores);
 }
 
 int32_t VCMGenericDecoder::Decode(const VCMEncodedFrame& frame, int64_t nowMs) {
-  TRACE_EVENT1("webrtc", "VCMGenericDecoder::Decode", "timestamp",
-               frame.Timestamp());
   _frameInfos[_nextFrameInfoIdx].decodeStartTimeMs = nowMs;
   _frameInfos[_nextFrameInfoIdx].renderTimeMs = frame.RenderTimeMs();
   _frameInfos[_nextFrameInfoIdx].rotation = frame.rotation();

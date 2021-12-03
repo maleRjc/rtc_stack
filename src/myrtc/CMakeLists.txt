@@ -23,7 +23,7 @@ include_directories(
 file(
 	GLOB_RECURSE MYRTC_SOURCES
 	"${MYRTC_SOURCE_DIR}/api/*.h" "${MYRTC_SOURCE_DIR}/api/*.cc"
-	#"${MYRTC_SOURCE_DIR}/audio/*.h" "${MYRTC_SOURCE_DIR}/audio/*.cc"
+	"${MYRTC_SOURCE_DIR}/audio/*.h" "${MYRTC_SOURCE_DIR}/audio/*.cc"
 	"${MYRTC_SOURCE_DIR}/call/*.h" "${MYRTC_SOURCE_DIR}/call/*.cc"
 	"${MYRTC_SOURCE_DIR}/congestion_controller/*.h" "${MYRTC_SOURCE_DIR}/congestion_controller/*.cc"
 	"${MYRTC_SOURCE_DIR}/logging/*.h" "${MYRTC_SOURCE_DIR}/logging/*.cc"

@@ -13,11 +13,7 @@
 
 namespace webrtc {
 
-#if defined(WEBRTC_ANDROID) && !defined(WEBRTC_CHROMIUM_BUILD)
-void WarnThatTheCurrentThreadIsProbablyDeadlocked();
-#else
 inline void WarnThatTheCurrentThreadIsProbablyDeadlocked() {}
-#endif
 
 }  // namespace webrtc
 

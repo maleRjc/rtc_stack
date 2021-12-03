@@ -11,6 +11,7 @@
 #include "common/logger.h"
 #include "owt_base/MediaFramePipeline.h"
 #include "owt_base/MediaDefinitionExtra.h"
+#include "rtc_adapter/RtcAdapter.h"
 
 namespace owt_base {
 
@@ -31,8 +32,10 @@ class AudioFramePacketizer
   struct Config {
       std::string mid = "";
       uint32_t midExtId = 0;
+      rtc_adapter::RtcAdapterFactory* factory{nullptr};
+      webrtc::TaskQueueBase* task_queue = nullptr;
   };
-  AudioFramePacketizer(Config& config, webrtc::TaskQueueBase* task_queue_base);
+  AudioFramePacketizer(Config& config);
   ~AudioFramePacketizer();
 
   void bindTransport(erizo::MediaSink* sink);

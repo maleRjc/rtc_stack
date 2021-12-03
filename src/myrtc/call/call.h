@@ -16,14 +16,12 @@
 #include <vector>
 
 #include "api/media_types.h"
-//#include "call/audio_receive_stream.h"
-//#include "call/audio_send_stream.h"
 #include "call/call_config.h"
 #include "call/flexfec_receive_stream.h"
 #include "call/packet_receiver.h"
 #include "call/rtp_transport_controller_send_interface.h"
+#include "call/audio_receive_stream.h"
 #include "call/video_receive_stream.h"
-#include "call/video_send_stream.h"
 #include "utility/process_thread.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/sent_packet.h"
@@ -57,19 +55,10 @@ class Call {
   // Call instance exists.
   virtual PacketReceiver* Receiver() = 0;
 
- // virtual AudioSendStream* CreateAudioSendStream(
- //     const AudioSendStream::Config& config) = 0;
- // virtual void DestroyAudioSendStream(AudioSendStream* send_stream) = 0;
-
- // virtual AudioReceiveStream* CreateAudioReceiveStream(
- //     const AudioReceiveStream::Config& config) = 0;
- // virtual void DestroyAudioReceiveStream(
- //     AudioReceiveStream* receive_stream) = 0;
-
- // virtual VideoSendStream* CreateVideoSendStream(
- //     VideoSendStream::Config config,
- //     VideoEncoderConfig encoder_config) = 0;
- // virtual void DestroyVideoSendStream(VideoSendStream* send_stream) = 0;
+  virtual AudioReceiveStream* CreateAudioReceiveStream(
+      const AudioReceiveStream::Config& config) = 0;
+  virtual void DestroyAudioReceiveStream(
+      AudioReceiveStream* receive_stream) = 0;
 
   virtual VideoReceiveStream* CreateVideoReceiveStream(
       VideoReceiveStream::Config configuration) = 0;
@@ -84,24 +73,11 @@ class Call {
   virtual void DestroyFlexfecReceiveStream(
       FlexfecReceiveStream* receive_stream) = 0;
 
-  // Returns the call statistics, such as estimated send and receive bandwidth,
-  // pacing delay, etc.
-  virtual Stats GetStats() const = 0;
-
   // TODO(skvlad): When the unbundled case with multiple streams for the same
   // media type going over different networks is supported, track the state
   // for each stream separately. Right now it's global per media type.
   virtual void SignalChannelNetworkState(MediaType media,
                                          NetworkState state) = 0;
-
-  virtual void OnAudioTransportOverheadChanged(
-      int transport_overhead_per_packet) = 0;
-
-  virtual void OnSentPacket(const rtc::SentPacket& sent_packet) = 0;
-
-  virtual void SetClientBitratePreferences(
-      const BitrateSettings& preferences) = 0;
-
   virtual ~Call() {}
 };
 

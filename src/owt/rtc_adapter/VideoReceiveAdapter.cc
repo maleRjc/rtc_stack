@@ -18,7 +18,6 @@ namespace rtc_adapter {
 
 DEFINE_LOGGER(VideoReceiveAdapterImpl, "VideoReceiveAdapterImpl")
 
-
 const uint32_t kBufferSize = 8192;
 // Local SSRC has no meaning for receive stream here
 const uint32_t kLocalSsrc = 1;
@@ -165,7 +164,6 @@ VideoReceiveAdapterImpl::VideoReceiveAdapterImpl(
 
 VideoReceiveAdapterImpl::~VideoReceiveAdapterImpl() {
   if (m_videoRecvStream) {
-    OLOG_INFO_THIS("Destroy VideoReceiveStream with SSRC: " << m_config.ssrc);
     m_videoRecvStream->Stop();
     call()->DestroyVideoReceiveStream(m_videoRecvStream);
     m_videoRecvStream = nullptr;
@@ -179,8 +177,6 @@ void VideoReceiveAdapterImpl::CreateReceiveVideo() {
   if (m_videoRecvStream) {
     return;
   }
-  
-  OLOG_INFO_THIS("Create VideoReceiveStream with SSRC: " << m_config.ssrc);
   // Create Receive Video Stream
   webrtc::VideoReceiveStream::Config video_recv_config(this);
 
@@ -188,11 +184,9 @@ void VideoReceiveAdapterImpl::CreateReceiveVideo() {
   video_recv_config.rtp.remote_ssrc = m_config.ssrc;
   video_recv_config.rtp.local_ssrc = kLocalSsrc;
   
-  video_recv_config.rtp.rtcp_mode = 
-    m_config.ssrc?webrtc::RtcpMode::kReducedSize:webrtc::RtcpMode::kCompound;
+  video_recv_config.rtp.rtcp_mode = webrtc::RtcpMode::kCompound;
     
   if (m_config.transport_cc != -1) {
-    OLOG_INFO_THIS("TransportSequenceNumber Extension Enabled");
     video_recv_config.rtp.transport_cc = true;
     video_recv_config.rtp.extensions.emplace_back(
       webrtc::RtpExtension::kTransportSequenceNumberUri, m_config.transport_cc);
@@ -200,9 +194,16 @@ void VideoReceiveAdapterImpl::CreateReceiveVideo() {
     video_recv_config.rtp.transport_cc = false;
   }
 
+  if (m_config.mid_ext) {
+    video_recv_config.rtp.extensions.emplace_back(
+       webrtc::RtpExtension::kMidUri, m_config.mid_ext);
+  }
+
   video_recv_config.rtp.ulpfec_payload_type = m_config.ulpfec_payload;   
   video_recv_config.rtp.red_payload_type = m_config.red_payload;
   video_recv_config.rtp.rtx_ssrc = m_config.rtx_ssrc;
+
+  video_recv_config.rtp.protected_by_flexfec = m_config.flex_fec;
   
   video_recv_config.rtp.rtx_associated_payload_types[m_config.rtx_ssrc] = 
       m_config.rtp_payload_type;
@@ -212,13 +213,13 @@ void VideoReceiveAdapterImpl::CreateReceiveVideo() {
   webrtc::VideoReceiveStream::Decoder decoder;
   decoder.decoder_factory = this;
 
-  decoder.payload_type = m_config.rtp_payload_type; //H264_90000_PT; 
+  decoder.payload_type = m_config.rtp_payload_type; 
   decoder.video_format = webrtc::SdpVideoFormat(
       webrtc::CodecTypeToPayloadString(webrtc::VideoCodecType::kVideoCodecH264));
   OLOG_INFO_THIS("Config add decoder:" << decoder.ToString());
   video_recv_config.decoders.push_back(decoder);
 
-  OLOG_INFO_THIS("VideoReceiveStream::Config " << video_recv_config.ToString());
+  //OLOG_INFO_THIS("VideoReceiveStream::Config " << video_recv_config.ToString());
   m_videoRecvStream = call()->CreateVideoReceiveStream(std::move(video_recv_config));
   m_videoRecvStream->Start();
   call()->SignalChannelNetworkState(webrtc::MediaType::VIDEO, webrtc::NetworkState::kNetworkUp);
@@ -228,36 +229,42 @@ void VideoReceiveAdapterImpl::requestKeyFrame() {
   m_isWaitingKeyFrame = true;
 }
 
-std::vector<webrtc::SdpVideoFormat> VideoReceiveAdapterImpl::GetSupportedFormats() const {
+std::vector<webrtc::SdpVideoFormat> 
+VideoReceiveAdapterImpl::GetSupportedFormats() const {
   return std::vector<webrtc::SdpVideoFormat>{
       webrtc::SdpVideoFormat(
           webrtc::CodecTypeToPayloadString(webrtc::VideoCodecType::kVideoCodecH264)),
   };
 }
 
-std::unique_ptr<webrtc::VideoDecoder> VideoReceiveAdapterImpl::CreateVideoDecoder(
+std::unique_ptr<webrtc::VideoDecoder> 
+VideoReceiveAdapterImpl::CreateVideoDecoder(
   const webrtc::SdpVideoFormat& format) {
   return std::make_unique<AdapterDecoder>(this);
 }
 
 int VideoReceiveAdapterImpl::onRtpData(char* data, int len) {
-  call()->Receiver()->DeliverPacket(
-      webrtc::MediaType::VIDEO,
-      rtc::CopyOnWriteBuffer(data, len),
-      rtc::TimeUTCMicros());
+  auto rv = call()->Receiver()->DeliverPacket(
+          webrtc::MediaType::VIDEO,
+          rtc::CopyOnWriteBuffer(data, len),
+          rtc::TimeUTCMicros());
+  if (webrtc::PacketReceiver::DELIVERY_OK != rv) {
+    OLOG_ERROR_THIS("VideoReceiveAdapterImpl DeliverPacket failed code:" << rv);
+  }
   return len;
 }
 
-bool VideoReceiveAdapterImpl::SendRtp(const uint8_t* data, size_t len, const webrtc::PacketOptions& options) {
+bool VideoReceiveAdapterImpl::SendRtp(const uint8_t* data, size_t len, 
+    const webrtc::PacketOptions& options) {
   OLOG_WARN_THIS("VideoReceiveAdapterImpl SendRtp called");
   return true;
 }
 
 bool VideoReceiveAdapterImpl::SendRtcp(const uint8_t* data, size_t len) {
   if (m_rtcpListener) {
-      m_rtcpListener->onAdapterData(
-          reinterpret_cast<char*>(const_cast<uint8_t*>(data)), len);
-      return true;
+    m_rtcpListener->onAdapterData(
+        reinterpret_cast<char*>(const_cast<uint8_t*>(data)), len);
+    return true;
   }
   return false;
 }

@@ -97,9 +97,11 @@ void ModuleRtpRtcpImpl::Process() {
   }
 
   bool process_rtt = now >= last_rtt_process_time_ + kRtpRtcpRttProcessTimeMs;
+  
   if (rtcp_sender_.Sending()) {
     // Process RTT if we have received a report block and we haven't
     // processed RTT for at least |kRtpRtcpRttProcessTimeMs| milliseconds.
+
     if (rtcp_receiver_.LastReceivedReportBlockMs() > last_rtt_process_time_ &&
         process_rtt) {
       std::vector<RTCPReportBlock> receive_blocks;
@@ -111,6 +113,7 @@ void ModuleRtpRtcpImpl::Process() {
         rtcp_receiver_.RTT(it->sender_ssrc, &rtt, NULL, NULL, NULL);
         max_rtt = (rtt > max_rtt) ? rtt : max_rtt;
       }
+
       // Report the rtt.
       if (rtt_stats_ && max_rtt != 0)
         rtt_stats_->OnRttUpdate(max_rtt);
@@ -729,14 +732,12 @@ std::vector<rtcp::TmmbItem> ModuleRtpRtcpImpl::BoundingSet(bool* tmmbr_owner) {
 }
 
 void ModuleRtpRtcpImpl::set_rtt_ms(int64_t rtt_ms) {
-  rtc::CritScope cs(&critical_section_rtt_);
   rtt_ms_ = rtt_ms;
   if (rtp_sender_)
     rtp_sender_->SetRtt(rtt_ms);
 }
 
 int64_t ModuleRtpRtcpImpl::rtt_ms() const {
-  rtc::CritScope cs(&critical_section_rtt_);
   return rtt_ms_;
 }
 

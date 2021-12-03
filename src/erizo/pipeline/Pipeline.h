@@ -28,7 +28,8 @@ class PipelineManager {
   virtual void refreshTimeout() {}
 };
 
-class PipelineBase : public std::enable_shared_from_this<PipelineBase> {
+class PipelineBase 
+    : public std::enable_shared_from_this<PipelineBase> {
  public:
   virtual ~PipelineBase() = default;
 
@@ -150,15 +151,15 @@ class PipelineBase : public std::enable_shared_from_this<PipelineBase> {
  * If R is Unit, read(), readEOF(), and readException() will be disabled.
  * If W is Unit, write() and close() will be disabled.
  */
-class Pipeline : public PipelineBase {
+class Pipeline final : public PipelineBase {
  public:
   using Ptr = std::shared_ptr<Pipeline>;
 
   static Ptr create() {
-    return std::shared_ptr<Pipeline>(new Pipeline());
+    return std::shared_ptr<Pipeline>(new Pipeline);
   }
 
-  ~Pipeline();
+  ~Pipeline() override;
 
   void read(std::shared_ptr<DataPacket> packet);
 
@@ -176,7 +177,7 @@ class Pipeline : public PipelineBase {
   void disable(std::string name);
 
  protected:
-  Pipeline();
+  Pipeline() = default;
 
  private:
   InboundLink* front_{nullptr};

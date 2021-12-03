@@ -84,7 +84,6 @@ void VideoReceiver2::DecoderThreadStopped() {
 // Must be called from inside the receive side critical section.
 int32_t VideoReceiver2::Decode(const VCMEncodedFrame* frame) {
   RTC_DCHECK_RUN_ON(&decoder_thread_checker_);
-  TRACE_EVENT0("webrtc", "VideoReceiver2::Decode");
   // Change decoder if payload type has changed
   VCMGenericDecoder* decoder =
       codecDataBase_.GetDecoder(*frame, &decodedFrameCallback_);

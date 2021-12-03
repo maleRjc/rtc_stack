@@ -51,19 +51,16 @@ RtpStreamReceiverController::CreateReceiver(uint32_t ssrc,
 }
 
 bool RtpStreamReceiverController::OnRtpPacket(const RtpPacketReceived& packet) {
-  rtc::CritScope cs(&lock_);
   return demuxer_.OnRtpPacket(packet);
 }
 
 bool RtpStreamReceiverController::AddSink(uint32_t ssrc,
                                           RtpPacketSinkInterface* sink) {
-  rtc::CritScope cs(&lock_);
   return demuxer_.AddSink(ssrc, sink);
 }
 
 size_t RtpStreamReceiverController::RemoveSink(
     const RtpPacketSinkInterface* sink) {
-  rtc::CritScope cs(&lock_);
   return demuxer_.RemoveSink(sink);
 }
 

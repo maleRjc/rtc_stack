@@ -23,7 +23,6 @@
 #include "rtp_rtcp/rtp_rtcp_defines.h"
 #include "rtp_rtcp/rtcp_nack_stats.h"
 #include "rtp_rtcp/dlrr.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/ntp_time.h"
 
@@ -131,85 +130,64 @@ class RTCPReceiver {
   void TriggerCallbacksFromRtcpPacket(
       const PacketInformation& packet_information);
 
-  TmmbrInformation* FindOrCreateTmmbrInfo(uint32_t remote_ssrc)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+  TmmbrInformation* FindOrCreateTmmbrInfo(uint32_t remote_ssrc);
   // Update TmmbrInformation (if present) is alive.
-  void UpdateTmmbrRemoteIsAlive(uint32_t remote_ssrc)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
-  TmmbrInformation* GetTmmbrInformation(uint32_t remote_ssrc)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+  void UpdateTmmbrRemoteIsAlive(uint32_t remote_ssrc);
+  TmmbrInformation* GetTmmbrInformation(uint32_t remote_ssrc);
 
   void HandleSenderReport(const rtcp::CommonHeader& rtcp_block,
-                          PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                          PacketInformation* packet_information);
 
   void HandleReceiverReport(const rtcp::CommonHeader& rtcp_block,
-                            PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                            PacketInformation* packet_information);
 
   void HandleReportBlock(const rtcp::ReportBlock& report_block,
                          PacketInformation* packet_information,
-                         uint32_t remote_ssrc)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                         uint32_t remote_ssrc);
 
   void HandleSdes(const rtcp::CommonHeader& rtcp_block,
-                  PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                  PacketInformation* packet_information);
 
   void HandleXr(const rtcp::CommonHeader& rtcp_block,
-                PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                PacketInformation* packet_information);
 
   void HandleXrReceiveReferenceTime(uint32_t sender_ssrc,
-                                    const rtcp::Rrtr& rrtr)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                                    const rtcp::Rrtr& rrtr);
 
-  void HandleXrDlrrReportBlock(const rtcp::ReceiveTimeInfo& rti)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+  void HandleXrDlrrReportBlock(const rtcp::ReceiveTimeInfo& rti);
 
   void HandleXrTargetBitrate(uint32_t ssrc,
                              const rtcp::TargetBitrate& target_bitrate,
-                             PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                             PacketInformation* packet_information);
 
   void HandleNack(const rtcp::CommonHeader& rtcp_block,
-                  PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                  PacketInformation* packet_information);
 
   void HandleApp(const rtcp::CommonHeader& rtcp_block,
-                 PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                 PacketInformation* packet_information);
 
-  void HandleBye(const rtcp::CommonHeader& rtcp_block)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+  void HandleBye(const rtcp::CommonHeader& rtcp_block);
 
   void HandlePli(const rtcp::CommonHeader& rtcp_block,
-                 PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                 PacketInformation* packet_information);
 
   void HandlePsfbApp(const rtcp::CommonHeader& rtcp_block,
-                     PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                     PacketInformation* packet_information);
 
   void HandleTmmbr(const rtcp::CommonHeader& rtcp_block,
-                   PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                   PacketInformation* packet_information);
 
   void HandleTmmbn(const rtcp::CommonHeader& rtcp_block,
-                   PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                   PacketInformation* packet_information);
 
   void HandleSrReq(const rtcp::CommonHeader& rtcp_block,
-                   PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                   PacketInformation* packet_information);
 
   void HandleFir(const rtcp::CommonHeader& rtcp_block,
-                 PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                 PacketInformation* packet_information);
 
   void HandleTransportFeedback(const rtcp::CommonHeader& rtcp_block,
-                               PacketInformation* packet_information)
-      RTC_EXCLUSIVE_LOCKS_REQUIRED(rtcp_receiver_lock_);
+                               PacketInformation* packet_information);
 
   Clock* const clock_;
   const bool receiver_only_;
@@ -217,7 +195,6 @@ class RTCPReceiver {
   const uint32_t main_ssrc_;
   const std::set<uint32_t> registered_ssrcs_;
 
-  rtc::CriticalSection feedbacks_lock_;
   RtcpBandwidthObserver* const rtcp_bandwidth_observer_;
   RtcpIntraFrameObserver* const rtcp_intra_frame_observer_;
   RtcpLossNotificationObserver* const rtcp_loss_notification_observer_;
@@ -226,51 +203,49 @@ class RTCPReceiver {
   VideoBitrateAllocationObserver* const bitrate_allocation_observer_;
   const int report_interval_ms_;
 
-  rtc::CriticalSection rtcp_receiver_lock_;
-  uint32_t remote_ssrc_ RTC_GUARDED_BY(rtcp_receiver_lock_);
+  uint32_t remote_ssrc_ ;
 
   // Received sender report.
-  NtpTime remote_sender_ntp_time_ RTC_GUARDED_BY(rtcp_receiver_lock_);
-  uint32_t remote_sender_rtp_time_ RTC_GUARDED_BY(rtcp_receiver_lock_);
+  NtpTime remote_sender_ntp_time_ ;
+  uint32_t remote_sender_rtp_time_ ;
   // When did we receive the last send report.
-  NtpTime last_received_sr_ntp_ RTC_GUARDED_BY(rtcp_receiver_lock_);
+  NtpTime last_received_sr_ntp_ ;
 
   // Received RRTR information in ascending receive time order.
   std::list<RrtrInformation> received_rrtrs_
-      RTC_GUARDED_BY(rtcp_receiver_lock_);
+      ;
   // Received RRTR information mapped by remote ssrc.
   std::map<uint32_t, std::list<RrtrInformation>::iterator>
-      received_rrtrs_ssrc_it_ RTC_GUARDED_BY(rtcp_receiver_lock_);
+      received_rrtrs_ssrc_it_ ;
 
   // Estimated rtt, zero when there is no valid estimate.
-  bool xr_rrtr_status_ RTC_GUARDED_BY(rtcp_receiver_lock_);
+  bool xr_rrtr_status_ ;
   int64_t xr_rr_rtt_ms_;
 
-  int64_t oldest_tmmbr_info_ms_ RTC_GUARDED_BY(rtcp_receiver_lock_);
+  int64_t oldest_tmmbr_info_ms_ ;
   // Mapped by remote ssrc.
   std::map<uint32_t, TmmbrInformation> tmmbr_infos_
-      RTC_GUARDED_BY(rtcp_receiver_lock_);
+      ;
 
-  ReportBlockMap received_report_blocks_ RTC_GUARDED_BY(rtcp_receiver_lock_);
+  ReportBlockMap received_report_blocks_ ;
   std::map<uint32_t, LastFirStatus> last_fir_
-      RTC_GUARDED_BY(rtcp_receiver_lock_);
+      ;
   std::map<uint32_t, std::string> received_cnames_
-      RTC_GUARDED_BY(rtcp_receiver_lock_);
+      ;
 
   // The last time we received an RTCP Report block for this module.
-  int64_t last_received_rb_ms_ RTC_GUARDED_BY(rtcp_receiver_lock_);
+  int64_t last_received_rb_ms_ ;
 
   // The time we last received an RTCP RR telling we have successfully
   // delivered RTP packet to the remote side.
   int64_t last_increased_sequence_number_ms_;
 
-  RtcpStatisticsCallback* stats_callback_ RTC_GUARDED_BY(feedbacks_lock_);
-  RtcpCnameCallback* cname_callback_ RTC_GUARDED_BY(feedbacks_lock_);
+  RtcpStatisticsCallback* stats_callback_;
+  RtcpCnameCallback* cname_callback_;
   // TODO(hbos): Remove RtcpStatisticsCallback in favor of
   // ReportBlockDataObserver; the ReportBlockData contains a superset of the
   // RtcpStatistics data.
-  ReportBlockDataObserver* report_block_data_observer_
-      RTC_GUARDED_BY(feedbacks_lock_);
+  ReportBlockDataObserver* report_block_data_observer_;
 
   RtcpPacketTypeCounterObserver* const packet_type_counter_observer_;
   RtcpPacketTypeCounter packet_type_counter_;

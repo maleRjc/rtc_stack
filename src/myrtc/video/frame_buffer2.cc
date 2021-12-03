@@ -73,7 +73,6 @@ void FrameBuffer::NextFrame(
     rtc::TaskQueue* callback_queue,
     std::function<void(std::unique_ptr<EncodedFrame>, ReturnReason)> handler) {
   RTC_DCHECK_RUN_ON(callback_queue);
-  TRACE_EVENT0("webrtc", "FrameBuffer::NextFrame");
   int64_t latest_return_time_ms =
       clock_->TimeInMilliseconds() + max_wait_time_ms;
   rtc::CritScope lock(&crit_);
@@ -120,7 +119,6 @@ FrameBuffer::ReturnReason FrameBuffer::NextFrame(
     int64_t max_wait_time_ms,
     std::unique_ptr<EncodedFrame>* frame_out,
     bool keyframe_required) {
-  TRACE_EVENT0("webrtc", "FrameBuffer::NextFrame");
   int64_t latest_return_time_ms =
       clock_->TimeInMilliseconds() + max_wait_time_ms;
   int64_t wait_ms = max_wait_time_ms;
@@ -363,19 +361,16 @@ bool FrameBuffer::HasBadRenderTiming(const EncodedFrame& frame,
 }
 
 void FrameBuffer::SetProtectionMode(VCMVideoProtection mode) {
-  TRACE_EVENT0("webrtc", "FrameBuffer::SetProtectionMode");
   rtc::CritScope lock(&crit_);
   protection_mode_ = mode;
 }
 
 void FrameBuffer::Start() {
-  TRACE_EVENT0("webrtc", "FrameBuffer::Start");
   rtc::CritScope lock(&crit_);
   stopped_ = false;
 }
 
 void FrameBuffer::Stop() {
-  TRACE_EVENT0("webrtc", "FrameBuffer::Stop");
   rtc::CritScope lock(&crit_);
   stopped_ = true;
   new_continuous_frame_event_.Set();
@@ -459,7 +454,6 @@ bool FrameBuffer::IsCompleteSuperFrame(const EncodedFrame& frame) {
 }
 
 int64_t FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
-  TRACE_EVENT0("webrtc", "FrameBuffer::InsertFrame");
   RTC_DCHECK(frame);
 
   rtc::CritScope lock(&crit_);
@@ -580,7 +574,6 @@ int64_t FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
 }
 
 void FrameBuffer::PropagateContinuity(FrameMap::iterator start) {
-  TRACE_EVENT0("webrtc", "FrameBuffer::PropagateContinuity");
   RTC_DCHECK(start->second.continuous);
 
   std::queue<FrameMap::iterator> continuous_frames;
@@ -614,7 +607,6 @@ void FrameBuffer::PropagateContinuity(FrameMap::iterator start) {
 }
 
 void FrameBuffer::PropagateDecodability(const FrameInfo& info) {
-  TRACE_EVENT0("webrtc", "FrameBuffer::PropagateDecodability");
   for (size_t d = 0; d < info.dependent_frames.size(); ++d) {
     auto ref_info = frames_.find(info.dependent_frames[d]);
     RTC_DCHECK(ref_info != frames_.end());
@@ -628,7 +620,6 @@ void FrameBuffer::PropagateDecodability(const FrameInfo& info) {
 
 bool FrameBuffer::UpdateFrameInfoWithIncomingFrame(const EncodedFrame& frame,
                                                    FrameMap::iterator info) {
-  TRACE_EVENT0("webrtc", "FrameBuffer::UpdateFrameInfoWithIncomingFrame");
   const VideoLayerFrameId& id = frame.id;
 
   auto last_decoded_frame = decoded_frames_history_.GetLastDecodedFrameId();
@@ -706,7 +697,6 @@ bool FrameBuffer::UpdateFrameInfoWithIncomingFrame(const EncodedFrame& frame,
 }
 
 void FrameBuffer::UpdateJitterDelay() {
-  TRACE_EVENT0("webrtc", "FrameBuffer::UpdateJitterDelay");
   if (!stats_callback_)
     return;
 
@@ -726,14 +716,12 @@ void FrameBuffer::UpdateJitterDelay() {
 }
 
 void FrameBuffer::UpdateTimingFrameInfo() {
-  TRACE_EVENT0("webrtc", "FrameBuffer::UpdateTimingFrameInfo");
   std::optional<TimingFrameInfo> info = timing_->GetTimingFrameInfo();
   if (info && stats_callback_)
     stats_callback_->OnTimingFrameInfoUpdated(*info);
 }
 
 void FrameBuffer::ClearFramesAndHistory() {
-  TRACE_EVENT0("webrtc", "FrameBuffer::ClearFramesAndHistory");
   if (stats_callback_) {
     unsigned int dropped_frames = std::count_if(
         frames_.begin(), frames_.end(),

@@ -44,11 +44,11 @@ public:
     bool flex_fec = false;
     int transportcc{-1};
     int red_payload{-1};
+    wa::Worker* worker{nullptr};
+    rtc_adapter::RtcAdapterFactory* factory{nullptr};
   };
 
-  VideoFrameConstructor(VideoInfoListener*, 
-                        const config& _config,
-                        wa::Worker* worker);
+  VideoFrameConstructor(VideoInfoListener*, const config& _config);
   virtual ~VideoFrameConstructor();
 
   void bindTransport(erizo::MediaSource* source, erizo::FeedbackSink* fbSink);
@@ -75,7 +75,7 @@ public:
 private:
   config config_;
 
-  void maybeCreateReceiveVideo(uint32_t);
+  void createReceiveVideo(uint32_t);
 
   // Implement erizo::MediaSink
   int deliverAudioData_(std::shared_ptr<erizo::DataPacket> audio_packet) override;

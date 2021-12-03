@@ -128,10 +128,8 @@ void CallStats::Process() {
   RemoveOldReports(now, &reports_);
   max_rtt_ms_ = GetMaxRttMs(reports_);
   avg_rtt_ms = GetNewAvgRttMs(reports_, avg_rtt_ms);
-  {
-    rtc::CritScope lock(&avg_rtt_ms_lock_);
-    avg_rtt_ms_ = avg_rtt_ms;
-  }
+  avg_rtt_ms_ = avg_rtt_ms;
+  
 
   // If there is a valid rtt, update all observers with the max rtt.
   if (max_rtt_ms_ >= 0) {
@@ -178,13 +176,11 @@ int64_t CallStats::LastProcessedRtt() const {
   // allow only reading this from the process thread (or TQ once we get there)
   // so that the lock isn't necessary.
 
-  rtc::CritScope cs(&avg_rtt_ms_lock_);
   return avg_rtt_ms_;
 }
 
 void CallStats::OnRttUpdate(int64_t rtt) {
   RTC_DCHECK_RUN_ON(&process_thread_checker_);
-
   int64_t now_ms = clock_->TimeInMilliseconds();
   reports_.push_back(RttTime(rtt, now_ms));
   if (time_of_first_rtt_ms_ == -1)

@@ -17,11 +17,10 @@
 
 #include "h/rtc_stack_api.h"
 #include "erizo/WebRtcConnection.h"
-
 #include "owt/owt_base/MediaFramePipeline.h"
+#include "owt/rtc_adapter/RtcAdapter.h"
 
-namespace wa
-{
+namespace wa {
 
 class WebrtcAgentSink;
 class WebrtcAgent;
@@ -46,9 +45,9 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
       e_av
     };
   
-    WebrtcTrack(const std::string& mid, 
-                WrtcAgentPc*, 
-                bool isPublish, 
+    WebrtcTrack(const std::string& mid,
+                WrtcAgentPc*,
+                bool isPublish,
                 const media_setting&,
                 erizo::MediaStream* mediaStream);
     ~WebrtcTrack();
@@ -215,6 +214,8 @@ private:
   erizo::WebRTCEvent connection_state_;
 
   bool ready_{false};
+  
+  std::unique_ptr<rtc_adapter::RtcAdapterFactory> adapter_factory_;
 };
 
 } //namespace wa

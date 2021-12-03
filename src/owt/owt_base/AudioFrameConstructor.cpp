@@ -4,7 +4,6 @@
 #include "common/rtputils.h"
 #include "erizo/rtp/RtpHeaders.h"
 
-
 namespace owt_base {
 
 DEFINE_LOGGER(AudioFrameConstructor, "owt.AudioFrameConstructor");
@@ -12,39 +11,7 @@ DEFINE_LOGGER(AudioFrameConstructor, "owt.AudioFrameConstructor");
 // TODO: Get the extension ID from SDP
 constexpr uint8_t kAudioLevelExtensionId = 1;
 
-AudioFrameConstructor::AudioFrameConstructor()
-    : m_enabled(true), 
-      m_transport(nullptr) {
-  OLOG_TRACE_THIS("");
-  sink_fb_source_ = this;
-}
-
-AudioFrameConstructor::~AudioFrameConstructor() {
-  OLOG_TRACE_THIS("");
-  unbindTransport();
-}
-
-void AudioFrameConstructor::bindTransport(
-    erizo::MediaSource* source, erizo::FeedbackSink* fbSink) {
-  m_transport = source;
-  m_transport->setAudioSink(this);
-  m_transport->setEventSink(this);
-  setFeedbackSink(fbSink);
-}
-
-void AudioFrameConstructor::unbindTransport() {
-  if (m_transport) {
-      setFeedbackSink(nullptr);
-      m_transport = nullptr;
-  }
-}
-
-int AudioFrameConstructor::deliverVideoData_(
-    std::shared_ptr<erizo::DataPacket> video_packet) {
-  assert(false);
-  return 0;
-}
-
+namespace {
 class AudioLevel {
  public:
   inline uint8_t getId() {
@@ -92,16 +59,80 @@ std::unique_ptr<AudioLevel> parseAudioLevel(std::shared_ptr<erizo::DataPacket> p
   return ret;
 }
 
+}
+
+AudioFrameConstructor::AudioFrameConstructor(const config& config)
+    : config_{config},
+      rtcAdapter_{std::move(config.factory->CreateRtcAdapter())} {
+  sink_fb_source_ = this;
+}
+
+AudioFrameConstructor::~AudioFrameConstructor() {
+  unbindTransport();
+  if (audioReceive_) {
+    rtcAdapter_->destoryAudioReceiver(audioReceive_);
+    audioReceive_ = nullptr;
+  }
+}
+
+void AudioFrameConstructor::bindTransport(
+    erizo::MediaSource* source, erizo::FeedbackSink* fbSink) {
+  transport_ = source;
+  transport_->setAudioSink(this);
+  transport_->setEventSink(this);
+  setFeedbackSink(fbSink);
+}
+
+void AudioFrameConstructor::unbindTransport() {
+  if (transport_) {
+    setFeedbackSink(nullptr);
+    transport_ = nullptr;
+  }
+}
+
+int AudioFrameConstructor::deliverVideoData_(
+    std::shared_ptr<erizo::DataPacket> video_packet) {
+  assert(false);
+  return 0;
+}
+
 int AudioFrameConstructor::deliverAudioData_(
     std::shared_ptr<erizo::DataPacket> audio_packet) {
   if (audio_packet->length <= 0) {
     return 0;
   }
 
+  // support audio transport-cc, 
+  // see @https://github.com/anjisuan783/media_lib/issues/8
+
+  RTCPHeader* chead = reinterpret_cast<RTCPHeader*>(audio_packet->data);
+  uint8_t packetType = chead->getPacketType();
+  assert(packetType != RTCP_Receiver_PT && 
+         packetType != RTCP_PS_Feedback_PT && 
+         packetType != RTCP_RTP_Feedback_PT);
+  
+  if (audioReceive_ && 
+      (packetType == RTCP_SDES_PT || 
+       packetType == RTCP_Sender_PT || 
+       packetType == RTCP_XR_PT) ) {
+    audioReceive_->onRtpData(audio_packet->data, audio_packet->length);
+    return audio_packet->length;
+  }
+
+  if (packetType >= RTCP_MIN_PT && packetType <= RTCP_MAX_PT) {
+    return 0;
+  }
+
+  RTPHeader* head = reinterpret_cast<RTPHeader*>(audio_packet->data);
+  if (!ssrc_ && head->getSSRC()) {
+    createAudioReceiver();
+  }
+
+  audioReceive_->onRtpData(audio_packet->data, audio_packet->length);
+
   FrameFormat frameFormat;
   Frame frame;
   memset(&frame, 0, sizeof(frame));
-  RTPHeader* head = (RTPHeader*)(audio_packet->data);
 
   frameFormat = getAudioFrameFormat(head->getPayloadType());
   if (frameFormat == FRAME_FORMAT_UNKNOWN) {
@@ -122,12 +153,11 @@ int AudioFrameConstructor::deliverAudioData_(
   if (audioLevel) {
     frame.additionalInfo.audio.audioLevel = audioLevel->getLevel();
     frame.additionalInfo.audio.voice = audioLevel->getVoice();
-    //ELOG_DEBUG("Has audio level extension %u, %d", audioLevel->getLevel(), audioLevel->getVoice());
   } else {
     ELOG_TRACE("No audio level extension");
   }
   
-  if (m_enabled) {
+  if (enabled_) {
     deliverFrame(frame);
   }
   
@@ -146,8 +176,34 @@ int AudioFrameConstructor::deliverEvent_(erizo::MediaEventPtr event) {
   return 0;
 }
 
+void AudioFrameConstructor::onAdapterData(char* data, int len) {
+  // Data come from audio receive stream is RTCP
+  if (fb_sink_) {
+    fb_sink_->deliverFeedback(
+      std::make_shared<erizo::DataPacket>(0, data, len, erizo::AUDIO_PACKET));
+  }
+}
+
 void AudioFrameConstructor::close() {
   unbindTransport();
+}
+
+void AudioFrameConstructor::createAudioReceiver() {
+  if (audioReceive_) {
+    return;
+  }
+  ssrc_ = config_.ssrc;
+
+  // Create Receive audio Stream for transport-cc
+  rtc_adapter::RtcAdapter::Config recvConfig;
+
+  recvConfig.ssrc = config_.ssrc;
+  recvConfig.rtcp_rsize = config_.rtcp_rsize;
+  recvConfig.rtp_payload_type = config_.rtp_payload_type;
+  recvConfig.transport_cc = config_.transportcc;
+  recvConfig.rtp_listener = this;
+
+  audioReceive_ = rtcAdapter_->createAudioReceiver(recvConfig);
 }
 
 }//namespace owt_base

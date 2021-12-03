@@ -31,7 +31,6 @@
 #include "rtp_rtcp/rtcp_sender.h"
 #include "rtp_rtcp/rtp_packet_to_send.h"
 #include "rtp_rtcp/rtp_sender.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/gtest_prod_util.h"
 
 namespace webrtc {
@@ -317,7 +316,6 @@ class ModuleRtpRtcpImpl : public RtpRtcp, public RTCPReceiver::ModuleRtpRtcp {
   RtcpRttStats* const rtt_stats_;
 
   // The processed RTT from RtcpRttStats.
-  rtc::CriticalSection critical_section_rtt_;
   int64_t rtt_ms_;
 };
 

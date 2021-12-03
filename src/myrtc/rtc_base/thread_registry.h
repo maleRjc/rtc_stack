@@ -17,12 +17,7 @@ namespace webrtc {
 
 class ScopedRegisterThreadForDebugging {
  public:
-#if defined(WEBRTC_ANDROID) && !defined(WEBRTC_CHROMIUM_BUILD)
-  explicit ScopedRegisterThreadForDebugging(rtc::Location location);
-  ~ScopedRegisterThreadForDebugging();
-#else
   explicit ScopedRegisterThreadForDebugging(rtc::Location) {}
-#endif
 
   // Not movable or copyable, because we can't duplicate the resource it owns,
   // and it needs a constant address.
@@ -35,11 +30,7 @@ class ScopedRegisterThreadForDebugging {
       ScopedRegisterThreadForDebugging&&) = delete;
 };
 
-#if defined(WEBRTC_ANDROID) && !defined(WEBRTC_CHROMIUM_BUILD)
-void PrintStackTracesOfRegisteredThreads();
-#else
 inline void PrintStackTracesOfRegisteredThreads() {}
-#endif
 
 }  // namespace webrtc
 
