@@ -46,7 +46,6 @@ class RemoteNtpTimeEstimator {
   Clock* clock_;
   MovingMedianFilter<int64_t> ntp_clocks_offset_estimator_;
   RtpToNtpEstimator rtp_to_ntp_;
-  int64_t last_timing_log_ms_;
   RTC_DISALLOW_COPY_AND_ASSIGN(RemoteNtpTimeEstimator);
 };
 

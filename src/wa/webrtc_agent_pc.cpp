@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2021- anjisuan783
+//
+// SPDX-License-Identifier: MIT
+//
+
 #include "webrtc_agent_pc.h"
 
 #include <atomic>
@@ -270,7 +276,10 @@ srs_error_t WrtcAgentPc::addTrackOperation(const std::string& mid,
   auto found = operation_map_.find(mid);
   if(found != operation_map_.end()){
     return srs_error_new(
-      wa_e_found, "%s has mapped operation %s", mid.c_str(), found->second.operation_id_.c_str());
+        wa_e_found, 
+        "%s has mapped operation %s", 
+        mid.c_str(), 
+        found->second.operation_id_.c_str());
   }
 
   operation op;
@@ -283,19 +292,22 @@ srs_error_t WrtcAgentPc::addTrackOperation(const std::string& mid,
   return ret;
 }
 
-void WrtcAgentPc::signalling(const std::string& signal, const std::string& content) {
-  asyncTask([signal, content](std::shared_ptr<WrtcAgentPc> this_ptr){
+void WrtcAgentPc::signalling(const std::string& signal, 
+                             const std::string& content,
+                             const std::string& stream_id) {
+  asyncTask([signal, content, stream_id](std::shared_ptr<WrtcAgentPc> this_ptr){
     srs_error_t result = srs_success;  
     if (signal == "offer") {
-      result = this_ptr->processOffer(content);
+      result = this_ptr->processOffer(content, stream_id);
     } else if (signal == "candidate") {
       result = this_ptr->addRemoteCandidate(content);
     } else if (signal == "removed-candidates") {
       result = this_ptr->removeRemoteCandidates(content);
     }
     if (result != srs_success) {
-      WLOG_ERROR("process %s error, code:%d, desc:%s",
-          signal.c_str(), srs_error_code(result), srs_error_desc(result).c_str());
+      WLOG_ERROR("process %s error, desc:%s",
+                 signal.c_str(),  
+                 srs_error_desc(result).c_str());
       delete result;
     }
   });
@@ -304,7 +316,8 @@ void WrtcAgentPc::signalling(const std::string& signal, const std::string& conte
 void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus, 
                               const std::string& message, 
                               const std::string& stream_id) {
-  WLOG_TRACE("message: WebRtcConnection status update, id:%s, status:%d", id_.c_str(), newStatus);
+  WLOG_TRACE("message: WebRtcConnection status update, id:%s, status:%d", 
+      id_.c_str(), newStatus);
   connection_state_ = newStatus;
   switch(newStatus) {
     case erizo::CONN_GATHERED:
@@ -314,7 +327,8 @@ void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus,
     case erizo::CONN_CANDIDATE:
       //std::string mess = mess.replace(this.options.privateRegexp, this.options.publicIP);
       callBack(E_CANDIDATE, message);
-      WLOG_DEBUG("message: candidate, id::%s, c:%s", id_.c_str(), message.c_str());
+      WLOG_DEBUG("message: candidate, id::%s, c:%s", 
+          id_.c_str(), message.c_str());
       break;
 
     case erizo::CONN_FAILED:
@@ -348,8 +362,7 @@ void WrtcAgentPc::processSendAnswer(const std::string& streamId,
       WaSdpInfo tempSdp(sdpMsg);
 
       if (!tempSdp.empty()) {
-        local_sdp_->session_name_ = "wa/0.1(ly)";
-        local_sdp_->setMsidSemantic(tempSdp);
+        local_sdp_->session_name_ = "wa/0.1(anjisuan783@sina.com)";
         local_sdp_->setCredentials(tempSdp);
         local_sdp_->setCandidates(tempSdp); 
         local_sdp_->ice_lite_ = true;
@@ -370,7 +383,8 @@ void WrtcAgentPc::processSendAnswer(const std::string& streamId,
 
 using namespace erizo;
 
-srs_error_t WrtcAgentPc::processOffer(const std::string& sdp) {
+srs_error_t WrtcAgentPc::processOffer(const std::string& sdp, 
+                                      const std::string& stream_id) {
   srs_error_t result = srs_success;
   if (!remote_sdp_) {
     // First offer
@@ -380,7 +394,8 @@ srs_error_t WrtcAgentPc::processOffer(const std::string& sdp) {
     catch(std::exception& ex){
       delete remote_sdp_;
       remote_sdp_ = nullptr;
-      return srs_error_new(wa::wa_e_parse_offer_failed, "parse remote sdp failed");
+      return srs_error_new(wa::wa_e_parse_offer_failed, 
+          "parse remote sdp failed");
     }
  
     // Check mid
@@ -403,15 +418,20 @@ srs_error_t WrtcAgentPc::processOffer(const std::string& sdp) {
 
     try{
       local_sdp_ = remote_sdp_->answer();
+      if (!stream_id.empty()) {
+        local_sdp_->SetMsid(stream_id);
+      }
     }
     catch(std::exception& ex){
       delete local_sdp_;
       local_sdp_ = nullptr;
-      return srs_error_new(wa::wa_e_parse_offer_failed, "parse locad sdp from remote failed");
+      return srs_error_new(wa::wa_e_parse_offer_failed, 
+          "parse locad sdp from remote failed");
     }
     
     for(auto& x : operation_map_){
-      local_sdp_->filterByPayload(x.first, x.second.final_format_, true, false, true);
+      local_sdp_->filterByPayload(
+          x.first, x.second.final_format_, true, false, true);
     }
 
     local_sdp_->filterExtmap();
@@ -450,7 +470,7 @@ srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media) {
   if (found == operation_map_.end()) {
     media.port_ = 0;
     return srs_error_new(wa_e_found, "%s has mapped operation %s", 
-                         media.mid_.c_str(), found->second.operation_id_.c_str());
+        media.mid_.c_str(), found->second.operation_id_.c_str());
   }
 
   const std::string& mid = media.mid_;
@@ -458,8 +478,9 @@ srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media) {
   
   if (op.sdp_direction_ != media.direction_) {
     return srs_error_new(wa_failed, 
-        "mid[%s] in offer has conflict direction with opid[%s], opd[%s] != md[%s]", 
-        mid.c_str(), op.operation_id_.c_str(), op.sdp_direction_.c_str(), media.direction_.c_str());
+        "mid[%s] in offer has conflict direction with opid[%s],opd[%s]!=md[%s]", 
+        mid.c_str(), op.operation_id_.c_str(), op.sdp_direction_.c_str(), 
+        media.direction_.c_str());
   }
 
   std::string media_type{"unknow"};
@@ -471,8 +492,9 @@ srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media) {
   }
   
   if (media_type != media.type_) {
-    return srs_error_new(wa_failed, "%s in offer has conflict media type with %s", 
-                          mid.c_str(), op.operation_id_.c_str());
+    return srs_error_new(wa_failed, 
+        "%s in offer has conflict media type with %s", 
+        mid.c_str(), op.operation_id_.c_str());
   }
   
   if (op.enabled_ && (media.port_ == 0)) {
@@ -502,7 +524,8 @@ srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
   operation& opSettings = op_found->second;
 
   auto& rids = media.rids_;
-  std::string direction = (opSettings.sdp_direction_ == "sendonly") ? "in" : "out";
+  std::string direction = 
+      (opSettings.sdp_direction_ == "sendonly") ? "in" : "out";
   media_setting trackSetting = media.get_media_settings();
   
   if (opSettings.final_format_) {
@@ -534,7 +557,8 @@ srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
       if (direction == "in") {
         // TODO choise
         track->addDestination(trackSetting.is_audio, 
-            std::move(std::dynamic_pointer_cast<owt_base::FrameDestination>(shared_from_this())));
+            std::move(std::dynamic_pointer_cast<owt_base::FrameDestination>(
+                shared_from_this())));
       }
       connection_->setRemoteSdp(
           remote_sdp_->singleMediaSdp(media.mid_), media.mid_);
@@ -641,8 +665,8 @@ void WrtcAgentPc::subscribe_i(
 
 WrtcAgentPc::WebrtcTrack* WrtcAgentPc::addTrack(
     const std::string& mid, const media_setting& trackSetting, bool isPublish) {
-  OLOG_TRACE_THIS( (isPublish?"p": "s") << 
-      " connectionId:" << id_ << ", mediaStreamId:%s" << mid);
+  OLOG_TRACE_THIS( (isPublish?"push": "sub") << 
+      " connectionId:" << id_ << ", mediaStreamId:" << mid);
   WebrtcTrack* result = nullptr;
 
   auto found = track_map_.find(mid);
@@ -704,7 +728,7 @@ void WrtcAgentPc::onFrame(const owt_base::Frame& f) {
 }
 
 void WrtcAgentPc::onVideoInfo(const std::string& videoInfoJSON) {
-  OLOG_INFO_THIS(videoInfoJSON);
+  OLOG_INFO_THIS("video info changed :" << videoInfoJSON);
 }
 
 void WrtcAgentPc::callBack(E_SINKID id, const std::string& message) {
@@ -744,7 +768,8 @@ void WrtcAgentPc::callBack(E_SINKID, const owt_base::Frame& message) {
   });
 }
 
-void WrtcAgentPc::asyncTask(std::function<void(std::shared_ptr<WrtcAgentPc>)> f) {
+void WrtcAgentPc::asyncTask(
+    std::function<void(std::shared_ptr<WrtcAgentPc>)> f) {
   std::weak_ptr<WrtcAgentPc> weak_this = weak_from_this();
   worker_->task([weak_this, f] {
     if (auto this_ptr = weak_this.lock()) {

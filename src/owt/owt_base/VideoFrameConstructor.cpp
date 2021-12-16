@@ -57,6 +57,7 @@ int32_t VideoFrameConstructor::RequestKeyFrame() {
     return 0;
   }
   if (m_videoReceive) {
+    OLOG_TRACE_THIS("RequestKeyFrame");
     m_videoReceive->requestKeyFrame();
   }
   return 0;
@@ -86,6 +87,9 @@ void VideoFrameConstructor::onAdapterStats(const AdapterStats& stats) {
 }
 
 void VideoFrameConstructor::onAdapterData(char* data, int len) {
+  if (len <= 0) {
+    return;
+  }
   // Data come from video receive stream is RTCP
   if (fb_sink_) {
     fb_sink_->deliverFeedback(
@@ -141,18 +145,19 @@ void VideoFrameConstructor::onFeedback(const FeedbackMsg& msg) {
   if (msg.type != owt_base::VIDEO_FEEDBACK) {
     return;
   }
-  auto share_this = std::dynamic_pointer_cast<VideoFrameConstructor>(shared_from_this());
+  auto share_this = 
+      std::dynamic_pointer_cast<VideoFrameConstructor>(shared_from_this());
   std::weak_ptr<VideoFrameConstructor> weak_this = share_this;
   
   worker_->task([msg, weak_this, this]() {
     if (auto share_this = weak_this.lock()) {
       if (msg.cmd == REQUEST_KEY_FRAME) {
         if (!m_pendingKeyFrameRequests) {
-            RequestKeyFrame();
+          RequestKeyFrame();
         }
         ++m_pendingKeyFrameRequests;
       } else if (msg.cmd == SET_BITRATE) {
-        this->setBitrate(msg.data.kbps);
+        setBitrate(msg.data.kbps);
       }      
     }
   });

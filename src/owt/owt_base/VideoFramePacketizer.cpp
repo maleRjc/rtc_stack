@@ -108,22 +108,6 @@ void VideoFramePacketizer::onFrame(const Frame& frame) {
       if (!m_enabled) {
         return;
       }
-      
-      if (m_selfRequestKeyframe) {
-        //FIXME: This is a workround for peer client not send key-frame-request
-        if (m_sendFrameCount < 151) {
-          if ((m_sendFrameCount == 10)
-            || (m_sendFrameCount == 30)
-            || (m_sendFrameCount == 60)
-            || (m_sendFrameCount == 150)) {
-            // ELOG_DEBUG("Self generated key-frame-request.");
-            FeedbackMsg feedback = 
-                {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
-            deliverFeedbackMsg(feedback);
-          }
-          m_sendFrameCount += 1;
-        }
-      }
 
       if (m_videoSend) {
         m_videoSend->onFrame(frame);
@@ -133,15 +117,10 @@ void VideoFramePacketizer::onFrame(const Frame& frame) {
 }
 
 void VideoFramePacketizer::onVideoSourceChanged() {
+  ELOG_TRACE("onVideoSourceChanged");
   if (m_videoSend) {
     m_videoSend->reset();
   }
-}
-
-int VideoFramePacketizer::sendFirPacket() {
-  FeedbackMsg feedback = {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
-  deliverFeedbackMsg(feedback);
-  return 0;
 }
 
 void VideoFramePacketizer::close() {
@@ -153,10 +132,6 @@ int VideoFramePacketizer::deliverFeedback_(std::shared_ptr<erizo::DataPacket> da
     m_videoSend->onRtcpData(data_packet->data, data_packet->length);
     return data_packet->length;
   }
-  return 0;
-}
-
-int VideoFramePacketizer::sendPLI() {
   return 0;
 }
 

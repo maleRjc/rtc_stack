@@ -29,7 +29,7 @@ CryptoOptions::CryptoOptions() {}
 
 CryptoOptions::CryptoOptions(const CryptoOptions& other) {
   srtp = other.srtp;
-  sframe = other.sframe;
+  //sframe = other.sframe;
 }
 
 CryptoOptions::~CryptoOptions() {}
@@ -60,6 +60,7 @@ std::vector<int> CryptoOptions::GetSupportedDtlsSrtpCryptoSuites() const {
 }
 
 bool CryptoOptions::operator==(const CryptoOptions& other) const {
+/*
   struct data_being_tested_for_equality {
     struct Srtp {
       bool enable_gcm_crypto_suites;
@@ -73,14 +74,14 @@ bool CryptoOptions::operator==(const CryptoOptions& other) const {
   static_assert(sizeof(data_being_tested_for_equality) == sizeof(*this),
                 "Did you add something to CryptoOptions and forget to "
                 "update operator==?");
-
+*/
   return srtp.enable_gcm_crypto_suites == other.srtp.enable_gcm_crypto_suites &&
          srtp.enable_aes128_sha1_32_crypto_cipher ==
              other.srtp.enable_aes128_sha1_32_crypto_cipher &&
          srtp.enable_encrypted_rtp_header_extensions ==
-             other.srtp.enable_encrypted_rtp_header_extensions &&
+             other.srtp.enable_encrypted_rtp_header_extensions/* &&
          sframe.require_frame_encryption ==
-             other.sframe.require_frame_encryption;
+             other.sframe.require_frame_encryption*/;
 }
 
 bool CryptoOptions::operator!=(const CryptoOptions& other) const {

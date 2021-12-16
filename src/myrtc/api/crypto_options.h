@@ -55,12 +55,14 @@ struct RTC_EXPORT CryptoOptions {
   } srtp;
 
   // Options to be used when the FrameEncryptor / FrameDecryptor APIs are used.
+#if 0  
   struct SFrame {
     // If set all RtpSenders must have an FrameEncryptor attached to them before
     // they are allowed to send packets. All RtpReceivers must have a
     // FrameDecryptor attached to them before they are able to receive packets.
     bool require_frame_encryption = false;
   } sframe;
+#endif
 };
 
 }  // namespace webrtc

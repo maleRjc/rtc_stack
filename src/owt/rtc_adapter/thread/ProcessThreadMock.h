@@ -7,7 +7,8 @@
 #ifndef RTC_ADAPTER_THREAD_PROCESS_THREAD_MOCK_
 #define RTC_ADAPTER_THREAD_PROCESS_THREAD_MOCK_
 
-#include <list>
+#include <unordered_map>
+
 #include "rtc_base/location.h"
 #include "rtc_base/thread_checker.h"
 #include "module/module.h"
@@ -22,11 +23,11 @@ class ProcessThreadMock : public webrtc::ProcessThread {
   ProcessThreadMock(rtc::TaskQueue*);
 
   // Implements ProcessThread
-  virtual void Start() override {}
+  void Start() override {}
 
   // Implements ProcessThread
   // Stop() has no effect on proxy
-  virtual void Stop() override {}
+  void Stop() override {}
 
   // Implements ProcessThread
   void WakeUp(webrtc::Module* module) override;
@@ -61,7 +62,7 @@ class ProcessThreadMock : public webrtc::ProcessThread {
     ModuleCallback& operator=(ModuleCallback&);
   };
 
-  typedef std::list<ModuleCallback> ModuleList;
+  using ModuleList = std::unordered_map<webrtc::Module*, ModuleCallback>;
   ModuleList modules_;
 
   rtc::TaskQueue* const impl_{nullptr};

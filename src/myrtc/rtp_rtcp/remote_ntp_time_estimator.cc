@@ -27,8 +27,7 @@ static const int kClocksOffsetSmoothingWindow = 100;
 // vie_sync_module.cc.
 RemoteNtpTimeEstimator::RemoteNtpTimeEstimator(Clock* clock)
     : clock_(clock),
-      ntp_clocks_offset_estimator_(kClocksOffsetSmoothingWindow),
-      last_timing_log_ms_(-1) {}
+      ntp_clocks_offset_estimator_(kClocksOffsetSmoothingWindow) {}
 
 RemoteNtpTimeEstimator::~RemoteNtpTimeEstimator() {}
 
@@ -70,7 +69,7 @@ int64_t RemoteNtpTimeEstimator::Estimate(uint32_t rtp_timestamp) {
   int64_t now_ms = clock_->TimeInMilliseconds();
   int64_t ntp_offset = clock_->CurrentNtpInMilliseconds() - now_ms;
   int64_t receiver_capture_ntp_ms = receiver_capture_ms + ntp_offset;
-
+/*
   if (now_ms - last_timing_log_ms_ > kTimingLogIntervalMs) {
     RTC_LOG(LS_INFO) << "RTP timestamp: " << rtp_timestamp
                      << " in NTP clock: " << sender_capture_ntp_ms
@@ -79,6 +78,7 @@ int64_t RemoteNtpTimeEstimator::Estimate(uint32_t rtp_timestamp) {
                      << " converted to NTP clock: " << receiver_capture_ntp_ms;
     last_timing_log_ms_ = now_ms;
   }
+*/
   return receiver_capture_ntp_ms;
 }
 

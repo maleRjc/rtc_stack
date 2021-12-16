@@ -13,7 +13,7 @@
 
 #include <stdint.h>
 
-#include <list>
+#include <unordered_map>
 #include <memory>
 #include <queue>
 
@@ -65,8 +65,6 @@ class ProcessThreadImpl : public ProcessThread {
     ModuleCallback& operator=(ModuleCallback&);
   };
 
-  typedef std::list<ModuleCallback> ModuleList;
-
   // Warning: For some reason, if |lock_| comes immediately before |modules_|
   // with the current class layout, we will  start to have mysterious crashes
   // on Mac 10.9 debug.  I (Tommi) suspect we're hitting some obscure alignemnt
@@ -80,7 +78,9 @@ class ProcessThreadImpl : public ProcessThread {
   // TODO(pbos): Remove unique_ptr and stop recreating the thread.
   std::unique_ptr<rtc::PlatformThread> thread_;
 
+  using ModuleList = std::unordered_map<Module*, ModuleCallback>;
   ModuleList modules_;
+  
   std::queue<QueuedTask*> queue_;
   bool stop_;
   const char* thread_name_;

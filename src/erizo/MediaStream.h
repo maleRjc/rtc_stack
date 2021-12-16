@@ -75,7 +75,6 @@ class MediaStream final : public MediaSink,
   bool init();
   void close() override;
   uint32_t getMaxVideoBW();
-  //void setMaxVideoBW(uint32_t max_video_bw);
   bool setRemoteSdp(std::shared_ptr<SdpInfo> sdp);
 
   void setSimulcast(bool) { }
@@ -184,9 +183,6 @@ class MediaStream final : public MediaSink,
   std::shared_ptr<RtcpProcessor> rtcp_processor_;
   std::shared_ptr<Stats> stats_;
   std::shared_ptr<Stats> log_stats_;
-  //std::shared_ptr<QualityManager> quality_manager_;
-  //std::shared_ptr<PacketBufferService> packet_buffer_;
-  //std::shared_ptr<HandlerManager> handler_manager_;
 
   Pipeline::Ptr pipeline_;
 

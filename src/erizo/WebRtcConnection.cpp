@@ -31,7 +31,7 @@ WebRtcConnection::WebRtcConnection(wa::Worker* worker,
       conn_event_listener_{listener},
       ice_config_{ice_config}, 
       rtp_mappings_{rtp_mappings}, 
-      extension_processor_{new RtpExtensionProcessor(ext_mappings)},
+      extension_processor_{std::make_unique<RtpExtensionProcessor>(ext_mappings)},
       worker_{worker}, 
       io_worker_{io_worker},
       remote_sdp_{std::make_shared<SdpInfo>(rtp_mappings)}, 
@@ -45,8 +45,6 @@ WebRtcConnection::WebRtcConnection(wa::Worker* worker,
 
 WebRtcConnection::~WebRtcConnection() {
   ELOG_TRACE("%s message: dtor called", toLog());
-
-  delete extension_processor_;
 }
 
 bool WebRtcConnection::init() {
@@ -556,7 +554,7 @@ void WebRtcConnection::onRtcpFromTransport(
     std::shared_ptr<DataPacket> rtcp = std::make_shared<DataPacket>(*packet);
     rtcp->length = (ntohs(chead->length) + 1) * 4;
     std::memcpy(rtcp->data, chead, rtcp->length);
-    forEachMediaStream([rtcp, transport, ssrc] (const std::shared_ptr<MediaStream> &media_stream) {
+    forEachMediaStream([this, rtcp, transport, ssrc] (const std::shared_ptr<MediaStream> &media_stream) {
       if (media_stream->isSourceSSRC(ssrc) || media_stream->isSinkSSRC(ssrc)) {
         media_stream->onTransportData(rtcp, transport);
       }
@@ -579,7 +577,7 @@ void WebRtcConnection::onTransportData(
   
   RtpHeader *head = reinterpret_cast<RtpHeader*> (buf);
   uint32_t ssrc = head->getSSRC();
-  this->extension_processor_->processRtpExtensions(packet);
+  extension_processor_->processRtpExtensions(packet);
   const std::string& mid = this->extension_processor_->lastMid();
   const std::string& rid = this->extension_processor_->lastRid();
   
@@ -765,7 +763,7 @@ void WebRtcConnection::write(std::shared_ptr<DataPacket> packet) {
   if (transport == nullptr) {
     return;
   }
-  this->extension_processor_->processRtpExtensions(packet);
+  extension_processor_->processRtpExtensions(packet);
   transport->write(packet->data, packet->length);
 }
 

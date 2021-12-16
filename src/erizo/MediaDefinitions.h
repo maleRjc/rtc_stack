@@ -99,7 +99,7 @@ struct DataPacket {
 class MediaEvent {
 public:
   MediaEvent() = default;
-  virtual ~MediaEvent() {}
+  virtual ~MediaEvent() = default;
   virtual std::string getType() const {
     return "event";
   }
@@ -109,8 +109,8 @@ using MediaEventPtr = std::shared_ptr<MediaEvent>;
 
 class FeedbackSink {
 public:
-  virtual ~FeedbackSink() {}
-  int deliverFeedback(std::shared_ptr<DataPacket> data_packet) {
+  virtual ~FeedbackSink() = default;
+  inline int deliverFeedback(std::shared_ptr<DataPacket> data_packet) {
     return this->deliverFeedback_(data_packet);
   }
 private:

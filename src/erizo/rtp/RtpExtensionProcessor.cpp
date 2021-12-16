@@ -8,8 +8,7 @@
 
 #include "utils/Clock.h"
 
-namespace erizo 
-{
+namespace erizo {
 
 DEFINE_LOGGER(RtpExtensionProcessor, "rtp.RtpExtensionProcessor");
 

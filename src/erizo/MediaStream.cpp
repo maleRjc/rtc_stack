@@ -16,6 +16,7 @@
 
 namespace erizo {
 
+//PacketReader
 class PacketReader : public InboundHandler {
  public:
   explicit PacketReader(MediaStream *media_stream) 
@@ -38,6 +39,7 @@ class PacketReader : public InboundHandler {
   MediaStream *media_stream_;
 };
 
+//PacketWriter
 class PacketWriter : public OutboundHandler {
  public:
   explicit PacketWriter(MediaStream *media_stream) 
@@ -60,7 +62,7 @@ class PacketWriter : public OutboundHandler {
   MediaStream *media_stream_;
 };
 
-
+//MediaStream
 DEFINE_LOGGER(MediaStream, "wa.MediaStream");
 log4cxx::LoggerPtr MediaStream::statsLogger = 
     log4cxx::Logger::getLogger("wa.StreamStats");
@@ -75,12 +77,8 @@ MediaStream::MediaStream(wa::Worker* worker,
     : connection_{std::move(connection)},
       stream_id_{media_stream_id},
       mslabel_{media_stream_label},
-      //rtcp_processor_{std::make_shared<RtcpForwarder>(
-      //  static_cast<MediaSink*>(this), static_cast<MediaSource*>(this))},
       stats_{std::make_shared<Stats>()},
       log_stats_{std::make_shared<Stats>()},
-      //quality_manager_{std::make_shared<QualityManager>()},
-      //packet_buffer_{std::make_shared<PacketBufferService>()},
       pipeline_{Pipeline::create()},
       worker_{worker},
       is_publisher_{is_publisher} {
@@ -97,23 +95,10 @@ MediaStream::~MediaStream() {
   OLOG_TRACE_THIS(toLog());
 }
 
-
 uint32_t MediaStream::getMaxVideoBW() {
   uint32_t bitrate = rtcp_processor_ ? rtcp_processor_->getMaxVideoBW() : 0;
   return bitrate;
 }
-
-/*
-void MediaStream::setMaxVideoBW(uint32_t max_video_bw) {
-  if (rtcp_processor_) {
-    rtcp_processor_->setMaxVideoBW(max_video_bw * 1000);
-    if (pipeline_) {
-      pipeline_->notifyUpdate();
-    }
-  }
-
-}
-*/
 
 void MediaStream::close()  {
   OLOG_TRACE_THIS("Close called" << toLog());
@@ -194,15 +179,9 @@ bool MediaStream::setRemoteSdp(std::shared_ptr<SdpInfo> sdp)  {
   audio_enabled_ = remote_sdp_->hasAudio;
   video_enabled_ = remote_sdp_->hasVideo;
 
-  /*rtcp_processor_->addSourceSsrc(getAudioSourceSSRC());
-  std::for_each(video_source_ssrc_list_.begin(), video_source_ssrc_list_.end(), 
-    [this] (uint32_t new_ssrc){
-      rtcp_processor_->addSourceSsrc(new_ssrc);
-  });
-  */
   initializePipeline();
 
-  initializeStats();
+  //initializeStats();
 
   return true;
 }
@@ -292,6 +271,7 @@ void MediaStream::transferMediaStats(
 }
 
 void MediaStream::printStats() {
+  return;
   std::string video_ssrc;
   std::string audio_ssrc;
 
@@ -345,14 +325,8 @@ void MediaStream::printStats() {
 }
 
 void MediaStream::initializePipeline() {
-  //handler_manager_ = std::make_shared<HandlerManager>(weak_from_this());
   pipeline_->addService(shared_from_this());
-  //pipeline_->addService(handler_manager_);
-  //pipeline_->addService(rtcp_processor_);
   pipeline_->addService(stats_);
-  //pipeline_->addService(quality_manager_);
-  //pipeline_->addService(packet_buffer_);
-
   pipeline_->addFront(std::make_shared<PacketReader>(this));
   pipeline_->addFront(WoogeenHandler(this));
   pipeline_->addFront(std::make_shared<PacketWriter>(this));
@@ -442,13 +416,13 @@ void MediaStream::onTransportData(std::shared_ptr<DataPacket> incoming_packet,
       if (video_sink_) {
         video_sink_->deliverVideoData(std::move(packet));
       }
-    } else {
-      if (chead->isFeedback()) { // DELIVER FEEDBACK (RR, FEEDBACK PACKETS)
-        if (fb_sink_ != nullptr && should_send_feedback_) {
-          fb_sink_->deliverFeedback(std::move(packet));
-        }
-      } else { //other
+
+      if (audio_sink_) {
+        audio_sink_->deliverAudioData(std::move(packet));
       }
+      
+    } else if (fb_sink_ != nullptr && should_send_feedback_) {
+       fb_sink_->deliverFeedback(std::move(packet));
     }
     return;
   }
@@ -557,13 +531,6 @@ void MediaStream::muteStream(bool mute_video, bool mute_audio) {
     pipeline_->notifyUpdate();
   }
 }
-
-/*
-void MediaStream::setVideoConstraints(
-    int max_video_width, int max_video_height, int max_video_frame_rate) {
-  quality_manager_->setVideoConstraints(max_video_width, max_video_height, max_video_frame_rate);
-}
-*/
 
 void MediaStream::setTransportInfo(std::string audio_info, std::string video_info) {
   if (video_enabled_) {

@@ -11,15 +11,13 @@
 #ifndef VIDEO_RTP_VIDEO_STREAM_RECEIVER_H_
 #define VIDEO_RTP_VIDEO_STREAM_RECEIVER_H_
 
-#include <atomic>
 #include <list>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
+#include <optional>
 
-#include "optional"
-#include "api/frame_decryptor_interface.h"
 #include "api/color_space.h"
 #include "api/video_codec.h"
 #include "call/rtp_packet_sink_interface.h"
@@ -39,7 +37,6 @@
 #include "rtc_base/sequence_checker.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/thread_checker.h"
-#include "video/buffered_frame_decryptor.h"
 
 namespace webrtc {
 
@@ -58,9 +55,7 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
                                public RtpPacketSinkInterface,
                                public KeyFrameRequestSender,
                                public video_coding::OnAssembledFrameCallback,
-                               public video_coding::OnCompleteFrameCallback,
-                               public OnDecryptedFrameCallback,
-                               public OnDecryptionStatusChangeCallback {
+                               public video_coding::OnCompleteFrameCallback {
  public:
   /* The PacketRouter is optional; if provided, the RtpRtcp module for this
    * stream is registered as a candidate for sending REMB and transport feedback.
@@ -134,7 +129,7 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   // Returns true if a decryptor is attached and frames can be decrypted.
   // Updated by OnDecryptionStatusChangeCallback. Note this refers to Frame
   // Decryption not SRTP.
-  bool IsDecryptable() const;
+  //bool IsDecryptable() const;
 
   // Don't use, still experimental.
   void RequestPacketRetransmit(const std::vector<uint16_t>& sequence_numbers);
@@ -147,31 +142,11 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
   void OnCompleteFrame(
       std::unique_ptr<video_coding::EncodedFrame> frame) override;
 
-  // Implements OnDecryptedFrameCallback.
-  void OnDecryptedFrame(
-      std::unique_ptr<video_coding::RtpFrameObject> frame) override;
-
-  // Implements OnDecryptionStatusChangeCallback.
-  void OnDecryptionStatusChange(
-      FrameDecryptorInterface::Status status) override;
-
-  // Optionally set a frame decryptor after a stream has started. This will not
-  // reset the decoder state.
-  void SetFrameDecryptor(
-      rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor);
-
   // Called by VideoReceiveStream when stats are updated.
   void UpdateRtt(int64_t max_rtt_ms);
 
   std::optional<int64_t> LastReceivedPacketMs() const;
   std::optional<int64_t> LastReceivedKeyframePacketMs() const;
-
-  // RtpDemuxer only forwards a given RTP packet to one sink. However, some
-  // sinks, such as FlexFEC, might wish to be informed of all of the packets
-  // a given sink receives (or any set of sinks). They may do so by registering
-  // themselves as secondary sinks.
-  void AddSecondarySink(RtpPacketSinkInterface* sink);
-  void RemoveSecondarySink(const RtpPacketSinkInterface* sink);
 
  private:
   // Used for buffering RTCP feedback messages and sending them all together.
@@ -288,20 +263,13 @@ class RtpVideoStreamReceiver : public LossNotificationSender,
 
   bool has_received_frame_ = false;
 
-  std::vector<RtpPacketSinkInterface*> secondary_sinks_
-      RTC_GUARDED_BY(worker_task_checker_);
-
   std::optional<uint32_t> last_received_rtp_timestamp_;
   std::optional<int64_t> last_received_rtp_system_time_ms_;
 
   // Used to validate the buffered frame decryptor is always run on the correct
   // thread.
   rtc::ThreadChecker network_tc_;
-  // Handles incoming encrypted frames and forwards them to the
-  // rtp_reference_finder if they are decryptable.
-  std::unique_ptr<BufferedFrameDecryptor> buffered_frame_decryptor_
-      RTC_PT_GUARDED_BY(network_tc_);
-  std::atomic<bool> frames_decryptable_{false};
+
   std::optional<ColorSpace> last_color_space_;
 
   int64_t last_completed_picture_id_ = 0;

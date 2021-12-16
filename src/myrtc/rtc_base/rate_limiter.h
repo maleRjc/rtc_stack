@@ -15,7 +15,6 @@
 #include <stdint.h>
 
 #include "rtc_base/constructor_magic.h"
-#include "rtc_base/critical_section.h"
 #include "rtc_base/rate_statistics.h"
 #include "rtc_base/thread_annotations.h"
 
@@ -24,8 +23,7 @@ namespace webrtc {
 class Clock;
 
 // Class used to limit a bitrate, making sure the average does not exceed a
-// maximum as measured over a sliding window. This class is thread safe; all
-// methods will acquire (the same) lock befeore executing.
+// maximum as measured over a sliding window. 
 class RateLimiter {
  public:
   RateLimiter(Clock* clock, int64_t max_window_ms);
@@ -45,10 +43,9 @@ class RateLimiter {
 
  private:
   Clock* const clock_;
-  rtc::CriticalSection lock_;
-  RateStatistics current_rate_ RTC_GUARDED_BY(lock_);
-  int64_t window_size_ms_ RTC_GUARDED_BY(lock_);
-  uint32_t max_rate_bps_ RTC_GUARDED_BY(lock_);
+  RateStatistics current_rate_;
+  int64_t window_size_ms_;
+  uint32_t max_rate_bps_ ;
 
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(RateLimiter);
 };

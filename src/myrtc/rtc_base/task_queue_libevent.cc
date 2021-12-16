@@ -17,7 +17,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <unistd.h>
-#include <list>
+#include <set>
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -102,7 +102,8 @@ rtc::ThreadPriority TaskQueuePriorityToThreadPriority(Priority priority) {
   }
   return rtc::kNormalPriority;
 }
-
+
+//TaskQueueLibevent
 class TaskQueueLibevent final : public TaskQueueBase {
  public:
   TaskQueueLibevent(std::string_view queue_name, rtc::ThreadPriority priority);
@@ -113,8 +114,38 @@ class TaskQueueLibevent final : public TaskQueueBase {
                        uint32_t milliseconds) override;
 
  private:
-  class SetTimerTask;
-  struct TimerEvent;
+  class SetTimerTask : public QueuedTask {
+   public:
+    SetTimerTask(std::unique_ptr<QueuedTask> task, uint32_t milliseconds)
+        : task_(std::move(task)),
+          milliseconds_(milliseconds),
+          posted_(rtc::Time32()) {}
+
+   private:
+    bool Run() override {
+      // Compensate for the time that has passed since construction
+      // and until we got here.
+      uint32_t post_time = rtc::Time32() - posted_;
+      TaskQueueLibevent::Current()->PostDelayedTask(
+          std::move(task_),
+          post_time > milliseconds_ ? 0 : milliseconds_ - post_time);
+      return true;
+    }
+
+    std::unique_ptr<QueuedTask> task_;
+    const uint32_t milliseconds_;
+    const uint32_t posted_;
+  };
+  
+  struct TimerEvent {
+    TimerEvent(TaskQueueLibevent* task_queue, std::unique_ptr<QueuedTask> task)
+        : task_queue_(task_queue), task_(std::move(task)) {}
+    ~TimerEvent() { event_del(&ev_); }
+
+    event ev_;
+    TaskQueueLibevent* task_queue_;
+    std::unique_ptr<QueuedTask> task_;
+  };
 
   ~TaskQueueLibevent() override = default;
 
@@ -131,40 +162,7 @@ class TaskQueueLibevent final : public TaskQueueBase {
   rtc::CriticalSection pending_lock_;
   std::list<std::unique_ptr<QueuedTask>> pending_ RTC_GUARDED_BY(pending_lock_);
   // Holds a list of events pending timers for cleanup when the loop exits.
-  std::list<TimerEvent*> pending_timers_;
-};
-
-struct TaskQueueLibevent::TimerEvent {
-  TimerEvent(TaskQueueLibevent* task_queue, std::unique_ptr<QueuedTask> task)
-      : task_queue(task_queue), task(std::move(task)) {}
-  ~TimerEvent() { event_del(&ev); }
-
-  event ev;
-  TaskQueueLibevent* task_queue;
-  std::unique_ptr<QueuedTask> task;
-};
-
-class TaskQueueLibevent::SetTimerTask : public QueuedTask {
- public:
-  SetTimerTask(std::unique_ptr<QueuedTask> task, uint32_t milliseconds)
-      : task_(std::move(task)),
-        milliseconds_(milliseconds),
-        posted_(rtc::Time32()) {}
-
- private:
-  bool Run() override {
-    // Compensate for the time that has passed since construction
-    // and until we got here.
-    uint32_t post_time = rtc::Time32() - posted_;
-    TaskQueueLibevent::Current()->PostDelayedTask(
-        std::move(task_),
-        post_time > milliseconds_ ? 0 : milliseconds_ - post_time);
-    return true;
-  }
-
-  std::unique_ptr<QueuedTask> task_;
-  const uint32_t milliseconds_;
-  const uint32_t posted_;
+  std::set<TimerEvent*> pending_timers_;
 };
 
 TaskQueueLibevent::TaskQueueLibevent(std::string_view queue_name,
@@ -231,12 +229,12 @@ void TaskQueueLibevent::PostDelayedTask(std::unique_ptr<QueuedTask> task,
                                         uint32_t milliseconds) {
   if (IsCurrent()) {
     TimerEvent* timer = new TimerEvent(this, std::move(task));
-    EventAssign(&timer->ev, event_base_, -1, 0, &TaskQueueLibevent::RunTimer,
+    EventAssign(&timer->ev_, event_base_, -1, 0, &TaskQueueLibevent::RunTimer,
                 timer);
-    pending_timers_.push_back(timer);
+    pending_timers_.insert(timer);
     timeval tv = {rtc::dchecked_cast<int>(milliseconds / 1000),
                   rtc::dchecked_cast<int>(milliseconds % 1000) * 1000};
-    event_add(&timer->ev, &tv);
+    event_add(&timer->ev_, &tv);
   } else {
     PostTask(std::make_unique<SetTimerTask>(std::move(task), milliseconds));
   }
@@ -289,13 +287,11 @@ void TaskQueueLibevent::OnWakeup(int socket,
 }
 
 // static
-void TaskQueueLibevent::RunTimer(int fd,
-                                 short flags,  // NOLINT
-                                 void* context) {
+void TaskQueueLibevent::RunTimer(int, short, void* context) {
   TimerEvent* timer = static_cast<TimerEvent*>(context);
-  if (!timer->task->Run())
-    timer->task.release();
-  timer->task_queue->pending_timers_.remove(timer);
+  if (!timer->task_->Run())
+    timer->task_.release();
+  timer->task_queue_->pending_timers_.erase(timer);
   delete timer;
 }
 

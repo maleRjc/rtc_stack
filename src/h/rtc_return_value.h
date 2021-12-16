@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2021- anjisuan783
+//
+// SPDX-License-Identifier: MIT
+//
+
 #ifndef __WA_RTC_RETURN_VALUE_H__
 #define __WA_RTC_RETURN_VALUE_H__
 

@@ -122,13 +122,14 @@ static void dump(void* index, FrameFormat format, uint8_t* buf, int len) {
 //VideoSendAdapterImpl
 VideoSendAdapterImpl::VideoSendAdapterImpl(CallOwner* callowner, 
                                            const RtcAdapter::Config& config)
-    : config_(config)
-    , frameFormat_(FRAME_FORMAT_UNKNOWN)
-    , ssrcGenerator_(SsrcGenerator::GetSsrcGenerator())
-    , feedbackListener_(config.feedback_listener)
-    , dataListener_(config.rtp_listener)
-    , statsListener_(config.stats_listener)
-    , taskRunner_{std::make_unique<ProcessThreadMock>(callowner->taskQueue().get())} {
+    : config_(config),
+      frameFormat_(FRAME_FORMAT_UNKNOWN),
+      ssrcGenerator_(SsrcGenerator::GetSsrcGenerator()),
+      feedbackListener_(config.feedback_listener),
+      dataListener_(config.rtp_listener),
+      statsListener_(config.stats_listener),
+      taskRunner_(std::make_unique<ProcessThreadMock>(
+          callowner->taskQueue().get())) {
     ssrc_ = ssrcGenerator_->CreateSsrc();
     ssrcGenerator_->RegisterSsrc(ssrc_);
     init();
@@ -142,7 +143,7 @@ VideoSendAdapterImpl::~VideoSendAdapterImpl() {
 bool VideoSendAdapterImpl::init() {
   m_clock = webrtc::Clock::GetRealTimeClock();
   retransmissionRateLimiter_ = std::move(std::make_unique<webrtc::RateLimiter>(
-      webrtc::Clock::GetRealTimeClock(), 1000));
+      m_clock, 1000));
 
   //configure rtp_rtcp
   eventLog_ = std::make_unique<webrtc::RtcEventLogNull>();
@@ -155,10 +156,16 @@ bool VideoSendAdapterImpl::init() {
   configuration.event_log = eventLog_.get();
   configuration.retransmission_rate_limiter = retransmissionRateLimiter_.get();
   configuration.local_media_ssrc = ssrc_;
+  configuration.extmap_allow_mixed = true;
+
+  if (config_.rtx_ssrc) {
+    configuration.rtx_send_ssrc = config_.rtx_ssrc;
+  }
 
   rtpRtcp_ = webrtc::RtpRtcp::Create(configuration);
   rtpRtcp_->SetSendingStatus(true);
   rtpRtcp_->SetSendingMediaStatus(true);
+  rtpRtcp_->SetRtcpXrRrtrStatus(true);
 
   webrtc::RtcpMode mode = webrtc::RtcpMode::kCompound;
   if (config_.rtcp_rsize) {
@@ -219,7 +226,6 @@ void VideoSendAdapterImpl::onFrame(const Frame& frame) {
 
   if (!keyFrameArrived_) {
     if (!frame.additionalInfo.video.isKeyFrame) {
-      RTC_DLOG(LS_INFO) << "Key frame has not arrived, send key-frame-request.";
       if (feedbackListener_) {
         FeedbackMsg feedback = {.type = VIDEO_FEEDBACK, .cmd = REQUEST_KEY_FRAME };
         feedbackListener_->onFeedback(feedback);
@@ -329,15 +335,15 @@ bool VideoSendAdapterImpl::SendRtp(
 }
 
 bool VideoSendAdapterImpl::SendRtcp(const uint8_t* data, size_t length) {
-  const RTCPHeader* chead = reinterpret_cast<const RTCPHeader*>(data);
-  uint8_t packetType = chead->getPacketType();
-  if (packetType == RTCP_Sender_PT) {
+  //const RTCPHeader* chead = reinterpret_cast<const RTCPHeader*>(data);
+  //uint8_t packetType = chead->getPacketType();
+  //if (packetType == RTCP_Sender_PT) {
     if (dataListener_) {
       dataListener_->onAdapterData(
           reinterpret_cast<char*>(const_cast<uint8_t*>(data)), length);
       return true;
     }
-  }
+  //}
   return false;
 }
 
