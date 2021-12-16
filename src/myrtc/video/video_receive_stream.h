@@ -20,7 +20,7 @@
 #include "call/syncable.h"
 #include "call/video_receive_stream.h"
 #include "rtp_rtcp/flexfec_receiver.h"
-#include "rtp_rtcp/source_tracker.h"
+//#include "rtp_rtcp/source_tracker.h"
 #include "video/frame_buffer2.h"
 #include "video/video_receiver2.h"
 #include "rtc_base/sequence_checker.h"
@@ -76,17 +76,11 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
 
   webrtc::VideoReceiveStream::Stats GetStats() const override;
 
-  void AddSecondarySink(RtpPacketSinkInterface* sink) override;
-  void RemoveSecondarySink(const RtpPacketSinkInterface* sink) override;
-
   // SetBaseMinimumPlayoutDelayMs and GetBaseMinimumPlayoutDelayMs are called
   // from webrtc/api level and requested by user code. For e.g. blink/js layer
   // in Chromium.
   bool SetBaseMinimumPlayoutDelayMs(int delay_ms) override;
   int GetBaseMinimumPlayoutDelayMs() const override;
-
-  void SetFrameDecryptor(
-      rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor) override;
 
   // Implements rtc::VideoSinkInterface<VideoFrame>.
   void OnFrame(const VideoFrame& video_frame) override;
@@ -119,7 +113,7 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
   // SetMinimumPlayoutDelay is only called by A/V sync.
   void SetMinimumPlayoutDelay(int delay_ms) override;
 
-  std::vector<webrtc::RtpSource> GetSources() const override;
+  //std::vector<webrtc::RtpSource> GetSources() const override;
 
  private:
   VideoReceiveStream(TaskQueueFactory* task_queue_factory,
@@ -156,10 +150,10 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
 
   CallStats* const call_stats_;
 
-  bool decoder_running_ RTC_GUARDED_BY(worker_sequence_checker_) = false;
-  bool decoder_stopped_ RTC_GUARDED_BY(decode_queue_) = true;
+  //bool decoder_stopped_ = true;
+  bool decoder_running_ = false;
 
-  SourceTracker source_tracker_;
+  //SourceTracker source_tracker_;
   ReceiveStatisticsProxy stats_proxy_;
   // Shared by media and rtx stream receivers, since the latter has no RtpRtcp
   // module of its own.
@@ -167,7 +161,6 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
 
   std::unique_ptr<VCMTiming> timing_;  // Jitter buffer experiment.
   VideoReceiver2 video_receiver_;
-  std::unique_ptr<rtc::VideoSinkInterface<VideoFrame>> incoming_video_stream_;
   RtpVideoStreamReceiver rtp_video_stream_receiver_;
   std::unique_ptr<RtxReceiveStream> rtx_receive_stream_;
   std::unique_ptr<VideoStreamDecoder> video_stream_decoder_;

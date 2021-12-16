@@ -224,14 +224,11 @@ class RTCPReceiver {
 
   int64_t oldest_tmmbr_info_ms_ ;
   // Mapped by remote ssrc.
-  std::map<uint32_t, TmmbrInformation> tmmbr_infos_
-      ;
+  std::map<uint32_t, TmmbrInformation> tmmbr_infos_;
 
   ReportBlockMap received_report_blocks_ ;
-  std::map<uint32_t, LastFirStatus> last_fir_
-      ;
-  std::map<uint32_t, std::string> received_cnames_
-      ;
+  std::map<uint32_t, LastFirStatus> last_fir_;
+  std::map<uint32_t, std::string> received_cnames_;
 
   // The last time we received an RTCP Report block for this module.
   int64_t last_received_rb_ms_ ;

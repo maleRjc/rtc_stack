@@ -45,10 +45,7 @@ class VideoSendAdapterImpl : public VideoSendAdapter,
   bool SendRtcp(const uint8_t* packet, size_t length) override;
 
   // Implements webrtc::RtcpIntraFrameObserver.
-  void OnReceivedIntraFrameRequest(uint32_t ssrc);
-  void OnReceivedSLI(uint32_t ssrc, uint8_t picture_id) {}
-  void OnReceivedRPSI(uint32_t ssrc, uint64_t picture_id) {}
-  void OnLocalSsrcChanged(uint32_t old_ssrc, uint32_t new_ssrc) {}
+  void OnReceivedIntraFrameRequest(uint32_t ssrc) override;
 
  private:
   bool init();

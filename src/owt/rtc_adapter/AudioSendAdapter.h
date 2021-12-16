@@ -32,7 +32,7 @@ public:
   // Implement AudioSendAdapter
   void onFrame(const owt_base::Frame&) override;
   int onRtcpData(char* data, int len) override;
-  uint32_t ssrc() override { return m_ssrc; }
+  uint32_t ssrc() override { return ssrc_; }
 
   // Implement webrtc::Transport
   bool SendRtp(const uint8_t* packet,
@@ -45,29 +45,29 @@ public:
   bool setSendCodec(owt_base::FrameFormat format);
   void close();
   void updateSeqNo(uint8_t* rtp);
-  std::unique_ptr<webrtc::RtpRtcp> m_rtpRtcp;
+ private: 
+  std::unique_ptr<webrtc::RtpRtcp> rtpRtcp_;
 
-  owt_base::FrameFormat m_frameFormat;
+  owt_base::FrameFormat frameFormat_;
 
-  uint16_t m_lastOriginSeqNo;
-  uint16_t m_seqNo;
-  uint32_t m_ssrc;
-  owt_base::SsrcGenerator* const m_ssrc_generator;
+  uint16_t lastOriginSeqNo_;
+  uint16_t seqNo_;
+  uint32_t ssrc_;
+  owt_base::SsrcGenerator* const ssrcGenerator_;
 
-  webrtc::Clock* m_clock;
-  std::unique_ptr<webrtc::RtcEventLog> m_eventLog;
-  std::unique_ptr<webrtc::RTPSenderAudio> m_senderAudio;
+  webrtc::Clock* clock_;
+  std::unique_ptr<webrtc::RtcEventLog> eventLog_;
+  std::unique_ptr<webrtc::RTPSenderAudio> senderAudio_;
 
-  RtcAdapter::Config m_config;
+  RtcAdapter::Config config_;
   // Listeners
-  AdapterDataListener* m_rtpListener;
-  AdapterStatsListener* m_statsListener;
+  AdapterDataListener* rtpListener_;
+  AdapterStatsListener* statsListener_;
   // TODO: remove extensionMap and mid if frames do not carry rtp packets
-  webrtc::RtpHeaderExtensionMap m_extensions;
-  std::string m_mid;
+  webrtc::RtpHeaderExtensionMap extensions_;
+  std::string mid_;
   
-  //std::shared_ptr<owt_base::WebRTCTaskRunner> m_taskRunner;
-  std::unique_ptr<webrtc::ProcessThread> m_taskRunner;
+  std::unique_ptr<webrtc::ProcessThread> taskRunner_;
 };
 } //namespace rtc_adapter
 #endif /* RTC_ADAPTER_AUDIO_SEND_ADAPTER_ */

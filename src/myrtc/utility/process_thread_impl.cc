@@ -63,8 +63,8 @@ void ProcessThreadImpl::Start() {
 
   RTC_DCHECK(!stop_);
 
-  for (ModuleCallback& m : modules_)
-    m.module->ProcessThreadAttached(this);
+  for (auto& m : modules_)
+    m.first->ProcessThreadAttached(this);
 
   thread_.reset(
       new rtc::PlatformThread(&ProcessThreadImpl::Run, this, thread_name_));
@@ -87,17 +87,17 @@ void ProcessThreadImpl::Stop() {
   stop_ = false;
 
   thread_.reset();
-  for (ModuleCallback& m : modules_)
-    m.module->ProcessThreadAttached(nullptr);
+  for (auto& m : modules_)
+    m.first->ProcessThreadAttached(nullptr);
 }
 
 void ProcessThreadImpl::WakeUp(Module* module) {
   // Allowed to be called on any thread.
   {
     rtc::CritScope lock(&lock_);
-    for (ModuleCallback& m : modules_) {
-      if (m.module == module)
-        m.next_callback = kCallProcessImmediately;
+    auto found = modules_.find(module);
+    if (found != modules_.end()) {
+      found->second.next_callback = kCallProcessImmediately;
     }
   }
   wake_up_.Set();
@@ -114,31 +114,21 @@ void ProcessThreadImpl::PostTask(std::unique_ptr<QueuedTask> task) {
 
 void ProcessThreadImpl::RegisterModule(Module* module,
                                        const rtc::Location& from) {
-  //RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(module) << from.ToString();
-
-#if RTC_DCHECK_IS_ON
   {
-    // Catch programmer error.
     rtc::CritScope lock(&lock_);
-    for (const ModuleCallback& mc : modules_) {
-      RTC_DCHECK(mc.module != module)
-          << "Already registered here: " << mc.location.ToString() << "\n"
+    auto insert_result = modules_.emplace(module, ModuleCallback(module, from));
+    RTC_DCHECK(insert_result.second)
+          << "Already registered here: " << 
+             insert_result.first->second.location.ToString() << "\n"
           << "Now attempting from here: " << from.ToString();
-    }
   }
-#endif
 
   // Now that we know the module isn't in the list, we'll call out to notify
   // the module that it's attached to the worker thread.  We don't hold
   // the lock while we make this call.
   if (thread_.get())
     module->ProcessThreadAttached(this);
-
-  {
-    rtc::CritScope lock(&lock_);
-    modules_.push_back(ModuleCallback(module, from));
-  }
 
   // Wake the thread calling ProcessThreadImpl::Process() to update the
   // waiting time. The waiting time for the just registered module may be
@@ -147,13 +137,11 @@ void ProcessThreadImpl::RegisterModule(Module* module,
 }
 
 void ProcessThreadImpl::DeRegisterModule(Module* module) {
-  //RTC_DCHECK(thread_checker_.IsCurrent());
   RTC_DCHECK(module);
 
   {
     rtc::CritScope lock(&lock_);
-    modules_.remove_if(
-        [&module](const ModuleCallback& m) { return m.module == module; });
+    modules_.erase(module);
   }
 
   // Notify the module that it's been detached.
@@ -175,7 +163,9 @@ bool ProcessThreadImpl::Process() {
     rtc::CritScope lock(&lock_);
     if (stop_)
       return false;
-    for (ModuleCallback& m : modules_) {
+    for (auto& i : modules_) {
+      ModuleCallback& m = i.second;
+    
       // TODO(tommi): Would be good to measure the time TimeUntilNextProcess
       // takes and dcheck if it takes too long (e.g. >=10ms).  Ideally this
       // operation should not require taking a lock, so querying all modules

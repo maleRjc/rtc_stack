@@ -25,13 +25,7 @@ RateLimiter::RateLimiter(Clock* clock, int64_t max_window_ms)
 
 RateLimiter::~RateLimiter() {}
 
-// Usage note: This class is intended be usable in a scenario where different
-// threads may call each of the the different method. For instance, a network
-// thread trying to send data calling TryUseRate(), the bandwidth estimator
-// calling SetMaxRate() and a timed maintenance thread periodically updating
-// the RTT.
 bool RateLimiter::TryUseRate(size_t packet_size_bytes) {
-  rtc::CritScope cs(&lock_);
   int64_t now_ms = clock_->TimeInMilliseconds();
   std::optional<uint32_t> current_rate = current_rate_.Rate(now_ms);
   if (current_rate) {
@@ -53,14 +47,12 @@ bool RateLimiter::TryUseRate(size_t packet_size_bytes) {
 }
 
 void RateLimiter::SetMaxRate(uint32_t max_rate_bps) {
-  rtc::CritScope cs(&lock_);
   max_rate_bps_ = max_rate_bps;
 }
 
 // Set the window size over which to measure the current bitrate.
 // For retransmissions, this is typically the RTT.
 bool RateLimiter::SetWindowSize(int64_t window_size_ms) {
-  rtc::CritScope cs(&lock_);
   window_size_ms_ = window_size_ms;
   return current_rate_.SetWindowSize(window_size_ms,
                                      clock_->TimeInMilliseconds());

@@ -254,14 +254,7 @@ class VideoReceiveStream {
   // TODO(pbos): Add info on currently-received codec to Stats.
   virtual Stats GetStats() const = 0;
 
-  // RtpDemuxer only forwards a given RTP packet to one sink. However, some
-  // sinks, such as FlexFEC, might wish to be informed of all of the packets
-  // a given sink receives (or any set of sinks). They may do so by registering
-  // themselves as secondary sinks.
-  virtual void AddSecondarySink(RtpPacketSinkInterface* sink) = 0;
-  virtual void RemoveSecondarySink(const RtpPacketSinkInterface* sink) = 0;
-
-  virtual std::vector<RtpSource> GetSources() const = 0;
+  //virtual std::vector<RtpSource> GetSources() const = 0;
 
   // Sets a base minimum for the playout delay. Base minimum delay sets lower
   // bound on minimum delay value determining lower bound on playout delay.
@@ -274,8 +267,8 @@ class VideoReceiveStream {
 
   // Allows a FrameDecryptor to be attached to a VideoReceiveStream after
   // creation without resetting the decoder state.
-  virtual void SetFrameDecryptor(
-      rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor) = 0;
+  //virtual void SetFrameDecryptor(
+  //    rtc::scoped_refptr<FrameDecryptorInterface> frame_decryptor) = 0;
 
  protected:
   virtual ~VideoReceiveStream() {}

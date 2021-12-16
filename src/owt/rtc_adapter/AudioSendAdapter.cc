@@ -13,7 +13,6 @@
 #include "common/rtputils.h"
 #include "rtc_adapter/thread/ProcessThreadMock.h"
 
-using namespace webrtc;
 using namespace owt_base;
 
 namespace rtc_adapter {
@@ -22,67 +21,66 @@ const uint32_t kSeqNoStep = 10;
 
 AudioSendAdapterImpl::AudioSendAdapterImpl(
     CallOwner* callowner, const RtcAdapter::Config& config)
-    : m_frameFormat(FRAME_FORMAT_UNKNOWN),
-      m_lastOriginSeqNo(0),
-      m_seqNo(0),
-      m_ssrc(0),
-      m_ssrc_generator(SsrcGenerator::GetSsrcGenerator()), 
-      m_config(config), 
-      m_rtpListener(config.rtp_listener), 
-      m_statsListener(config.stats_listener), 
-      m_taskRunner{std::make_unique<ProcessThreadMock>(
+    : frameFormat_(FRAME_FORMAT_UNKNOWN),
+      lastOriginSeqNo_(0),
+      seqNo_(0),
+      ssrc_(0),
+      ssrcGenerator_(SsrcGenerator::GetSsrcGenerator()), 
+      config_(config), 
+      rtpListener_(config.rtp_listener), 
+      statsListener_(config.stats_listener), 
+      taskRunner_{std::make_unique<ProcessThreadMock>(
           callowner->taskQueue().get())} {
-  m_ssrc = m_ssrc_generator->CreateSsrc();
-  m_ssrc_generator->RegisterSsrc(m_ssrc);
+  ssrc_ = ssrcGenerator_->CreateSsrc();
+  ssrcGenerator_->RegisterSsrc(ssrc_);
   init();
 }
 
 AudioSendAdapterImpl::~AudioSendAdapterImpl() {
   close();
-  m_ssrc_generator->ReturnSsrc(m_ssrc);
+  ssrcGenerator_->ReturnSsrc(ssrc_);
 }
 
 int AudioSendAdapterImpl::onRtcpData(char* data, int len) {
-    m_rtpRtcp->IncomingRtcpPacket(reinterpret_cast<uint8_t*>(data), len);
-    return len;
+  if (rtpRtcp_) {
+    rtpRtcp_->IncomingRtcpPacket(reinterpret_cast<uint8_t*>(data), len);
+  }
+  return len;
 }
 
 void AudioSendAdapterImpl::onFrame(const Frame& frame) {
-  if (frame.length <= 0)
-    return;
-
-  if (frame.format != m_frameFormat) {
-    m_frameFormat = frame.format;
-    setSendCodec(m_frameFormat);
+  if (frame.format != frameFormat_) {
+    frameFormat_ = frame.format;
+    setSendCodec(frameFormat_);
   }
 
   if (frame.additionalInfo.audio.isRtpPacket) {
     // FIXME: Temporarily use Frame to carry rtp-packets
     // due to the premature AudioFrameConstructor implementation.
     updateSeqNo(frame.payload);
-    if (m_rtpListener) {
-      if (!m_mid.empty()) {
-        webrtc::RtpPacket packet(&m_extensions);
+    if (rtpListener_) {
+      if (!mid_.empty()) {
+        webrtc::RtpPacket packet(&extensions_);
         packet.Parse(frame.payload, frame.length);
-        packet.SetExtension<webrtc::RtpMid>(m_mid);
-        m_rtpListener->onAdapterData(
+        packet.SetExtension<webrtc::RtpMid>(mid_);
+        rtpListener_->onAdapterData(
             reinterpret_cast<char*>(const_cast<uint8_t*>(packet.data())), 
             packet.size());
       } else {
-        m_rtpListener->onAdapterData(
+        rtpListener_->onAdapterData(
             reinterpret_cast<char*>(frame.payload), frame.length);
       }
     }
   } else {
     int payloadType = getAudioPltype(frame.format);
     if (payloadType != INVALID_PT) {
-      if (m_rtpRtcp->OnSendingRtpFrame(frame.timeStamp, 
+      if (rtpRtcp_->OnSendingRtpFrame(frame.timeStamp, 
                                        -1, payloadType, false)) {
         const uint32_t rtp_timestamp = 
-            frame.timeStamp + m_rtpRtcp->StartTimestamp();
+            frame.timeStamp + rtpRtcp_->StartTimestamp();
         // TODO: The frame type information is lost.
         // We treat every frame a kAudioFrameSpeech frame for now.
-        if (!m_senderAudio->SendAudio(webrtc::AudioFrameType::kAudioFrameSpeech,
+        if (!senderAudio_->SendAudio(webrtc::AudioFrameType::kAudioFrameSpeech,
                 payloadType, rtp_timestamp,
                 frame.payload, frame.length)) {
           RTC_DLOG(LS_ERROR) << 
@@ -96,38 +94,54 @@ void AudioSendAdapterImpl::onFrame(const Frame& frame) {
 }
 
 bool AudioSendAdapterImpl::init() {
-  m_clock = Clock::GetRealTimeClock();
-  m_eventLog = std::make_unique<webrtc::RtcEventLogNull>();
+  clock_ = webrtc::Clock::GetRealTimeClock();
+  eventLog_ = std::make_unique<webrtc::RtcEventLogNull>();
 
-  RtpRtcp::Configuration configuration;
-  configuration.clock = m_clock;
+  webrtc::RtpRtcp::Configuration configuration;
+  configuration.clock = clock_;
   configuration.audio = true; // Audio.
-  configuration.receiver_only = false;
+  configuration.receiver_only = false; //send
   configuration.outgoing_transport = this;
-  configuration.event_log = m_eventLog.get();
-  configuration.local_media_ssrc = m_ssrc; //rtp_config.ssrcs[i];
+  configuration.event_log = eventLog_.get();
+  configuration.local_media_ssrc = ssrc_;
+  configuration.extmap_allow_mixed = true;
 
-  m_rtpRtcp = RtpRtcp::Create(configuration);
-  m_rtpRtcp->SetSendingStatus(true);
-  m_rtpRtcp->SetSendingMediaStatus(true);
-  m_rtpRtcp->SetRTCPStatus(RtcpMode::kReducedSize);
-  // Set NACK.
-  m_rtpRtcp->SetStorePacketsStatus(true, 600);
-
-  if (m_config.mid_ext) {
-    m_config.mid[sizeof(m_config.mid) - 1] = '\0';
-    std::string mid(m_config.mid);
-    // Register MID extension
-    m_rtpRtcp->RegisterRtpHeaderExtension(
-        webrtc::RtpExtension::kMidUri, m_config.mid_ext);
-    m_rtpRtcp->SetMid(mid);
-    // TODO: Remove m_extensions if frames do not carry rtp
-    m_extensions.Register<webrtc::RtpMid>(m_config.mid_ext);
-    m_mid = mid;
+  if (config_.rtx_ssrc) {
+    configuration.rtx_send_ssrc = config_.rtx_ssrc;
   }
-  m_senderAudio = std::make_unique<RTPSenderAudio>(
-      configuration.clock, m_rtpRtcp->RtpSender());
-  m_taskRunner->RegisterModule(m_rtpRtcp.get(), RTC_FROM_HERE);
+  
+  rtpRtcp_ = webrtc::RtpRtcp::Create(configuration);
+  rtpRtcp_->SetSendingStatus(true);
+  rtpRtcp_->SetSendingMediaStatus(true);
+  
+  webrtc::RtcpMode mode = webrtc::RtcpMode::kCompound;
+  if (config_.rtcp_rsize) {
+    mode = webrtc::RtcpMode::kReducedSize;
+  }
+  rtpRtcp_->SetRTCPStatus(mode);
+  
+  // Set NACK.
+  rtpRtcp_->SetStorePacketsStatus(true, 600);
+
+  if (config_.transport_cc != -1) {
+    rtpRtcp_->RegisterRtpHeaderExtension(
+      webrtc::RtpExtension::kTransportSequenceNumberUri, config_.transport_cc);
+  }
+
+  if (config_.mid_ext) {
+    config_.mid[sizeof(config_.mid) - 1] = '\0';
+    std::string mid(config_.mid);
+    // Register MID extension
+    rtpRtcp_->RegisterRtpHeaderExtension(
+        webrtc::RtpExtension::kMidUri, config_.mid_ext);
+    rtpRtcp_->SetMid(mid);
+    // TODO: Remove extensions_ if frames do not carry rtp
+    extensions_.Register<webrtc::RtpMid>(config_.mid_ext);
+    mid_ = mid;
+  }
+  senderAudio_ = std::make_unique<webrtc::RTPSenderAudio>(
+      configuration.clock, rtpRtcp_->RtpSender());
+  taskRunner_->RegisterModule(rtpRtcp_.get(), RTC_FROM_HERE);
 
   return true;
 }
@@ -135,25 +149,25 @@ bool AudioSendAdapterImpl::init() {
 bool AudioSendAdapterImpl::setSendCodec(FrameFormat format) {
   CodecInst codec;
 
-  if (!getAudioCodecInst(m_frameFormat, codec)) {
+  if (!getAudioCodecInst(frameFormat_, codec)) {
     return false;
   }
 
-  m_rtpRtcp->RegisterSendPayloadFrequency(codec.pltype, codec.plfreq);
-  m_senderAudio->RegisterAudioPayload("audio", codec.pltype,
+  rtpRtcp_->RegisterSendPayloadFrequency(codec.pltype, codec.plfreq);
+  senderAudio_->RegisterAudioPayload("audio", codec.pltype,
       codec.plfreq, codec.channels, 0);
   return true;
 }
 
 void AudioSendAdapterImpl::close() {
-  m_taskRunner->DeRegisterModule(m_rtpRtcp.get());
+  taskRunner_->DeRegisterModule(rtpRtcp_.get());
 }
 
 bool AudioSendAdapterImpl::SendRtp(const uint8_t* packet,
     size_t length,
-    const webrtc::PacketOptions& options) {
-  if (m_rtpListener) {
-    m_rtpListener->onAdapterData(
+    const webrtc::PacketOptions&) {
+  if (rtpListener_) {
+    rtpListener_->onAdapterData(
         reinterpret_cast<char*>(const_cast<uint8_t*>(packet)), length);
     return true;
   }
@@ -163,9 +177,10 @@ bool AudioSendAdapterImpl::SendRtp(const uint8_t* packet,
 bool AudioSendAdapterImpl::SendRtcp(const uint8_t* packet, size_t length) {
   const RTCPHeader* chead = reinterpret_cast<const RTCPHeader*>(packet);
   uint8_t packetType = chead->getPacketType();
+  RTC_DLOG_F(LS_WARNING) << "pt:" << packetType;
   if (packetType == RTCP_Sender_PT) {
-    if (m_rtpListener) {
-      m_rtpListener->onAdapterData(
+    if (rtpListener_) {
+      rtpListener_->onAdapterData(
           reinterpret_cast<char*>(const_cast<uint8_t*>(packet)), length);
       return true;
     }
@@ -175,19 +190,19 @@ bool AudioSendAdapterImpl::SendRtcp(const uint8_t* packet, size_t length) {
 
 void AudioSendAdapterImpl::updateSeqNo(uint8_t* rtp) {
   uint16_t originSeqNo = *(reinterpret_cast<uint16_t*>(&rtp[2]));
-  if ((m_lastOriginSeqNo == m_seqNo) && (m_seqNo == 0)) {
+  if ((lastOriginSeqNo_ == seqNo_) && (seqNo_ == 0)) {
   } else {
-    uint16_t step = ((originSeqNo < m_lastOriginSeqNo) ? 
-                    (UINT16_MAX - m_lastOriginSeqNo + originSeqNo + 1) : 
-                    (originSeqNo - m_lastOriginSeqNo));
+    uint16_t step = ((originSeqNo < lastOriginSeqNo_) ? 
+                    (UINT16_MAX - lastOriginSeqNo_ + originSeqNo + 1) : 
+                    (originSeqNo - lastOriginSeqNo_));
     if ((step == 1) || (step > kSeqNoStep)) {
-      m_seqNo += 1;
+      seqNo_ += 1;
     } else {
-      m_seqNo += step;
+      seqNo_ += step;
     }
   }
-  m_lastOriginSeqNo = originSeqNo;
-  *(reinterpret_cast<uint16_t*>(&rtp[2])) = htons(m_seqNo);
+  lastOriginSeqNo_ = originSeqNo;
+  *(reinterpret_cast<uint16_t*>(&rtp[2])) = htons(seqNo_);
 }
 
 } //namespacertc_adapter

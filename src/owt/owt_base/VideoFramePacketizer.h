@@ -53,10 +53,7 @@ class VideoFramePacketizer
   // Implements FrameDestination.
   void onFrame(const Frame&);
   void onVideoSourceChanged() override;
-
-  // Implements erizo::MediaSource.
-  int sendFirPacket();
-
+  
   // Implements the AdapterFeedbackListener interfaces.
   void onFeedback(const FeedbackMsg& msg) override;
   // Implements the AdapterStatsListener interfaces.
@@ -71,7 +68,7 @@ class VideoFramePacketizer
   // Implement erizo::FeedbackSink
   int deliverFeedback_(std::shared_ptr<erizo::DataPacket> data_packet);
   // Implement erizo::MediaSource
-  int sendPLI();
+  int sendPLI() { return 0; }
 
   bool m_enabled{true};
   bool m_selfRequestKeyframe{false};

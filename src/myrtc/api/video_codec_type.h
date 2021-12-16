@@ -21,9 +21,6 @@ enum VideoCodecType {
   kVideoCodecVP8,
   kVideoCodecVP9,
   kVideoCodecH264,
-#ifdef OWT_ENABLE_H265
-  kVideoCodecH265,
-#endif
   kVideoCodecMultiplex,
 };
 

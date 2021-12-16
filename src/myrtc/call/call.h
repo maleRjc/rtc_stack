@@ -19,7 +19,6 @@
 #include "call/call_config.h"
 #include "call/flexfec_receive_stream.h"
 #include "call/packet_receiver.h"
-#include "call/rtp_transport_controller_send_interface.h"
 #include "call/audio_receive_stream.h"
 #include "call/video_receive_stream.h"
 #include "utility/process_thread.h"

@@ -1,7 +1,14 @@
+//
+// Copyright (c) 2021- anjisuan783
+//
+// SPDX-License-Identifier: MIT
+//
+
 #ifndef __WEBRTC_AGENT_PC_H__
 #define __WEBRTC_AGENT_PC_H__
 
 #include <memory>
+#include <unordered_map>
 
 #include "erizo/WebRtcConnection.h"
 #include "erizo/MediaStream.h"
@@ -111,7 +118,9 @@ public:
                                 const std::string& direction, 
                                 const FormatPreference& prefer);
 
-  void signalling(const std::string& signal, const std::string& content);
+  void signalling(const std::string& signal, 
+                  const std::string& content, 
+                  const std::string& stream_id = "");
 
   void notifyEvent(erizo::WebRTCEvent newEvent, 
                    const std::string& message, 
@@ -137,7 +146,7 @@ public:
               const std::string& stun_addr);
   void close_i();
   void subscribe_i(std::shared_ptr<WrtcAgentPc> subscriber, bool isSub);
-  srs_error_t processOffer(const std::string& sdp);
+  srs_error_t processOffer(const std::string& sdp, const std::string& stream_id);
 
   // call by WebrtcConnection
   void processSendAnswer(const std::string& streamId, 
@@ -209,13 +218,13 @@ private:
    *  enabled, 
    *  finalFormat }
    */
-  std::map<std::string, operation> operation_map_;
+  std::unordered_map<std::string, operation> operation_map_;
 
   // composedId(mid) => WebrtcTrack
-  std::map<std::string, std::unique_ptr<WebrtcTrack>> track_map_;
+  std::unordered_map<std::string, std::unique_ptr<WebrtcTrack>> track_map_;
 
   // mid => msid
-  std::map<std::string, std::string> msid_map_;
+  std::unordered_map<std::string, std::string> msid_map_;
   
   std::shared_ptr<erizo::WebRtcConnection> connection_;
 

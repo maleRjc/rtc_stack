@@ -39,33 +39,21 @@ int32_t VideoReceiveAdapterImpl::AdapterDecoder::InitDecode(
     const webrtc::VideoCodec* config, int32_t) {
   RTC_DLOG(LS_INFO) << "AdapterDecoder InitDecode";
   if (config) {
-      m_codec = config->codecType;
+      codec_ = config->codecType;
   }
-  if (!m_frameBuffer) {
-      m_bufferSize = kBufferSize;
-      m_frameBuffer.reset(new uint8_t[m_bufferSize]);
+  if (!frameBuffer_) {
+      bufferSize_ = kBufferSize;
+      frameBuffer_.reset(new uint8_t[bufferSize_]);
   }
   return 0;
 }
-
-struct DataPacket {
-  DataPacket() = default;
-  DataPacket(const char* data_, int length_)
-      : length{ length_ }
-  {
-    memcpy(data, data_, length_);
-  }
-
-  char data[1500];
-  int length;
-};
 
 int32_t VideoReceiveAdapterImpl::AdapterDecoder::Decode(
     const webrtc::EncodedImage& encodedImage,
     bool missing_frames, int64_t render_time_ms) {
   owt_base::FrameFormat format = FRAME_FORMAT_UNKNOWN;
 
-  switch (m_codec) {
+  switch (codec_) {
   case webrtc::VideoCodecType::kVideoCodecVP8:
       format = FRAME_FORMAT_VP8;
       break;
@@ -75,98 +63,96 @@ int32_t VideoReceiveAdapterImpl::AdapterDecoder::Decode(
   case webrtc::VideoCodecType::kVideoCodecH264:
       format = FRAME_FORMAT_H264;
       break;
-#ifdef OWT_ENABLE_H265      
-  case webrtc::VideoCodecType::kVideoCodecH265:
-      format = FRAME_FORMAT_H265;
-      break;
-#endif
   default:
-      OLOG_ERROR_THIS("Unknown FORMAT : " << m_codec);
-      return 0;
+      OLOG_ERROR_THIS("Unknown FORMAT : " << codec_);
+      return WEBRTC_VIDEO_CODEC_OK;
   }
 
-  if (encodedImage.size() > m_bufferSize) {
-      m_bufferSize = encodedImage.size() * 2;
-      m_frameBuffer.reset(new uint8_t[m_bufferSize]);
+  if (encodedImage.size() > bufferSize_) {
+      bufferSize_ = encodedImage.size() * 2;
+      frameBuffer_.reset(new uint8_t[bufferSize_]);
   }
 
   if (encodedImage._encodedWidth > 0 && encodedImage._encodedHeight > 0) {
-      m_width = encodedImage._encodedWidth;
-      m_height = encodedImage._encodedHeight;
+      width_ = encodedImage._encodedWidth;
+      height_ = encodedImage._encodedHeight;
   }
 
-  memcpy(m_frameBuffer.get(), encodedImage.data(), encodedImage.size());
+  memcpy(frameBuffer_.get(), encodedImage.data(), encodedImage.size());
   Frame frame;
   memset(&frame, 0, sizeof(frame));
   frame.format = format;
-  frame.payload = m_frameBuffer.get();
+  frame.payload = frameBuffer_.get();
   frame.length = encodedImage.size();
   frame.timeStamp = encodedImage.Timestamp();
-  frame.additionalInfo.video.width = m_width;
-  frame.additionalInfo.video.height = m_height;
+  frame.additionalInfo.video.width = width_;
+  frame.additionalInfo.video.height = height_;
   frame.additionalInfo.video.isKeyFrame = 
       (encodedImage._frameType == webrtc::VideoFrameType::kVideoFrameKey);
 
-  if (m_parent) {
-    if (m_parent->m_frameListener) {
-      m_parent->m_frameListener->onAdapterFrame(frame);
+  if (parent_) {
+    if (parent_->frameListener_) {
+      parent_->frameListener_->onAdapterFrame(frame);
     }
     // Check video update
-    if (m_parent->m_statsListener) {
+    if (parent_->statsListener_) {
       bool statsChanged = false;
-      if (format != m_parent->m_format) {
+      if (format != parent_->format_) {
         // Update format
-        m_parent->m_format = format;
+        parent_->format_ = format;
         statsChanged = true;
       }
-      if ((m_parent->m_width != m_width) || (m_parent->m_height != m_height)) {
+      if ((parent_->width_ != width_) || (parent_->height_ != height_)) {
         // Update width and height
-        m_parent->m_width = m_width;
-        m_parent->m_height = m_height;
+        parent_->width_ = width_;
+        parent_->height_ = height_;
         statsChanged = true;
       }
       if (statsChanged) {
         // Notify the stats
-        AdapterStats stats = {
-            m_parent->m_width,
-            m_parent->m_height,
-            m_parent->m_format,
-            0
-        };
-        m_parent->m_statsListener->onAdapterStats(stats);
+        AdapterStats stats = {parent_->width_,
+                              parent_->height_,
+                              parent_->format_,
+                              0};
+        parent_->statsListener_->onAdapterStats(stats);
       }
     }
     // Dump for debug use
-    if (m_parent->m_enableDump && (frame.format == FRAME_FORMAT_H264 || frame.format == FRAME_FORMAT_H265)) {
-        dump(this, frame.format, frame.payload, frame.length);
+    if (parent_->enableDump_ && 
+        (frame.format == FRAME_FORMAT_H264 || 
+         frame.format == FRAME_FORMAT_H265)) {
+      dump(this, frame.format, frame.payload, frame.length);
     }
     // Request key frame
-    if (m_parent->m_isWaitingKeyFrame) {
-        return WEBRTC_VIDEO_CODEC_OK_REQUEST_KEYFRAME;
+    if (parent_->reqKeyFrame_) {
+      // set reqKeyFrame_ to false, 
+      // see @https://github.com/anjisuan783/media_lib/issues/2
+      parent_->reqKeyFrame_ = false;
+      return WEBRTC_VIDEO_CODEC_OK_REQUEST_KEYFRAME;
     }
   }
-  return 0;
+  return WEBRTC_VIDEO_CODEC_OK;
 }
 
 ///////////////////////////////////
 //VideoReceiveAdapterImpl
 VideoReceiveAdapterImpl::VideoReceiveAdapterImpl(
     CallOwner* owner, const RtcAdapter::Config& config)
-  : m_config(config)
-  , m_format(owt_base::FRAME_FORMAT_UNKNOWN)
-  , m_frameListener(config.frame_listener)
-  , m_rtcpListener(config.rtp_listener)
-  , m_statsListener(config.stats_listener)
-  , m_owner(owner) {
-  assert(m_owner != nullptr);
-  CreateReceiveVideo();
+  : config_(config), 
+    format_(owt_base::FRAME_FORMAT_UNKNOWN), 
+    frameListener_(config.frame_listener), 
+    rtcpListener_(config.rtp_listener), 
+    statsListener_(config.stats_listener), 
+    owner_(owner) {
+    assert(owner_ != nullptr);
+    CreateReceiveVideo();
 }
 
 VideoReceiveAdapterImpl::~VideoReceiveAdapterImpl() {
-  if (m_videoRecvStream) {
-    m_videoRecvStream->Stop();
-    call()->DestroyVideoReceiveStream(m_videoRecvStream);
-    m_videoRecvStream = nullptr;
+  if (videoRecvStream_) {
+    videoRecvStream_->Stop();
+    call()->DestroyVideoReceiveStream(videoRecvStream_);
+    videoRecvStream_ = nullptr;
   }
 }
 
@@ -174,59 +160,59 @@ void VideoReceiveAdapterImpl::OnFrame(const webrtc::VideoFrame& video_frame) {
 }
 
 void VideoReceiveAdapterImpl::CreateReceiveVideo() {
-  if (m_videoRecvStream) {
+  if (videoRecvStream_) {
     return;
   }
   // Create Receive Video Stream
   webrtc::VideoReceiveStream::Config video_recv_config(this);
 
   //config rtp 
-  video_recv_config.rtp.remote_ssrc = m_config.ssrc;
+  video_recv_config.rtp.remote_ssrc = config_.ssrc;
   video_recv_config.rtp.local_ssrc = kLocalSsrc;
   
   video_recv_config.rtp.rtcp_mode = webrtc::RtcpMode::kCompound;
     
-  if (m_config.transport_cc != -1) {
+  if (config_.transport_cc != -1) {
     video_recv_config.rtp.transport_cc = true;
     video_recv_config.rtp.extensions.emplace_back(
-      webrtc::RtpExtension::kTransportSequenceNumberUri, m_config.transport_cc);
+      webrtc::RtpExtension::kTransportSequenceNumberUri, config_.transport_cc);
   } else {
     video_recv_config.rtp.transport_cc = false;
   }
 
-  if (m_config.mid_ext) {
+  if (config_.mid_ext) {
     video_recv_config.rtp.extensions.emplace_back(
-       webrtc::RtpExtension::kMidUri, m_config.mid_ext);
+       webrtc::RtpExtension::kMidUri, config_.mid_ext);
   }
 
-  video_recv_config.rtp.ulpfec_payload_type = m_config.ulpfec_payload;   
-  video_recv_config.rtp.red_payload_type = m_config.red_payload;
-  video_recv_config.rtp.rtx_ssrc = m_config.rtx_ssrc;
+  video_recv_config.rtp.ulpfec_payload_type = config_.ulpfec_payload;   
+  video_recv_config.rtp.red_payload_type = config_.red_payload;
+  video_recv_config.rtp.rtx_ssrc = config_.rtx_ssrc;
 
-  video_recv_config.rtp.protected_by_flexfec = m_config.flex_fec;
+  video_recv_config.rtp.protected_by_flexfec = config_.flex_fec;
   
-  video_recv_config.rtp.rtx_associated_payload_types[m_config.rtx_ssrc] = 
-      m_config.rtp_payload_type;
+  video_recv_config.rtp.rtx_associated_payload_types[config_.rtx_ssrc] = 
+      config_.rtp_payload_type;
 
   //config decoder
   video_recv_config.renderer = this;
   webrtc::VideoReceiveStream::Decoder decoder;
   decoder.decoder_factory = this;
 
-  decoder.payload_type = m_config.rtp_payload_type; 
+  decoder.payload_type = config_.rtp_payload_type; 
   decoder.video_format = webrtc::SdpVideoFormat(
       webrtc::CodecTypeToPayloadString(webrtc::VideoCodecType::kVideoCodecH264));
   OLOG_INFO_THIS("Config add decoder:" << decoder.ToString());
   video_recv_config.decoders.push_back(decoder);
 
   //OLOG_INFO_THIS("VideoReceiveStream::Config " << video_recv_config.ToString());
-  m_videoRecvStream = call()->CreateVideoReceiveStream(std::move(video_recv_config));
-  m_videoRecvStream->Start();
+  videoRecvStream_ = call()->CreateVideoReceiveStream(std::move(video_recv_config));
+  videoRecvStream_->Start();
   call()->SignalChannelNetworkState(webrtc::MediaType::VIDEO, webrtc::NetworkState::kNetworkUp);
 }
 
 void VideoReceiveAdapterImpl::requestKeyFrame() {
-  m_isWaitingKeyFrame = true;
+  reqKeyFrame_ = true;
 }
 
 std::vector<webrtc::SdpVideoFormat> 
@@ -261,8 +247,8 @@ bool VideoReceiveAdapterImpl::SendRtp(const uint8_t* data, size_t len,
 }
 
 bool VideoReceiveAdapterImpl::SendRtcp(const uint8_t* data, size_t len) {
-  if (m_rtcpListener) {
-    m_rtcpListener->onAdapterData(
+  if (rtcpListener_) {
+    rtcpListener_->onAdapterData(
         reinterpret_cast<char*>(const_cast<uint8_t*>(data)), len);
     return true;
   }

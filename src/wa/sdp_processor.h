@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2021- anjisuan783
+//
+// SPDX-License-Identifier: MIT
+//
+
 #ifndef __WA_SDP_PROCESSOR_H__
 #define __WA_SDP_PROCESSOR_H__
 
@@ -218,7 +224,7 @@ class WaSdpInfo {
 
   void setCredentials(const WaSdpInfo&);
   
-  void setMsidSemantic(const WaSdpInfo&);
+  void SetMsid(const std::string&);
 
   void setCandidates(const WaSdpInfo&);
   

@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2021- anjisuan783
+//
+// SPDX-License-Identifier: MIT
+//
+
 #include "helper.h"
 
 namespace wa {

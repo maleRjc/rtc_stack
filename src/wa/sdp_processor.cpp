@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2021- anjisuan783
+//
+// SPDX-License-Identifier: MIT
+//
+
 #include "sdp_processor.h"
 
 #include <iostream>
@@ -831,8 +837,7 @@ void MediaDesc::filterExtmap() {
   }
 }
 
-WaSdpInfo::WaSdpInfo() {
-}
+WaSdpInfo::WaSdpInfo() = default;
 
 WaSdpInfo::WaSdpInfo(const std::string& strSdp) {
   init(strSdp);
@@ -1189,9 +1194,9 @@ std::string WaSdpInfo::singleMediaSdp(const std::string& mid) {
   return toString(mid);
 }
 
-void WaSdpInfo::setMsidSemantic(const WaSdpInfo& sdpInfo) {
-  msid_semantic_ = sdpInfo.msid_semantic_;
-  msids_ = sdpInfo.msids_;
+void WaSdpInfo::SetMsid(const std::string& stream_id) {
+  msids_.clear();
+  msids_.push_back(stream_id);
 }
 
 void WaSdpInfo::setCredentials(const WaSdpInfo& sdpInfo) {

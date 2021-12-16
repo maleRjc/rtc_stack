@@ -166,7 +166,7 @@ class WebRtcConnection: public TransportListener,
   WebRtcConnectionEventListener* conn_event_listener_;
   IceConfig ice_config_;
   std::vector<RtpMap> rtp_mappings_;
-  RtpExtensionProcessor* extension_processor_;
+  std::unique_ptr<RtpExtensionProcessor> extension_processor_;
 
   std::shared_ptr<Transport> video_transport_, audio_transport_;
   WebRTCEvent global_state_{CONN_INITIAL};

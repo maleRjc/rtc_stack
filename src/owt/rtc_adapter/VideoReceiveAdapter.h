@@ -50,7 +50,7 @@ private:
   class AdapterDecoder : public webrtc::VideoDecoder {
   public:
     AdapterDecoder(VideoReceiveAdapterImpl* parent)
-        : m_parent(parent){
+        : parent_(parent){
     }
 
     int32_t InitDecode(const webrtc::VideoCodec* config, 
@@ -65,35 +65,35 @@ private:
 
     int32_t Release() override { return 0; }
   private:
-    VideoReceiveAdapterImpl* m_parent;
-    webrtc::VideoCodecType m_codec;
-    uint16_t m_width;
-    uint16_t m_height;
-    std::unique_ptr<uint8_t[]> m_frameBuffer;
-    uint32_t m_bufferSize;
+    VideoReceiveAdapterImpl* parent_;
+    webrtc::VideoCodecType codec_;
+    uint16_t width_;
+    uint16_t height_;
+    std::unique_ptr<uint8_t[]> frameBuffer_;
+    uint32_t bufferSize_;
   };
 
   void CreateReceiveVideo();
 
   std::shared_ptr<webrtc::Call> call() {
-    return m_owner ? m_owner->call() : nullptr;
+    return owner_ ? owner_->call() : nullptr;
   }
 
-  bool m_enableDump{false};
-  RtcAdapter::Config m_config;
+  bool enableDump_{false};
+  RtcAdapter::Config config_;
   // Video Statistics collected in decoder thread
-  owt_base::FrameFormat m_format;
-  uint16_t m_width{0};
-  uint16_t m_height{0};
+  owt_base::FrameFormat format_;
+  uint16_t width_{0};
+  uint16_t height_{0};
   // Listeners
-  AdapterFrameListener* m_frameListener;
-  AdapterDataListener* m_rtcpListener;
-  AdapterStatsListener* m_statsListener;
+  AdapterFrameListener* frameListener_;
+  AdapterDataListener* rtcpListener_;
+  AdapterStatsListener* statsListener_;
 
-  std::atomic<bool> m_isWaitingKeyFrame{false};
-  CallOwner* m_owner{nullptr};
+  bool reqKeyFrame_{false};
+  CallOwner* owner_{nullptr};
 
-  webrtc::VideoReceiveStream* m_videoRecvStream{nullptr};
+  webrtc::VideoReceiveStream* videoRecvStream_{nullptr};
 };
 
 } // namespace rtc_adapter

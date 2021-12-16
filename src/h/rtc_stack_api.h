@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2021- anjisuan783
+//
+// SPDX-License-Identifier: MIT
+//
+
 #ifndef __WS_RTC_STACK_API_H__
 #define __WS_RTC_STACK_API_H__
 

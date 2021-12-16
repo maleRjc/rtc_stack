@@ -118,8 +118,6 @@ ReceiveStatisticsProxy::ReceiveStatisticsProxy(
       num_delayed_frames_rendered_(0),
       sum_missed_render_deadline_ms_(0),
       timing_frame_info_counter_(kMovingMaxWindowMs) {
-  decode_thread_.Detach();
-  network_thread_.Detach();
   stats_.ssrc = config_.rtp.remote_ssrc;
 }
 
@@ -131,9 +129,6 @@ void ReceiveStatisticsProxy::UpdateHistograms(
   // DecoderThreadStopped, which detaches the thread checker. It is therefore
   // safe to access |qp_counters_|, which were updated on the decode thread
   // earlier.
-  RTC_DCHECK_RUN_ON(&decode_thread_);
-
-  rtc::CritScope lock(&crit_);
 
   char log_stream_buf[8 * 1024];
   rtc::SimpleStringBuilder log_stream(log_stream_buf);
@@ -612,7 +607,7 @@ void ReceiveStatisticsProxy::UpdateDecodeTimeHistograms(
 }
 
 VideoReceiveStream::Stats ReceiveStatisticsProxy::GetStats() const {
-  rtc::CritScope lock(&crit_);
+  //;
   // Get current frame rates here, as only updating them on new frames prevents
   // us from ever correctly displaying frame rate of 0.
   int64_t now_ms = clock_->TimeInMilliseconds();
@@ -641,13 +636,13 @@ VideoReceiveStream::Stats ReceiveStatisticsProxy::GetStats() const {
 }
 
 void ReceiveStatisticsProxy::OnIncomingPayloadType(int payload_type) {
-  rtc::CritScope lock(&crit_);
+  //;
   stats_.current_payload_type = payload_type;
 }
 
 void ReceiveStatisticsProxy::OnDecoderImplementationName(
     const char* implementation_name) {
-  rtc::CritScope lock(&crit_);
+  //;
   stats_.decoder_implementation_name = implementation_name;
 }
 
@@ -658,7 +653,7 @@ void ReceiveStatisticsProxy::OnFrameBufferTimingsUpdated(
     int jitter_buffer_ms,
     int min_playout_delay_ms,
     int render_delay_ms) {
-  rtc::CritScope lock(&crit_);
+  //;
   stats_.max_decode_ms = max_decode_ms;
   stats_.current_delay_ms = current_delay_ms;
   stats_.target_delay_ms = target_delay_ms;
@@ -674,13 +669,12 @@ void ReceiveStatisticsProxy::OnFrameBufferTimingsUpdated(
 }
 
 void ReceiveStatisticsProxy::OnUniqueFramesCounted(int num_unique_frames) {
-  rtc::CritScope lock(&crit_);
   num_unique_frames_.emplace(num_unique_frames);
 }
 
 void ReceiveStatisticsProxy::OnTimingFrameInfoUpdated(
     const TimingFrameInfo& info) {
-  rtc::CritScope lock(&crit_);
+  //;
   if (info.flags != VideoSendTiming::kInvalid) {
     int64_t now_ms = clock_->TimeInMilliseconds();
     timing_frame_info_counter_.Add(info, now_ms);
@@ -701,14 +695,12 @@ void ReceiveStatisticsProxy::OnTimingFrameInfoUpdated(
 void ReceiveStatisticsProxy::RtcpPacketTypesCounterUpdated(
     uint32_t ssrc,
     const RtcpPacketTypeCounter& packet_counter) {
-  rtc::CritScope lock(&crit_);
   if (stats_.ssrc != ssrc)
     return;
   stats_.rtcp_packet_type_counts = packet_counter;
 }
 
 void ReceiveStatisticsProxy::OnCname(uint32_t ssrc, std::string_view cname) {
-  rtc::CritScope lock(&crit_);
   // TODO(pbos): Handle both local and remote ssrcs here and RTC_DCHECK that we
   // receive stats from one of them.
   if (stats_.ssrc != ssrc)
@@ -720,8 +712,6 @@ void ReceiveStatisticsProxy::OnDecodedFrame(const VideoFrame& frame,
                                             std::optional<uint8_t> qp,
                                             int32_t decode_time_ms,
                                             VideoContentType content_type) {
-  rtc::CritScope lock(&crit_);
-
   uint64_t now_ms = clock_->TimeInMilliseconds();
 
   if (videocontenttypehelpers::IsScreenshare(content_type) !=
@@ -782,7 +772,7 @@ void ReceiveStatisticsProxy::OnRenderedFrame(const VideoFrame& frame) {
   RTC_DCHECK_GT(width, 0);
   RTC_DCHECK_GT(height, 0);
   int64_t now_ms = clock_->TimeInMilliseconds();
-  rtc::CritScope lock(&crit_);
+  ;
 
   video_quality_observer_->OnRenderedFrame(frame, now_ms);
 
@@ -815,7 +805,7 @@ void ReceiveStatisticsProxy::OnRenderedFrame(const VideoFrame& frame) {
 
 void ReceiveStatisticsProxy::OnSyncOffsetUpdated(int64_t sync_offset_ms,
                                                  double estimated_freq_khz) {
-  rtc::CritScope lock(&crit_);
+  ;
   sync_offset_counter_.Add(std::abs(sync_offset_ms));
   stats_.sync_offset_ms = sync_offset_ms;
 
@@ -831,7 +821,7 @@ void ReceiveStatisticsProxy::OnSyncOffsetUpdated(int64_t sync_offset_ms,
 void ReceiveStatisticsProxy::OnCompleteFrame(bool is_keyframe,
                                              size_t size_bytes,
                                              VideoContentType content_type) {
-  rtc::CritScope lock(&crit_);
+  ;
   if (is_keyframe) {
     ++stats_.frame_counts.key_frames;
   } else {
@@ -861,13 +851,11 @@ void ReceiveStatisticsProxy::OnCompleteFrame(bool is_keyframe,
 }
 
 void ReceiveStatisticsProxy::OnDroppedFrames(uint32_t frames_dropped) {
-  rtc::CritScope lock(&crit_);
+  ;
   stats_.frames_dropped += frames_dropped;
 }
 
 void ReceiveStatisticsProxy::OnPreDecode(VideoCodecType codec_type, int qp) {
-  RTC_DCHECK_RUN_ON(&decode_thread_);
-  rtc::CritScope lock(&crit_);
   last_codec_type_ = codec_type;
   if (last_codec_type_ == kVideoCodecVP8 && qp != -1) {
     qp_counters_.vp8.Add(qp);
@@ -878,7 +866,6 @@ void ReceiveStatisticsProxy::OnPreDecode(VideoCodecType codec_type, int qp) {
 void ReceiveStatisticsProxy::OnStreamInactive() {
   // TODO(sprang): Figure out any other state that should be reset.
 
-  rtc::CritScope lock(&crit_);
   // Don't report inter-frame delay if stream was paused.
   last_decoded_frame_time_ms_.reset();
   video_quality_observer_->OnStreamInactive();
@@ -886,17 +873,13 @@ void ReceiveStatisticsProxy::OnStreamInactive() {
 
 void ReceiveStatisticsProxy::OnRttUpdate(int64_t avg_rtt_ms,
                                          int64_t max_rtt_ms) {
-  rtc::CritScope lock(&crit_);
   avg_rtt_ms_ = avg_rtt_ms;
 }
 
 void ReceiveStatisticsProxy::DecoderThreadStarting() {
-  RTC_DCHECK_RUN_ON(&main_thread_);
 }
 
 void ReceiveStatisticsProxy::DecoderThreadStopped() {
-  RTC_DCHECK_RUN_ON(&main_thread_);
-  decode_thread_.Detach();
 }
 
 ReceiveStatisticsProxy::ContentSpecificStats::ContentSpecificStats()

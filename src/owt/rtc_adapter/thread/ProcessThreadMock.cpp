@@ -33,9 +33,9 @@ ProcessThreadMock::ProcessThreadMock(rtc::TaskQueue* task_queue)
 void ProcessThreadMock::WakeUp(webrtc::Module* module) {
   RTC_DCHECK(thread_checker_.IsCurrent());
 
-  for (ModuleCallback& m : modules_) {
-    if (m.module == module)
-      m.next_callback = kCallProcessImmediately;
+  auto found = modules_.find(module);
+  if (found != modules_.end()) {
+    found->second.next_callback = kCallProcessImmediately;
   }
 
   impl_->PostDelayedTask([this]() {
@@ -50,27 +50,18 @@ void ProcessThreadMock::PostTask(std::unique_ptr<webrtc::QueuedTask> task) {
 }
 
 // Implements ProcessThread
-void ProcessThreadMock::RegisterModule(webrtc::Module* module, const rtc::Location& from) {
+void ProcessThreadMock::RegisterModule(webrtc::Module* module, 
+                                       const rtc::Location& from) {
   RTC_DCHECK(module) << from.ToString();
   RTC_DCHECK(thread_checker_.IsCurrent());
 
-#if RTC_DCHECK_IS_ON
-  {
-    // Catch programmer error.
-    for (const ModuleCallback& mc : modules_) {
-      RTC_DCHECK(mc.module != module)
-          << "Already registered here: " << mc.location.ToString() << "\n"
-          << "Now attempting from here: " << from.ToString();
-    }
-  }
-#endif
-
-  // Now that we know the module isn't in the list, we'll call out to notify
-  // the module that it's attached to the worker thread.  We don't hold
-  // the lock while we make this call.
+  auto insert_result = modules_.emplace(module, ModuleCallback(module, from));
+  RTC_DCHECK(insert_result.second)
+        << "Already registered here: " << 
+           insert_result.first->second.location.ToString() << "\n"
+        << "Now attempting from here: " << from.ToString();
+  
   module->ProcessThreadAttached(this);
-
-  modules_.push_back(ModuleCallback(module, from));
 
   impl_->PostDelayedTask([this]() {
     this->Process();
@@ -82,8 +73,7 @@ void ProcessThreadMock::DeRegisterModule(webrtc::Module* module) {
   RTC_DCHECK(module);
   RTC_DCHECK(thread_checker_.IsCurrent());
 
-  modules_.remove_if(
-      [&module](const ModuleCallback& m) { return m.module == module; });
+  modules_.erase(module);
 
   // Notify the module that it's been detached.
   module->ProcessThreadAttached(nullptr);
@@ -93,7 +83,8 @@ void ProcessThreadMock::Process() {
   int64_t now = rtc::TimeMillis();
   int64_t next_checkpoint = now + (rtc::kNumMillisecsPerSec * 60);
 
-  for (ModuleCallback& m : modules_) {
+  for (auto& i : modules_) {
+      ModuleCallback& m = i.second;
     // TODO(tommi): Would be good to measure the time TimeUntilNextProcess
     // takes and dcheck if it takes too long (e.g. >=10ms).  Ideally this
     // operation should not require taking a lock, so querying all modules
