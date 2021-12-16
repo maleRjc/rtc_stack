@@ -150,6 +150,7 @@ class VideoReceiveStream : public webrtc::VideoReceiveStream,
 
   CallStats* const call_stats_;
 
+  //bool decoder_stopped_ = true;
   bool decoder_running_ = false;
 
   //SourceTracker source_tracker_;

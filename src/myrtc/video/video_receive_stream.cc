@@ -241,10 +241,8 @@ VideoReceiveStream::VideoReceiveStream(
     config_.media_transport()->AddRttObserver(this);
   } else {
     // Register with RtpStreamReceiverController.
-    media_receiver_ = 
-      receiver_controller->CreateReceiver(config_.rtp.remote_ssrc, 
-                                          &rtp_video_stream_receiver_);
-        
+    media_receiver_ = receiver_controller->CreateReceiver(
+        config_.rtp.remote_ssrc, &rtp_video_stream_receiver_);
     if (config_.rtp.rtx_ssrc) {
       rtx_receive_stream_ = std::make_unique<RtxReceiveStream>(
           &rtp_video_stream_receiver_, 
@@ -364,10 +362,14 @@ void VideoReceiveStream::Start() {
   // Start decoding on task queue.
   video_receiver_.DecoderThreadStarting();
   stats_proxy_.DecoderThreadStarting();
-
-  StartNextDecode();
-  decoder_running_ = true;
+  //decode_queue_.PostTask([this] {
+  //  decoder_stopped_ = false;
+    
+  //});
+  
   rtp_video_stream_receiver_.StartReceive();
+  decoder_running_ = true;
+  StartNextDecode();
 }
 
 void VideoReceiveStream::Stop() {
@@ -382,6 +384,7 @@ void VideoReceiveStream::Stop() {
   call_stats_->DeregisterStatsObserver(this);
 
   if (decoder_running_) {
+    //decoder_stopped_ = true;
     decoder_running_ = false;
     video_receiver_.DecoderThreadStopped();
     stats_proxy_.DecoderThreadStopped();
@@ -591,7 +594,7 @@ void VideoReceiveStream::StartNextDecode() {
 }
 
 void VideoReceiveStream::HandleEncodedFrame(
-    std::unique_ptr<EncodedFrame> frame) {
+    std::unique_ptr<EncodedFrame> frame) {    
   int64_t now_ms = clock_->TimeInMilliseconds();
 
   // Current OnPreDecode only cares about QP for VP8.

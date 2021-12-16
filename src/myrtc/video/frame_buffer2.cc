@@ -64,121 +64,10 @@ FrameBuffer::FrameBuffer(Clock* clock,
       last_log_non_decoded_ms_(-kLogNonDecodedIntervalMs),
       add_rtt_to_playout_delay_(
           webrtc::field_trial::IsEnabled("WebRTC-AddRttToPlayoutDelay")),
-      rtt_mult_settings_(RttMultExperiment::GetRttMultValue()) {}
+      rtt_mult_settings_(RttMultExperiment::GetRttMultValue()),
+      last_log_frames_ms_(-kLogNonDecodedIntervalMs) {}
 
 FrameBuffer::~FrameBuffer() = default;
-
-int64_t FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
-  RTC_DCHECK(frame);
-
-  const VideoLayerFrameId& id = frame->id;
-  int64_t last_continuous_picture_id =
-      !last_continuous_frame_ ? -1 : last_continuous_frame_->picture_id;
-
-  if (!ValidReferences(*frame)) {
-    RTC_LOG(LS_WARNING) << "Frame with (picture_id:spatial_id) ("
-                        << id.picture_id << ":"
-                        << static_cast<int>(id.spatial_layer)
-                        << ") has invalid frame references, dropping frame.";
-    return last_continuous_picture_id;
-  }
-
-  if (frames_.size() >= kMaxFramesBuffered) {
-    if (frame->is_keyframe()) {
-      RTC_LOG(LS_WARNING) << "Inserting keyframe (picture_id:spatial_id) ("
-                          << id.picture_id << ":"
-                          << static_cast<int>(id.spatial_layer)
-                          << ") but buffer is full, clearing"
-                          << " buffer and inserting the frame.";
-      ClearFramesAndHistory();
-    } else {
-      RTC_LOG(LS_WARNING) << "Frame with (picture_id:spatial_id) ("
-                          << id.picture_id << ":"
-                          << static_cast<int>(id.spatial_layer)
-                          << ") could not be inserted due to the frame "
-                          << "buffer being full, dropping frame.";
-      return last_continuous_picture_id;
-    }
-  }
-
-  auto last_decoded_frame = decoded_frames_history_.GetLastDecodedFrameId();
-  auto last_decoded_frame_timestamp =
-      decoded_frames_history_.GetLastDecodedFrameTimestamp();
-  if (last_decoded_frame && id <= *last_decoded_frame) {
-    if (AheadOf(frame->Timestamp(), *last_decoded_frame_timestamp) &&
-        frame->is_keyframe()) {
-      // If this frame has a newer timestamp but an earlier picture id then we
-      // assume there has been a jump in the picture id due to some encoder
-      // reconfiguration or some other reason. Even though this is not according
-      // to spec we can still continue to decode from this frame if it is a
-      // keyframe.
-      RTC_LOG(LS_WARNING)
-          << "A jump in picture id was detected, clearing buffer.";
-      ClearFramesAndHistory();
-      last_continuous_picture_id = -1;
-    } else {
-      RTC_LOG(LS_WARNING) << "Frame with (picture_id:spatial_id) ("
-                          << id.picture_id << ":"
-                          << static_cast<int>(id.spatial_layer)
-                          << ") inserted after frame ("
-                          << last_decoded_frame->picture_id << ":"
-                          << static_cast<int>(last_decoded_frame->spatial_layer)
-                          << ") was handed off for decoding, dropping frame.";
-      return last_continuous_picture_id;
-    }
-  }
-
-  // Test if inserting this frame would cause the order of the frames to become
-  // ambiguous (covering more than half the interval of 2^16). This can happen
-  // when the picture id make large jumps mid stream.
-  if (!frames_.empty() && id < frames_.begin()->first &&
-      frames_.rbegin()->first < id) {
-    RTC_LOG(LS_WARNING)
-        << "A jump in picture id was detected, clearing buffer.";
-    ClearFramesAndHistory();
-    last_continuous_picture_id = -1;
-  }
-
-  auto info = frames_.emplace(id, FrameInfo()).first;
-
-  //duplicate frame
-  if (info->second.frame) {
-    RTC_LOG(LS_WARNING) << "Frame with (picture_id:spatial_id) ("
-                        << id.picture_id << ":"
-                        << static_cast<int>(id.spatial_layer)
-                        << ") already inserted, dropping frame.";
-    return last_continuous_picture_id;
-  }
-
-  if (!UpdateFrameInfoWithIncomingFrame(*frame, info))
-    return last_continuous_picture_id;
-
-  if (!frame->delayed_by_retransmission())
-    timing_->IncomingTimestamp(frame->Timestamp(), frame->ReceivedTime());
-
-  if (stats_callback_ && IsCompleteSuperFrame(*frame)) {
-    stats_callback_->OnCompleteFrame(frame->is_keyframe(), frame->size(),
-                                     frame->contentType());
-  }
-
-  info->second.frame = std::move(frame);
-
-  if (info->second.num_missing_continuous == 0) {
-    info->second.continuous = true;
-    PropagateContinuity(info);
-    last_continuous_picture_id = last_continuous_frame_->picture_id;
-
-    callback_queue_->PostTask([this] {
-      if (!callback_task_.Running())
-        return;
-      RTC_CHECK(frame_handler_);
-      callback_task_.Stop();
-      StartWaitForNextFrameOnQueue();
-    });
-  }
-
-  return last_continuous_picture_id;
-}
 
 void FrameBuffer::NextFrame(
     int64_t max_wait_time_ms,
@@ -514,6 +403,123 @@ bool FrameBuffer::IsCompleteSuperFrame(const EncodedFrame& frame) {
   return true;
 }
 
+int64_t FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
+  RTC_DCHECK(frame);
+
+  const VideoLayerFrameId& id = frame->id;
+  int64_t last_continuous_picture_id =
+      !last_continuous_frame_ ? -1 : last_continuous_frame_->picture_id;
+
+  if (!ValidReferences(*frame)) {
+    RTC_LOG(LS_WARNING) << "Frame with (picture_id:spatial_id) ("
+                        << id.picture_id << ":"
+                        << static_cast<int>(id.spatial_layer)
+                        << ") has invalid frame references, dropping frame.";
+    return last_continuous_picture_id;
+  }
+
+  if (frames_.size() >= kMaxFramesBuffered) {
+    if (frame->is_keyframe()) {
+      RTC_LOG(LS_WARNING) << "Inserting keyframe (picture_id:spatial_id) ("
+                          << id.picture_id << ":"
+                          << static_cast<int>(id.spatial_layer)
+                          << ") but buffer is full, clearing"
+                          << " buffer and inserting the frame.";
+      ClearFramesAndHistory();
+    } else {
+      RTC_LOG(LS_WARNING) << "Frame with (picture_id:spatial_id) ("
+                          << id.picture_id << ":"
+                          << static_cast<int>(id.spatial_layer)
+                          << ") could not be inserted due to the frame "
+                          << "buffer being full, dropping frame.";
+      return last_continuous_picture_id;
+    }
+  }
+
+  int64_t now_ms = clock_->TimeInMilliseconds();
+  if (last_log_frames_ms_ + kLogNonDecodedIntervalMs < now_ms) {
+    RTC_LOG(LS_INFO) << "Frames buffer size:" << frames_.size();
+    last_log_frames_ms_ = now_ms;
+  }
+
+  auto last_decoded_frame = decoded_frames_history_.GetLastDecodedFrameId();
+  auto last_decoded_frame_timestamp =
+      decoded_frames_history_.GetLastDecodedFrameTimestamp();
+  if (last_decoded_frame && id <= *last_decoded_frame) {
+    if (AheadOf(frame->Timestamp(), *last_decoded_frame_timestamp) &&
+        frame->is_keyframe()) {
+      // If this frame has a newer timestamp but an earlier picture id then we
+      // assume there has been a jump in the picture id due to some encoder
+      // reconfiguration or some other reason. Even though this is not according
+      // to spec we can still continue to decode from this frame if it is a
+      // keyframe.
+      RTC_LOG(LS_WARNING)
+          << "A jump in picture id was detected, clearing buffer.";
+      ClearFramesAndHistory();
+      last_continuous_picture_id = -1;
+    } else {
+      RTC_LOG(LS_WARNING) << "Frame with (picture_id:spatial_id) ("
+                          << id.picture_id << ":"
+                          << static_cast<int>(id.spatial_layer)
+                          << ") inserted after frame ("
+                          << last_decoded_frame->picture_id << ":"
+                          << static_cast<int>(last_decoded_frame->spatial_layer)
+                          << ") was handed off for decoding, dropping frame.";
+      return last_continuous_picture_id;
+    }
+  }
+
+  // Test if inserting this frame would cause the order of the frames to become
+  // ambiguous (covering more than half the interval of 2^16). This can happen
+  // when the picture id make large jumps mid stream.
+  if (!frames_.empty() && id < frames_.begin()->first &&
+      frames_.rbegin()->first < id) {
+    RTC_LOG(LS_WARNING)
+        << "A jump in picture id was detected, clearing buffer.";
+    ClearFramesAndHistory();
+    last_continuous_picture_id = -1;
+  }
+
+  auto info = frames_.emplace(id, FrameInfo()).first;
+
+  //duplicate frame
+  if (info->second.frame) {
+    RTC_LOG(LS_WARNING) << "Frame with (picture_id:spatial_id) ("
+                        << id.picture_id << ":"
+                        << static_cast<int>(id.spatial_layer)
+                        << ") already inserted, dropping frame.";
+    return last_continuous_picture_id;
+  }
+
+  if (!UpdateFrameInfoWithIncomingFrame(*frame, info))
+    return last_continuous_picture_id;
+
+  if (!frame->delayed_by_retransmission())
+    timing_->IncomingTimestamp(frame->Timestamp(), frame->ReceivedTime());
+
+  if (stats_callback_ && IsCompleteSuperFrame(*frame)) {
+    stats_callback_->OnCompleteFrame(frame->is_keyframe(), frame->size(),
+                                     frame->contentType());
+  }
+
+  info->second.frame = std::move(frame);
+
+  if (info->second.num_missing_continuous == 0) {
+    info->second.continuous = true;
+    PropagateContinuity(info);
+    last_continuous_picture_id = last_continuous_frame_->picture_id;
+
+    callback_queue_->PostTask([this] {
+      if (!callback_task_.Running())
+        return;
+      RTC_CHECK(frame_handler_);
+      callback_task_.Stop();
+      StartWaitForNextFrameOnQueue();
+    });
+  }
+
+  return last_continuous_picture_id;
+}
 void FrameBuffer::PropagateContinuity(FrameMap::iterator start) {
   RTC_DCHECK(start->second.continuous);
 

@@ -177,6 +177,8 @@ class FrameBuffer final {
   // rtt_mult experiment settings.
   const std::optional<RttMultExperiment::Settings> rtt_mult_settings_;
 
+  int64_t  last_log_frames_ms_ = -1;
+
   RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(FrameBuffer);
 };
 
