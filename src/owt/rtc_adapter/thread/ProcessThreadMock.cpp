@@ -34,13 +34,13 @@ void ProcessThreadMock::WakeUp(webrtc::Module* module) {
   RTC_DCHECK(thread_checker_.IsCurrent());
 
   auto found = modules_.find(module);
-  if (found != modules_.end()) {
-    found->second.next_callback = kCallProcessImmediately;
+  if (found == modules_.end()) {
+    RTC_DLOG(LS_ERROR) << "WakeUp module not found " << module;
+    return;
   }
 
-  impl_->PostDelayedTask([this]() {
-      this->Process();
-  }, 1);
+  found->second.next_callback = kCallProcessImmediately;
+  impl_->PostTask([this, module]() { this->Process_now(module); });
 }
 
 // Implements ProcessThread
@@ -63,23 +63,43 @@ void ProcessThreadMock::RegisterModule(webrtc::Module* module,
   
   module->ProcessThreadAttached(this);
 
-  impl_->PostDelayedTask([this]() {
-    this->Process();
-  }, 1);
+  if (!running_) {
+    impl_->PostTask([this]() { this->Process(); });
+    running_ = true;
+  }
 }
 
 // Implements ProcessThread
 void ProcessThreadMock::DeRegisterModule(webrtc::Module* module) {
   RTC_DCHECK(module);
   RTC_DCHECK(thread_checker_.IsCurrent());
-
-  modules_.erase(module);
-
+  
   // Notify the module that it's been detached.
   module->ProcessThreadAttached(nullptr);
+
+  modules_.erase(module);
+}
+
+void ProcessThreadMock::Process_now(webrtc::Module* module) {
+  // DeRegisterModule after WakeUp won't call module::Process
+  auto found = modules_.find(module);
+  if (found == modules_.end()) {
+    return;
+  }
+
+  // Module had been run in Process() maybe.
+  if (found->second.next_callback == kCallProcessImmediately) {
+    module->Process();
+    found->second.next_callback = GetNextCallbackTime(module, rtc::TimeMillis());
+  }
 }
 
 void ProcessThreadMock::Process() {
+  if (modules_.empty()) {
+    running_ = false;
+    return;
+  }
+
   int64_t now = rtc::TimeMillis();
   int64_t next_checkpoint = now + (rtc::kNumMillisecsPerSec * 60);
 
