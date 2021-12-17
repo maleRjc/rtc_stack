@@ -57,7 +57,6 @@ int32_t VideoFrameConstructor::RequestKeyFrame() {
     return 0;
   }
   if (m_videoReceive) {
-    OLOG_TRACE_THIS("RequestKeyFrame");
     m_videoReceive->requestKeyFrame();
   }
   return 0;
