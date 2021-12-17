@@ -43,6 +43,7 @@ class ProcessThreadMock : public webrtc::ProcessThread {
 
  private:
   void Process();
+  void Process_now(webrtc::Module* module);
  
   struct ModuleCallback {
     ModuleCallback() = delete;
@@ -65,9 +66,10 @@ class ProcessThreadMock : public webrtc::ProcessThread {
   using ModuleList = std::unordered_map<webrtc::Module*, ModuleCallback>;
   ModuleList modules_;
 
-  rtc::TaskQueue* const impl_{nullptr};
+  rtc::TaskQueue* const impl_ = nullptr;
 
   webrtc::SequenceChecker thread_checker_;
+  bool running_ = false;
 };
 
 } // namespace rtc_adapter

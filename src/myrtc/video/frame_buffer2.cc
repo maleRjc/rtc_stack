@@ -436,11 +436,13 @@ int64_t FrameBuffer::InsertFrame(std::unique_ptr<EncodedFrame> frame) {
     }
   }
 
+#if 0
   int64_t now_ms = clock_->TimeInMilliseconds();
   if (last_log_frames_ms_ + kLogNonDecodedIntervalMs < now_ms) {
     RTC_LOG(LS_INFO) << "Frames buffer size:" << frames_.size();
     last_log_frames_ms_ = now_ms;
   }
+#endif
 
   auto last_decoded_frame = decoded_frames_history_.GetLastDecodedFrameId();
   auto last_decoded_frame_timestamp =
