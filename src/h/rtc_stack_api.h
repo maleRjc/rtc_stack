@@ -36,6 +36,7 @@ struct TTrackInfo {
   EMediaType type_{media_unknow};
   FormatPreference preference_;
   std::string direction_;         //automatic filled by publish or subscribe
+  int32_t request_keyframe_period_{-1}; //for rtmp video pull
 };
 
 class WebrtcAgentSink 

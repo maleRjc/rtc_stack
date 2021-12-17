@@ -80,7 +80,7 @@ int WebrtcAgent::publish(TOption& options, const std::string& offer) {
   std::shared_ptr<Worker> worker = workers_->getLessUsedWorker();
   std::shared_ptr<IOWorker> ioworker = io_workers_->getLessUsedIOWorker();
   pc->init(worker, ioworker, network_addresses_, stun_address_);
-  pc->signalling("offer", offer, options.stream_name_);
+  pc->signalling("offer", offer);
   return wa_ok;
 }
 

@@ -14,7 +14,6 @@
 #include "sdp_processor.h"
 
 namespace wa {
-
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("wa.pc");
 
 /////////////////////////////
@@ -23,8 +22,9 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid,
                                       WrtcAgentPc* pc, 
                                       bool isPublish, 
                                       const media_setting& setting,
-                                      erizo::MediaStream* ms)
-  : pc_(pc), mid_(mid) {
+                                      erizo::MediaStream* ms,
+                                      int32_t request_kframe_s)
+  : pc_(pc), mid_(mid), request_kframe_period_(request_kframe_s) {
   OLOG_TRACE_THIS("WebrtcTrack ctor mid:" << mid);
   
   if (isPublish) {
@@ -118,6 +118,16 @@ void WrtcAgentPc::WebrtcTrack::addDestination(
     audioFrameConstructor_->addAudioDestination(std::move(dest));
   } else if (!isAudio && videoFrameConstructor_) {
     videoFrameConstructor_->addVideoDestination(std::move(dest));
+    if (request_kframe_period_ != -1) {
+      pc_->worker_->scheduleEvery([weak_this = weak_from_this()]() {
+          auto shared_this = weak_this.lock();
+          if (shared_this) {
+            shared_this->requestKeyFrame();
+            return true;
+          }
+          return false;
+        }, std::chrono::seconds(request_kframe_period_));
+    }
   }
 }
 
@@ -271,34 +281,33 @@ void WrtcAgentPc::close() {
 srs_error_t WrtcAgentPc::addTrackOperation(const std::string& mid, 
                                            EMediaType type, 
                                            const std::string& direction, 
-                                           const FormatPreference& prefer) {
+                                           const FormatPreference& prefer,
+                                           int32_t kframe_s) {
   srs_error_t ret = srs_success;
-  auto found = operation_map_.find(mid);
-  if(found != operation_map_.end()){
-    return srs_error_new(
-        wa_e_found, 
-        "%s has mapped operation %s", 
-        mid.c_str(), 
-        found->second.operation_id_.c_str());
-  }
 
   operation op;
   op.type_ = type;
   op.sdp_direction_ = direction;
   op.format_preference_ = prefer;
   op.enabled_ = true;
+  op.request_keyframe_second_ = kframe_s;
   
-  operation_map_.insert(std::make_pair(mid, op));
+  auto result = operation_map_.emplace(mid, op);
+  if (!result.second) {
+    ret = srs_error_new(wa_e_found, 
+                        "%s has mapped operation %s", 
+                        mid.c_str(), 
+                        result.first->second.operation_id_.c_str());
+  }
   return ret;
 }
 
 void WrtcAgentPc::signalling(const std::string& signal, 
-                             const std::string& content,
-                             const std::string& stream_id) {
-  asyncTask([signal, content, stream_id](std::shared_ptr<WrtcAgentPc> this_ptr){
+                             const std::string& content) {
+  asyncTask([this, signal, content](std::shared_ptr<WrtcAgentPc> this_ptr) {
     srs_error_t result = srs_success;  
     if (signal == "offer") {
-      result = this_ptr->processOffer(content, stream_id);
+      result = this_ptr->processOffer(content, config_.stream_name_);
     } else if (signal == "candidate") {
       result = this_ptr->addRemoteCandidate(content);
     } else if (signal == "removed-candidates") {
@@ -400,13 +409,14 @@ srs_error_t WrtcAgentPc::processOffer(const std::string& sdp,
  
     // Check mid
     for (auto& mid : remote_sdp_->media_descs_) {
-
       for (auto& i : config_.tracks_) {
         if (i.type_ == media_audio && mid.type_ == "audio") {
-          addTrackOperation(mid.mid_, media_audio, i.direction_, i.preference_);
+          addTrackOperation(mid.mid_, media_audio, i.direction_, 
+              i.preference_, i.request_keyframe_period_);
           break;
         } else if (i.type_ == media_video && mid.type_ == "video") {
-          addTrackOperation(mid.mid_, media_video, i.direction_, i.preference_);
+          addTrackOperation(mid.mid_, media_video, i.direction_, 
+              i.preference_, i.request_keyframe_period_);
           break;
         }
       }
@@ -439,10 +449,8 @@ srs_error_t WrtcAgentPc::processOffer(const std::string& sdp,
     // Setup transport
     //let opId = null;
     for (auto& mid : local_sdp_->media_descs_) {
-      if (mid.port_ != 0) {
-        if((result = setupTransport(mid)) != srs_success){
-          return srs_error_wrap(result, "setupTransport failed");
-        }
+      if (mid.port_ != 0 && (result = setupTransport(mid)) != srs_success) {
+        return srs_error_wrap(result, "setupTransport failed");
       }
     }
 
@@ -536,8 +544,10 @@ srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
     // No simulcast    
     auto track_found = track_map_.find(media.mid_);
     if(track_found == track_map_.end()){
-      WebrtcTrack* track = 
-          addTrack(media.mid_, trackSetting, (direction=="in"?true:false));
+      WebrtcTrack* track = addTrack(media.mid_, 
+                                    trackSetting, 
+                                    (direction=="in"?true:false), 
+                                    opSettings.request_keyframe_second_);
      
       uint32_t ssrc = track->ssrc(trackSetting.is_audio);
       if(ssrc){
@@ -664,7 +674,8 @@ void WrtcAgentPc::subscribe_i(
 }
 
 WrtcAgentPc::WebrtcTrack* WrtcAgentPc::addTrack(
-    const std::string& mid, const media_setting& trackSetting, bool isPublish) {
+    const std::string& mid, const media_setting& trackSetting, 
+    bool isPublish, int32_t kframe_s) {
   OLOG_TRACE_THIS( (isPublish?"push": "sub") << 
       " connectionId:" << id_ << ", mediaStreamId:" << mid);
   WebrtcTrack* result = nullptr;
@@ -678,8 +689,8 @@ WrtcAgentPc::WebrtcTrack* WrtcAgentPc::addTrack(
     
     connection_->addMediaStream(ms);
 
-    std::unique_ptr<WebrtcTrack> newTrack(
-          new WebrtcTrack(mid, this, isPublish, trackSetting, ms.get()));
+    auto newTrack = std::make_shared<WebrtcTrack>(
+        mid, this, isPublish, trackSetting, ms.get(), kframe_s);
 
     result = newTrack.get();
     track_map_.insert(std::make_pair(mid, std::move(newTrack)));

@@ -47,7 +47,7 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
  * in connection link-up. Each rtp-stream-id
  * in simulcast refers to one WebrtcTrack.
  */
-  class WebrtcTrack {
+  class WebrtcTrack final : public std::enable_shared_from_this<WebrtcTrack> {
   /*
    * audio: { format, ssrc, mid, midExtId }
    * video: { format, ssrc, mid, midExtId, transportcc, red, ulpfec }
@@ -64,7 +64,8 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
                 WrtcAgentPc*,
                 bool isPublish,
                 const media_setting&,
-                erizo::MediaStream* mediaStream);
+                erizo::MediaStream* mediaStream,
+                int32_t request_kframe_s);
     ~WebrtcTrack();
     
     void close() {}
@@ -90,6 +91,7 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
   private:
     WrtcAgentPc* pc_{nullptr};
     std::string mid_;
+    int32_t request_kframe_period_;
   
     std::shared_ptr<owt_base::AudioFramePacketizer> audioFramePacketizer_;
     std::shared_ptr<owt_base::AudioFrameConstructor> audioFrameConstructor_;
@@ -113,14 +115,8 @@ public:
 
   void close();
 
-  srs_error_t addTrackOperation(const std::string& mid, 
-                                EMediaType type, 
-                                const std::string& direction, 
-                                const FormatPreference& prefer);
-
   void signalling(const std::string& signal, 
-                  const std::string& content, 
-                  const std::string& stream_id = "");
+                  const std::string& content);
 
   void notifyEvent(erizo::WebRTCEvent newEvent, 
                    const std::string& message, 
@@ -164,7 +160,8 @@ public:
 
   WebrtcTrack* addTrack(const std::string& mid, 
                         const media_setting&, 
-                        bool isPublish);
+                        bool isPublish,
+                        int32_t kframe_s);
 
   srs_error_t removeTrack(const std::string& mid);
 
@@ -173,8 +170,14 @@ public:
   inline auto& getTracks() {
     return track_map_;
   }
+
+  srs_error_t addTrackOperation(const std::string& mid, 
+                                EMediaType type, 
+                                const std::string& direction, 
+                                const FormatPreference& prefer,
+                                int32_t kframe_s);
   
-  void asyncTask(std::function<void(std::shared_ptr<WrtcAgentPc>)> f) ;
+  void asyncTask(std::function<void(std::shared_ptr<WrtcAgentPc>)> f);
 
   enum E_SINKID {
     E_CANDIDATE,
@@ -207,6 +210,7 @@ private:
     std::vector<uint32_t> rids_;
     bool enabled_{false};
     uint32_t final_format_{0};
+    int32_t request_keyframe_second_{-1};
   };
 
   /* mid => { 
@@ -221,7 +225,7 @@ private:
   std::unordered_map<std::string, operation> operation_map_;
 
   // composedId(mid) => WebrtcTrack
-  std::unordered_map<std::string, std::unique_ptr<WebrtcTrack>> track_map_;
+  std::unordered_map<std::string, std::shared_ptr<WebrtcTrack>> track_map_;
 
   // mid => msid
   std::unordered_map<std::string, std::string> msid_map_;
