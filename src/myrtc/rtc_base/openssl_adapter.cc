@@ -465,6 +465,68 @@ void OpenSSLAdapter::Cleanup() {
   Thread::Current()->Clear(this, MSG_TIMEOUT);
 }
 
+#define LOOP_SSL_WRITE(ret, total_sent, pv, cb, error)        \
+  do {                                                        \
+   ret = DoSslWrite(static_cast<const void*>(pv),             \
+        static_cast<size_t>(cb), &error);                     \
+   if (error != SSL_ERROR_NONE)                               \
+     break;                                                   \
+   if (cb == ret) {                                           \
+     ret = total_sent;                                        \
+     break;                                                   \
+   }                                                          \
+   RTC_DCHECK_GE(cb, ret);                                    \
+   pv += ret;                                                 \
+   cb -= ret;                                                 \
+  } while(true);
+
+int OpenSSLAdapter::DoWriteWithBuffer(const uint8_t* pv, int cb, int& error) {
+
+  int total_sent = 0, ret;
+  if (!pending_data_.empty()) {
+    int pending_cb  = static_cast<int>(pending_data_.size());
+    const uint8_t* pending_pv = 
+        static_cast<const uint8_t*>(pending_data_.data());
+
+    LOOP_SSL_WRITE(ret, total_sent, pending_pv, pending_cb, error);
+
+    if (error == SSL_ERROR_WANT_WRITE || error == SSL_ERROR_WANT_READ) {
+      RTC_LOG(LS_WARNING) << 
+         "SSL_write couldn't write to the underlying socket on sending buffer.";
+      pending_data_.SetData(static_cast<const uint8_t*>(pending_pv), 
+                           static_cast<size_t>(pending_cb));
+      // We couldn't finish sending the pending data, so we definitely can't
+      // send any more data. Return with an EWOULDBLOCK error.
+      SetError(EWOULDBLOCK);
+      return SOCKET_ERROR;
+    }
+
+    // We completed sending the data previously passed into SSL_write! Now
+    // we're allowed to send more data.
+    pending_data_.Clear();
+  }
+
+  // OpenSSL will return an error if we try to write zero bytes
+  if (cb <= 0)
+    return 0;
+
+  total_sent = cb;
+  LOOP_SSL_WRITE(ret, total_sent, pv, cb, error);
+
+  if (error == SSL_ERROR_WANT_WRITE || error == SSL_ERROR_WANT_READ) {
+    RTC_DCHECK(pending_data_.empty());
+    RTC_LOG(LS_WARNING)
+        << "SSL_write couldn't write to the underlying socket; buffering data.";
+    pending_data_.SetData(static_cast<const uint8_t*>(pv), 
+                          static_cast<size_t>(cb));
+    // Since we're taking responsibility for sending this data, return its full
+    // size. The user of this class can consider it sent.
+    return total_sent;
+  }
+  
+  return ret;
+}
+
 int OpenSSLAdapter::DoSslWrite(const void* pv, size_t cb, int* error) {
   // If we have pending data (that was previously only partially written by
   // SSL_write), we shouldn't be attempting to write anything else.
@@ -488,8 +550,8 @@ int OpenSSLAdapter::DoSslWrite(const void* pv, size_t cb, int* error) {
       SetError(EWOULDBLOCK);
       break;
     case SSL_ERROR_ZERO_RETURN:
+      RTC_LOG(LS_INFO) << " -- error zero return";
       SetError(EWOULDBLOCK);
-      // do we need to signal closure?
       break;
     case SSL_ERROR_SSL:
       LogSslError();
@@ -522,53 +584,8 @@ int OpenSSLAdapter::Send(const void* pv, size_t cb) {
       return SOCKET_ERROR;
   }
 
-  int ret;
-  int error;
-
-  if (!pending_data_.empty()) {
-    ret = DoSslWrite(pending_data_.data(), pending_data_.size(), &error);
-    if (ret != static_cast<int>(pending_data_.size())) {
-      // We couldn't finish sending the pending data, so we definitely can't
-      // send any more data. Return with an EWOULDBLOCK error.
-      SetError(EWOULDBLOCK);
-      return SOCKET_ERROR;
-    }
-    // We completed sending the data previously passed into SSL_write! Now
-    // we're allowed to send more data.
-    pending_data_.Clear();
-  }
-
-  // OpenSSL will return an error if we try to write zero bytes
-  if (cb == 0) {
-    return 0;
-  }
-
-  ret = DoSslWrite(pv, cb, &error);
-
-  // If SSL_write fails with SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE, this
-  // means the underlying socket is blocked on reading or (more typically)
-  // writing. When this happens, OpenSSL requires that the next call to
-  // SSL_write uses the same arguments (though, with
-  // SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER, the actual buffer pointer may be
-  // different).
-  //
-  // However, after Send exits, we will have lost access to data the user of
-  // this class is trying to send, and there's no guarantee that the user of
-  // this class will call Send with the same arguements when it fails. So, we
-  // buffer the data ourselves. When we know the underlying socket is writable
-  // again from OnWriteEvent (or if Send is called again before that happens),
-  // we'll retry sending this buffered data.
-  if (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE) {
-    // Shouldn't be able to get to this point if we already have pending data.
-    RTC_DCHECK(pending_data_.empty());
-    RTC_LOG(LS_WARNING)
-        << "SSL_write couldn't write to the underlying socket; buffering data.";
-    pending_data_.SetData(static_cast<const uint8_t*>(pv), cb);
-    // Since we're taking responsibility for sending this data, return its full
-    // size. The user of this class can consider it sent.
-    return rtc::dchecked_cast<int>(cb);
-  }
-  return ret;
+  int err;
+  return DoWriteWithBuffer((const uint8_t*)pv, cb, err);
 }
 
 int OpenSSLAdapter::SendTo(const void* pv,
@@ -674,7 +691,6 @@ void OpenSSLAdapter::OnMessage(Message* msg) {
 }
 
 void OpenSSLAdapter::OnConnectEvent(AsyncSocket* socket) {
-  RTC_LOG(LS_INFO) << "OpenSSLAdapter::OnConnectEvent";
   if (state_ != SSL_WAIT) {
     RTC_DCHECK(state_ == SSL_NONE);
     AsyncSocketAdapter::OnConnectEvent(socket);
@@ -730,9 +746,6 @@ void OpenSSLAdapter::OnWriteEvent(AsyncSocket* socket) {
     return;
   }
 
-  // Don't let ourselves go away during the callbacks
-  // PRefPtr<OpenSSLAdapter> lock(this); // TODO(benwright): fix this
-
   if (ssl_read_needs_write_) {
     AsyncSocketAdapter::OnReadEvent(socket);
   }
@@ -740,18 +753,16 @@ void OpenSSLAdapter::OnWriteEvent(AsyncSocket* socket) {
   // If a previous SSL_write failed due to the underlying socket being blocked,
   // this will attempt finishing the write operation.
   if (!pending_data_.empty()) {
-    int error;
-    if (DoSslWrite(pending_data_.data(), pending_data_.size(), &error) ==
-        static_cast<int>(pending_data_.size())) {
-      pending_data_.Clear();
-    }
+    int error = SSL_ERROR_NONE;
+    int ret = DoWriteWithBuffer(nullptr, 0, error);
+    if (ret < 0 || error != SSL_ERROR_NONE)
+      return;
   }
 
   AsyncSocketAdapter::OnWriteEvent(socket);
 }
 
 void OpenSSLAdapter::OnCloseEvent(AsyncSocket* socket, int err) {
-  RTC_LOG(LS_INFO) << "OpenSSLAdapter::OnCloseEvent(" << err << ")";
   AsyncSocketAdapter::OnCloseEvent(socket, err);
 }
 
@@ -854,8 +865,11 @@ int OpenSSLAdapter::NewSSLSessionCallback(SSL* ssl, SSL_SESSION* session) {
 }
 
 SSL_CTX* OpenSSLAdapter::CreateContext(SSLMode mode, bool enable_cache) {
-  SSL_CTX* ctx =
-      SSL_CTX_new(mode == SSL_MODE_DTLS ? DTLS_method() : TLS_method());
+  SSL_CTX* ctx = SSL_CTX_new(mode == SSL_MODE_DTLS ? 
+                             DTLS_method() : 
+                             TLS_method());
+
+
   if (ctx == nullptr) {
     unsigned long error = ERR_get_error();  // NOLINT: type used by OpenSSL.
     RTC_LOG(LS_WARNING) << "SSL_CTX creation failed: " << '"'

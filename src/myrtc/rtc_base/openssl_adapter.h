@@ -99,6 +99,8 @@ class OpenSSLAdapter final : public SSLAdapter, public MessageHandler {
   void Error(const char* context, int err, bool signal = true);
   void Cleanup();
 
+  int DoWriteWithBuffer(const uint8_t* pv, int cb, int& error);
+
   // Return value and arguments have the same meanings as for Send; |error| is
   // an output parameter filled with the result of SSL_get_error.
   int DoSslWrite(const void* pv, size_t cb, int* error);
