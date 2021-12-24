@@ -14,6 +14,7 @@
 #include <random>
 
 #include "libsdptransform/include/json.hpp"
+#include "h/rtc_stack_api.h"
 
 using JSON_TYPE = nlohmann::json;
 
@@ -37,6 +38,7 @@ struct media_setting {
 struct SessionInfo {
   int decode(const JSON_TYPE& session);
   void encode(JSON_TYPE& session);
+  void clear();
   std::string ice_ufrag_;
   std::string ice_pwd_;
   std::string ice_options_;
@@ -109,20 +111,20 @@ class MediaDesc {
   };
 
  public:
+  MediaDesc(SessionInfo&);
+  
   //parse m line
   void parse(const JSON_TYPE& session);
   
   void encode(JSON_TYPE&);
   
-  bool is_audio() const { return type_ == "audio"; }
+  inline bool is_audio() const { return type_ == "audio"; }
   
-  bool is_video() const { return type_ == "video"; }
+  inline bool is_video() const { return type_ == "video"; }
   
   media_setting get_media_settings();
   
-  int32_t filterAudioPayload(const FormatPreference& option);
-  
-  int32_t filterVideoPayload(const FormatPreference& option);
+  int32_t filterMediaPayload(const FormatPreference& option);
   
   std::string setSsrcs(const std::vector<uint32_t>& ssrcs, 
                        const std::string& inmsid);
@@ -147,6 +149,7 @@ class MediaDesc {
 
  public:
   std::string type_;
+  std::string preference_codec_;
   
   int32_t port_{0};
   
@@ -158,11 +161,23 @@ class MediaDesc {
 
   std::vector<Candidate> candidates_;
   
-  SessionInfo session_info_;
+  SessionInfo& session_info_;
 
   std::string mid_;
 
-  std::map<int, std::string> extmaps_;
+  
+  struct extmap_item {
+    int id;
+    std::string direction;
+    std::string param;
+
+    bool operator==(const std::string& in_param) const {
+      if (!direction.empty())
+        return false;
+      return param == in_param;
+    }
+  };
+  std::map<int, extmap_item> extmaps_;
 
   std::string direction_;  // "recvonly" "sendonly" "sendrecv"
   
@@ -202,10 +217,7 @@ class WaSdpInfo {
 
   std::string mediaDirection(const std::string& mid);
 
-  int32_t filterAudioPayload(const std::string& mid, 
-                             const FormatPreference& type);
-
-  int32_t filterVideoPayload(const std::string& mid, 
+  int32_t filterMediaPayload(const std::string& mid, 
                              const FormatPreference& type);
 
   bool filterByPayload(const std::string& mid, 
@@ -260,7 +272,7 @@ class WaSdpInfo {
   int64_t start_time_;
   int64_t end_time_;
 
-  bool session_in_medias_{false};
+  //bool session_in_medias_{false};
   SessionInfo session_info_;
 
   std::vector<std::string> groups_;

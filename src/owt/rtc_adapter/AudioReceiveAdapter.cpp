@@ -11,7 +11,7 @@ const uint32_t kLocalSsrc = 1;
 AudioReceiveAdapterImpl::AudioReceiveAdapterImpl(
     CallOwner* owner, const RtcAdapter::Config& config)
     : config_(config), owner_(owner), rtcpListener_(config.rtp_listener) {
-  assert(owner != nullptr);  
+  assert(owner != nullptr);
   CreateReceiveAudio();
 }
 
@@ -81,7 +81,6 @@ void AudioReceiveAdapterImpl::CreateReceiveAudio() {
   auto audio_format = webrtc::SdpAudioFormat("opus", 48000, 2);
   audio_recv_config.decoder_map.emplace(config_.rtp_payload_type, audio_format);
 
-  //OLOG_INFO_THIS("VideoReceiveStream::Config " << video_recv_config.ToString());
   audioRecvStream_ = call()->CreateAudioReceiveStream(std::move(audio_recv_config));
   audioRecvStream_->Start();
   call()->SignalChannelNetworkState(webrtc::MediaType::AUDIO, webrtc::NetworkState::kNetworkUp);

@@ -40,8 +40,8 @@ class AudioFramePacketizer
 
   void bindTransport(erizo::MediaSink* sink);
   void unbindTransport();
-  void enable(bool enabled) { m_enabled = enabled; }
-  uint32_t getSsrc() { return m_ssrc; }
+  void enable(bool enable) { enable_ = enable; }
+  uint32_t getSsrc() { return ssrc_; }
 
   // Implements FrameDestination.
   void onFrame(const Frame&);
@@ -63,16 +63,11 @@ class AudioFramePacketizer
   // Implement erizo::MediaSource
   int sendPLI();
 
-  bool m_enabled{true};
+  bool enable_{true};
+  uint32_t ssrc_{0};
 
-  FrameFormat m_frameFormat{FRAME_FORMAT_UNKNOWN};
-
-  uint16_t m_lastOriginSeqNo{0};
-  uint16_t m_seqNo{0};
-  uint32_t m_ssrc{0};
-
-  std::shared_ptr<rtc_adapter::RtcAdapter> m_rtcAdapter;
-  rtc_adapter::AudioSendAdapter* m_audioSend{nullptr};
+  std::shared_ptr<rtc_adapter::RtcAdapter> rtcAdapter_;
+  rtc_adapter::AudioSendAdapter* audioSend_{nullptr};
 
   std::unique_ptr<rtc::TaskQueue> task_queue_;
 };

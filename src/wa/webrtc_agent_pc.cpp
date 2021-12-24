@@ -102,6 +102,28 @@ WrtcAgentPc::WebrtcTrack::~WebrtcTrack() {
   OLOG_TRACE_THIS("WebrtcTrack dtor mid:" << mid_);
 }
 
+void WrtcAgentPc::WebrtcTrack::close() {
+  if (audioFramePacketizer_) {
+    audioFramePacketizer_->unbindTransport();
+    audioFramePacketizer_ = nullptr;
+  }
+
+  if (audioFrameConstructor_) {
+    audioFrameConstructor_->unbindTransport();
+    audioFrameConstructor_ = nullptr;
+  }
+
+  if (videoFramePacketizer_) {
+    videoFramePacketizer_->unbindTransport();
+    videoFramePacketizer_ = nullptr;
+  }
+
+  if (videoFrameConstructor_) {
+    videoFrameConstructor_->unbindTransport();
+    videoFrameConstructor_ = nullptr;
+  }
+}
+
 uint32_t WrtcAgentPc::WebrtcTrack::ssrc(bool isAudio) {
   if (isAudio && audioFramePacketizer_) {
     return audioFramePacketizer_->getSsrc();
@@ -190,7 +212,6 @@ void WrtcAgentPc::WebrtcTrack::requestKeyFrame() {
 
 /////////////////////////////
 //WrtcAgentPc
-
 WrtcAgentPc::WrtcAgentPc(const TOption& config, WebrtcAgent& mgr)
   : config_(config), 
     id_(config.connectId_), 
@@ -200,8 +221,6 @@ WrtcAgentPc::WrtcAgentPc(const TOption& config, WebrtcAgent& mgr)
 }
 
 WrtcAgentPc::~WrtcAgentPc() {
-  track_map_.clear();
-
   this->close_i();
   if(remote_sdp_)
     delete remote_sdp_;
@@ -263,6 +282,13 @@ void WrtcAgentPc::init_i(const std::vector<std::string>& ipAddresses,
 }
 
 void WrtcAgentPc::close_i() {
+  std::for_each(track_map_.begin(), track_map_.end(), 
+      [](auto& i) {
+        i.second->close();
+      });
+
+  track_map_.clear();
+  
   if(connection_) {
     connection_->close();
     connection_ = nullptr;
@@ -447,7 +473,6 @@ srs_error_t WrtcAgentPc::processOffer(const std::string& sdp,
     local_sdp_->filterExtmap();
     
     // Setup transport
-    //let opId = null;
     for (auto& mid : local_sdp_->media_descs_) {
       if (mid.port_ != 0 && (result = setupTransport(mid)) != srs_success) {
         return srs_error_wrap(result, "setupTransport failed");
@@ -512,14 +537,7 @@ srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media) {
   }
 
   // Determine media format in offer
-  if ("audio" == media.type_) {
-    op.final_format_ = 
-      remote_sdp_->filterAudioPayload(mid, op.format_preference_);
-  }
-  else if(remote_sdp_->mediaType(mid) == "video") {
-    op.final_format_ = 
-      remote_sdp_->filterVideoPayload(mid, op.format_preference_);
-  }
+  op.final_format_ = remote_sdp_->filterMediaPayload(mid, op.format_preference_);
 
   return srs_success;
 }
@@ -536,9 +554,9 @@ srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
       (opSettings.sdp_direction_ == "sendonly") ? "in" : "out";
   media_setting trackSetting = media.get_media_settings();
   
-  if (opSettings.final_format_) {
-    trackSetting.format = opSettings.final_format_;
-  }
+  //if (opSettings.final_format_) {
+  //  trackSetting.format = opSettings.final_format_;
+  //}
 
   if(rids.empty()) {
     // No simulcast    
@@ -576,7 +594,7 @@ srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
       result = srs_error_new(wa_e_found, "Conflict trackId %s with %s", 
                              media.mid_.c_str(), id_.c_str());
     }
-  }else {
+  } else {
 #if 0
     // Simulcast
     rids.forEach((rid, index) => {

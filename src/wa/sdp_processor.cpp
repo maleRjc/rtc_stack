@@ -18,10 +18,13 @@
 #endif
 
 #include "h/rtc_stack_api.h"
+#include "wa_rtp_define.h"
 #include "./wa_log.h"
 #include "h/rtc_return_value.h"
 #include "helper.h"
 #include "media_config.h"
+
+//#define __DEBUG_SDP__
 
 #ifdef ORDERED_JSON
 template<class K, class V, class dummy_compare, class A>
@@ -43,8 +46,7 @@ namespace {
 static log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("wa.sdp");
 
 inline std::string get_preference_name(EFormatPreference t) {
-  switch(t)
-  {
+  switch(t) {
     case p_h264:
       return "H264";
     case p_opus:
@@ -54,7 +56,17 @@ inline std::string get_preference_name(EFormatPreference t) {
   }
 }
 
-int32_t filer_h264(std::vector<MediaDesc::rtpmap>& rtpMaps, 
+inline int32_t get_codec_by_preference(std::string_view t) {
+  if ("H264" == t)
+    return H264_90000_PT;
+
+  if ("opus" == t)
+    return OPUS_48000_PT;
+
+  return INVALID_PT;
+}
+
+int32_t filer_h264(const std::vector<MediaDesc::rtpmap>& rtpMaps, 
                    const std::string& profile) {
   int32_t result = 0;
   for (auto& item : rtpMaps) {
@@ -65,7 +77,7 @@ int32_t filer_h264(std::vector<MediaDesc::rtpmap>& rtpMaps,
     result = item.payload_type_;
 
     std::string_view view_fmtp(item.fmtp_);
-    auto pkz_found = view_fmtp.find("packetization-mode=0");
+    auto pkz_found = view_fmtp.find("packetization-mode=1");
     if (pkz_found == std::string_view::npos) {
       continue;
     }
@@ -76,8 +88,6 @@ int32_t filer_h264(std::vector<MediaDesc::rtpmap>& rtpMaps,
     if (level_found == std::string_view::npos) {
       continue;
     }
-
-    result = item.payload_type_;
 
     std::string_view str_level = 
         view_fmtp.substr(level_found + strlen("profile-level-id="), 6);
@@ -94,43 +104,64 @@ int32_t filer_h264(std::vector<MediaDesc::rtpmap>& rtpMaps,
 
 }
 
+// SessionInfo
+void SessionInfo::encode(JSON_TYPE& session) {
+  if (!fingerprint_algo_.empty()) {
+     JSON_TYPE fingerprint = JSON_OBJECT;
+     fingerprint["type"] = fingerprint_algo_;
+     fingerprint["hash"] = fingerprint_;
+     session["fingerprint"] = fingerprint;
+   }
+
+  if (!ice_ufrag_.empty())
+    session["iceUfrag"] = ice_ufrag_;
+
+  if (!ice_pwd_.empty())
+    session["icePwd"] = ice_pwd_;
+  
+  if(!ice_options_.empty())
+    session["iceOptions"] = ice_options_;
+
+  if (!setup_.empty())
+    session["setup"] = setup_;
+}
+
 int SessionInfo::decode(const JSON_TYPE& session) {
-  auto found = session.find("iceUfrag");
-
-  if(found == session.end()){
-    return wa_failed;
+  auto fingerprint_found = session.find("fingerprint");
+  if (fingerprint_found != session.end()) {
+    fingerprint_algo_ = (*fingerprint_found).at("type");
+    fingerprint_ = (*fingerprint_found).at("hash");
   }
-
-  ice_ufrag_ = *found;
-  ice_pwd_ = session.at("icePwd");
-
+  
   auto iceOptions_found = session.find("iceOptions");
   if(iceOptions_found != session.end()){
     ice_options_ = *iceOptions_found;
   }
-  
-  fingerprint_algo_ = session.at("fingerprint").at("type");
-  fingerprint_ = session.at("fingerprint").at("hash");
-  setup_ = session.at("setup");
 
-  return wa_failed;
+  auto ugrag_found = session.find("iceUfrag");
+  if(ugrag_found != session.end()){
+    ice_ufrag_ = *ugrag_found;
+    ice_pwd_ = session.at("icePwd");
+  }
+
+  auto setup_found = session.find("setup");
+  if (setup_found != session.end()) {
+    setup_ = *setup_found;
+  }
+ 
+  return wa_ok;
 }
 
-void SessionInfo::encode(JSON_TYPE& session) {
-  session["iceUfrag"] = ice_ufrag_;
-  session["icePwd"] = ice_pwd_;
-
-  if(!ice_options_.empty())
-    session["iceOptions"] = ice_options_;
-  
-  JSON_TYPE fingerprint = JSON_OBJECT;
-  fingerprint["type"] = fingerprint_algo_;
-  fingerprint["hash"] = fingerprint_;
-  session["fingerprint"] = fingerprint;
-
-  session["setup"] = setup_;
+void SessionInfo::clear() {
+  ice_ufrag_.clear();
+  ice_pwd_.clear();
+  ice_options_.clear();
+  fingerprint_algo_.clear();
+  fingerprint_.clear();
+  setup_.clear();
 }
 
+// Candidate
 void MediaDesc::Candidate::encode(JSON_TYPE& session) {
   session["foundation"] = foundation_;
   session["component"] = component_;
@@ -151,6 +182,7 @@ void MediaDesc::Candidate::decode(const JSON_TYPE& session) {
   type_ = session.at("type");
 }
 
+// rtpmap
 MediaDesc::rtpmap::rtpmap(rtpmap&& r)
   : payload_type_(r.payload_type_),
     encoding_name_(std::move(r.encoding_name_)),
@@ -197,6 +229,7 @@ std::string MediaDesc::rtpmap::decode(const JSON_TYPE& session) {
   return encoding_name_;
 }
 
+// SSRCInfo
 void MediaDesc::SSRCInfo::encode(JSON_TYPE& session) {
   JSON_TYPE cname = JSON_OBJECT;
   cname["id"] = ssrc_;
@@ -228,6 +261,7 @@ void MediaDesc::SSRCInfo::encode(JSON_TYPE& session) {
   session.push_back(label);
 }
 
+// SSRCGroup
 void MediaDesc::SSRCGroup::encode(JSON_TYPE& session) {
   session["semantics"] = semantic_;
   std::string ssrcs;
@@ -251,6 +285,10 @@ void MediaDesc::SSRCGroup::decode(const JSON_TYPE& session) {
     ssrcs_.push_back(word);
   }
 }
+
+// MediaDesc
+MediaDesc::MediaDesc(SessionInfo& si) 
+  : session_info_(si) { }
 
 MediaDesc::SSRCInfo& MediaDesc::fetch_or_create_ssrc_info(uint32_t ssrc) {
   for(size_t i = 0; i < ssrc_infos_.size(); ++i) {
@@ -366,23 +404,45 @@ void MediaDesc::parse_ssrc_info(const JSON_TYPE& media) {
     SSRCInfo& ssrc_info = fetch_or_create_ssrc_info(_ssrc);
   
     std::string ssrc_attr = ssrcs[i].at("attribute");
-    std::string ssrc_value = ssrcs[i].at("value");
+
+#ifdef __DEBUG_SDP__    
+    std::cout << "parse ssrc info " << type_ << 
+                 " size:" << ssrcs.size() << 
+                 " ssrc:" << _ssrc <<
+                 ", attr:" << ssrc_attr <<
+                 std::endl;
+#endif
+    std::string ssrc_value{""};
+    auto found = ssrcs[i].find("value");
+    if (found != ssrcs[i].end()) {
+      ssrc_value = *found;
+    }
+#ifdef __DEBUG_SDP__
+        std::cout << "parse ssrc info " << type_ << 
+                     " size:" << ssrcs.size() << 
+                     " ssrc:" << _ssrc <<
+                     ", attr:" << ssrc_attr <<
+                     ", v:" << ssrc_value <<
+                     std::endl;
+#endif
 
     if (ssrc_attr == "cname") {
       ssrc_info.cname_ = ssrc_value;
       ssrc_info.ssrc_ = _ssrc;
-    } else if (ssrc_attr == "msid") {
-      std::vector<std::string> vec = wa_split_str(ssrc_value, " ");
-      if (!vec.empty()) {
-        ssrc_info.msid_ = vec[0];
-        if (vec.size() > 1) {
-            ssrc_info.msid_tracker_ = vec[1];
+    } else if (!ssrc_value.empty()) { 
+      if (ssrc_attr == "msid") {
+        std::vector<std::string> vec = wa_split_str(ssrc_value, " ");
+        if (!vec.empty()) {
+          ssrc_info.msid_ = vec[0];
+          if (vec.size() > 1) {
+              ssrc_info.msid_tracker_ = vec[1];
+          }
         }
+      } else if (ssrc_attr == "mslabel") {
+          ssrc_info.mslabel_ = ssrc_value;
+      } else if (ssrc_attr == "label") {
+          ssrc_info.label_ = ssrc_value;
       }
-    } else if (ssrc_attr == "mslabel") {
-        ssrc_info.mslabel_ = ssrc_value;
-    } else if (ssrc_attr == "label") {
-        ssrc_info.label_ = ssrc_value;
     }
   }
 }
@@ -436,8 +496,17 @@ void MediaDesc::parse(const JSON_TYPE& media) {
   //extmap
   auto& ext = media.at("ext");
   for(size_t i = 0; i < ext.size(); ++i){
-    desc.extmaps_.insert(
-      std::make_pair<int, std::string>(ext[i].at("value"), ext[i].at("uri")));
+#ifdef __DEBUG_SDP__
+    std::cout << "parse extmap " << type_ <<
+                 ext[i].at("value") << 
+                 ext[i].at("uri") << std::endl;
+#endif
+    extmap_item item{ext[i].at("value"), "", ext[i].at("uri")};
+    auto dir_found = ext[i].find("direction");
+    if (dir_found != ext[i].end())
+      item.direction = *dir_found;
+    
+    desc.extmaps_.emplace(item.id, item);
   }
 
   desc.direction_ = media.at("direction");
@@ -549,8 +618,11 @@ void MediaDesc::encode(JSON_TYPE& media) {
     JSON_TYPE extmap = JSON_ARRAY;
     for(auto& i : extmaps_){
     JSON_TYPE ext = JSON_OBJECT;
-      ext["value"] = i.first;
-      ext["uri"] = i.second;
+      ext["value"] = i.second.id;
+      if (!i.second.direction.empty()) {
+        ext["direction"] = i.second.direction;
+      }
+      ext["uri"] = i.second.param;
       extmap.push_back(ext);
     }
     media["ext"] = extmap;
@@ -673,6 +745,9 @@ media_setting MediaDesc::get_media_settings() {
 
   settings.rtcp_rsize = rtcp_rsize_.empty() ? false : true;
 
+  settings.format = get_codec_by_preference(preference_codec_);
+  ELOG_INFO("settings.format:%d", settings.format);
+
 #ifdef WA_ENABLE_SDESMID
   for(auto& i : extmaps_){
     if(i.second == extMappings[EExtmap::SdesMid]){
@@ -685,24 +760,21 @@ media_setting MediaDesc::get_media_settings() {
   return settings;
 }
 
-int32_t MediaDesc::filterAudioPayload(const FormatPreference& prefer_type) {
+int32_t MediaDesc::filterMediaPayload(const FormatPreference& prefer_type) {
   int32_t type = 0;
   for(auto& item : rtp_maps_){
-    if(get_preference_name(prefer_type.format_) == item.encoding_name_){
-      type = item.payload_type_;
+    if (is_audio()) {
+      if(get_preference_name(prefer_type.format_) == item.encoding_name_) {
+        type = item.payload_type_;
+      }
+    } else if (is_video()) {
+      if (get_preference_name(prefer_type.format_) == "H264") {
+        type = filer_h264(rtp_maps_, prefer_type.profile_);
+      } else if (get_preference_name(prefer_type.format_) == "VP9") {
+        //TODO not implement
+      }
     }
   }
-  return type;
-}
-
-int32_t MediaDesc::filterVideoPayload(const FormatPreference& prefer_type) {
-  int32_t type = 0;
-
-  if (get_preference_name(prefer_type.format_) == "H264") {
-    type = filer_h264(rtp_maps_, prefer_type.profile_);
-  } else if (get_preference_name(prefer_type.format_) == "VP9") {
-  }
-
   return type;
 }
 
@@ -770,43 +842,51 @@ bool MediaDesc::filterByPayload(int32_t payload,
     return ret;
   }
 
-  rtpmap map = *found;
+  std::vector<rtpmap> new_rtp_maps;
+  new_rtp_maps.emplace_back(std::move(*found));
+  rtpmap& map = new_rtp_maps[0];
 
+  preference_codec_ = map.encoding_name_;
+  
   ret = true;
-  rtp_maps_.clear();
-
-  auto& related = map.related_;
-  related.erase(std::remove_if(related.begin(), related.end(), 
-      [disable_red, disable_rtx, disable_ulpfec](auto& i)->bool {
-    return ((disable_red && i.encoding_name_ == "red") ||
-            (disable_rtx && i.encoding_name_ == "rtx") ||
-            (disable_ulpfec && i.encoding_name_ == "ulpfec"))? true : false;
-  }), related.end());
-
+  
+  if (!map.related_.empty()) {
+    auto& related = map.related_;
+    related.erase(std::remove_if(related.begin(), related.end(), 
+        [disable_red, disable_rtx, disable_ulpfec](auto& i)->bool {
+      return ((disable_red && i.encoding_name_ == "red") ||
+              (disable_rtx && i.encoding_name_ == "rtx") ||
+              (disable_ulpfec && i.encoding_name_ == "ulpfec"))? true : false;
+    }), related.end());
+  }
+  
   //remove recive side cc
   auto& rtcp_fb = map.rtcp_fb_;
-  rtcp_fb.erase(std::remove(rtcp_fb.begin(), rtcp_fb.end(), "goog-remb"));
-
-  rtp_maps_.emplace_back(std::move(map));
+  if (!rtcp_fb.empty())
+    rtcp_fb.erase(std::remove(rtcp_fb.begin(), rtcp_fb.end(), "goog-remb"));
 
   std::ostringstream oss;
-  oss << rtp_maps_[0].payload_type_;
+  oss << map.payload_type_;
 
-  for(size_t i = 0; i < rtp_maps_[0].related_.size(); ++i) {
+  // build payload type relation ship, eg fmtp rtx
+  for(size_t i = 0; i < map.related_.size(); ++i) {
     oss << " ";
-    oss << rtp_maps_[0].related_[i].payload_type_;
-    rtp_maps_.push_back(rtp_maps_[0].related_[i]);
-    if (!rtp_maps_[0].related_[i].related_.empty()) {
-      LOG_ASSERT("rtx" == rtp_maps_[0].related_[i].related_[0].encoding_name_ &&
-          rtp_maps_[0].related_[i].related_.size() == 1);
+    oss << map.related_[i].payload_type_;
+    new_rtp_maps.emplace_back(map.related_[i]);
+    if (!map.related_[i].related_.empty()) {
+      LOG_ASSERT("rtx" == map.related_[i].related_[0].encoding_name_ &&
+          map.related_[i].related_.size() == 1);
       
       oss << " ";
-      oss << rtp_maps_[0].related_[i].related_[0].payload_type_;
-      rtp_maps_.push_back(rtp_maps_[0].related_[i].related_[0]);
+      oss << map.related_[i].related_[0].payload_type_;
+      new_rtp_maps.emplace_back(map.related_[i].related_[0]);
     }
   }
 
   payloads_ = oss.str();
+
+  
+  std::swap(new_rtp_maps, rtp_maps_);
 
   return ret;
 }
@@ -832,11 +912,12 @@ void MediaDesc::filterExtmap() {
 
   if (disable_audio_gcc_ && type_ == "audio") {
     extmaps_.erase(std::find_if(extmaps_.begin(), extmaps_.end(), [](auto& item) {
-        return item.second == extMappings[EExtmap::TransportCC];
+        return item.second.param == extMappings[EExtmap::TransportCC];
       }));
   }
 }
 
+// WaSdpInfo
 WaSdpInfo::WaSdpInfo() = default;
 
 WaSdpInfo::WaSdpInfo(const std::string& strSdp) {
@@ -880,13 +961,8 @@ int WaSdpInfo::init(const std::string& strSdp) {
   }
 
   //SessionInfo
-  {
-    int result = session_info_.decode(session); 
-    if(wa_failed == result) {
-      session_in_medias_ = true;
-    }
-  }
-  
+  session_info_.decode(session);
+
   //groups
   assert(session.at("groups").size() == 1);
   group_policy_ = session.at("groups")[0].at("type");
@@ -923,18 +999,15 @@ int WaSdpInfo::init(const std::string& strSdp) {
   }
   
   // m-line, media sessions
-  auto media_found = session.find("media");
-  if(media_found == session.end()){
+  auto m_found = session.find("media");
+  if(m_found == session.end()){
     return wa_e_parse_offer_failed;
   }
   
-  auto& media = *media_found;
-
-  if(!media.empty()) {
-    media_descs_.resize(media.size());
-    for(size_t i = 0; i < media.size(); ++i) {
-      media_descs_[i].parse(media[i]);
-    }
+  auto& m_line = *m_found;
+  for(size_t i = 0; i < m_line.size(); ++i) {
+    media_descs_.emplace_back(session_info_);
+    media_descs_[i].parse(m_line[i]);
   }
   
   return wa_ok;
@@ -986,9 +1059,7 @@ std::string WaSdpInfo::toString(const std::string& strMid) {
     session["icelite"] = "ice-lite";
   }
 
-  if(!session_in_medias_){
-    session_info_.encode(session);
-  }
+  //session_info_.encode(session);
 
   assert(!groups_.empty());
   //group bundle
@@ -1062,17 +1133,17 @@ WaSdpInfo* WaSdpInfo::answer() {
   answer->addrtype_ = 4;
   answer->unicast_address_ = "127.0.0.1";
 
+  session_info_.ice_options_.clear();
+  if(session_info_.setup_ == "active" || session_info_.setup_ == "actpass") {
+    answer->session_info_.setup_ = "passive";
+  } else {
+    answer->session_info_.setup_ = "active";
+  }
+
   std::for_each(answer->media_descs_.begin(), answer->media_descs_.end(), 
         [](MediaDesc& mediaInfo) {
     mediaInfo.port_ = 1;
 
-    if(mediaInfo.session_info_.setup_ == "active"){
-      mediaInfo.session_info_.setup_ = "passive";
-    }else{
-      mediaInfo.session_info_.setup_ = "active";
-    }
-
-    mediaInfo.session_info_.ice_options_.clear();
     mediaInfo.rtcp_rsize_.clear();
     
     if(mediaInfo.direction_ == "recvonly"){
@@ -1126,24 +1197,12 @@ std::string WaSdpInfo::mediaDirection(const std::string& mid) {
   return "";
 }
 
-int32_t WaSdpInfo::filterAudioPayload(const std::string& mid, 
+int32_t WaSdpInfo::filterMediaPayload(const std::string& mid, 
                                       const FormatPreference& prefer_type) {
   int32_t type = 0;
   for(auto& item : media_descs_){
     if(item.mid_ == mid){
-      return item.filterAudioPayload(prefer_type);
-    }
-  }
-  return type;
-}
-
-int32_t WaSdpInfo::filterVideoPayload(const std::string& mid, 
-                                      const FormatPreference& prefer_type) {
-  int32_t type = 0;
-  for(auto& item : media_descs_){
-    if(item.mid_ == mid){
-      type = item.filterVideoPayload(prefer_type);
-      break;
+      return item.filterMediaPayload(prefer_type);
     }
   }
   return type;
@@ -1155,10 +1214,11 @@ bool WaSdpInfo::filterByPayload(const std::string& mid,
                                 bool disable_rtx/* = false*/,
                                 bool disable_ulpfec/* = false*/) {
   for(auto& item : media_descs_){
-    if(item.mid_ == mid){
-      return item.filterByPayload(
-          payload, disable_red, disable_rtx, disable_ulpfec);
-    }
+    if(item.mid_ != mid)
+      continue;
+    
+    return item.filterByPayload(
+        payload, disable_red, disable_rtx, disable_ulpfec);
   }
 
   return false;
@@ -1201,22 +1261,22 @@ void WaSdpInfo::SetMsid(const std::string& stream_id) {
 
 void WaSdpInfo::setCredentials(const WaSdpInfo& sdpInfo) {
   const SessionInfo* pSessionInfo = nullptr;
-  if(sdpInfo.session_in_medias_){
-    LOG_ASSERT(false == sdpInfo.media_descs_.empty());
-    pSessionInfo = &(sdpInfo.media_descs_[0].session_info_);
-  }
-  else{
+  //if(sdpInfo.session_in_medias_){
+  //  LOG_ASSERT(false == sdpInfo.media_descs_.empty());
+  //  pSessionInfo = &(sdpInfo.media_descs_[0].session_info_);
+  //}
+  //else{
     pSessionInfo = &(sdpInfo.session_info_);
-  }
+  //}
 
-  if(!session_in_medias_){
+  //if(!session_in_medias_){
     session_info_ = *pSessionInfo;
-    return;
-  }
+  //  return;
+  //}
 
-  for(auto& i : media_descs_){
-    i.session_info_ = *pSessionInfo;
-  }
+  //for(auto& i : media_descs_){
+  //  i.session_info_ = *pSessionInfo;
+  //}
 }
 
 void WaSdpInfo::setCandidates(const WaSdpInfo& sdpInfo) {
@@ -1225,7 +1285,6 @@ void WaSdpInfo::setCandidates(const WaSdpInfo& sdpInfo) {
     i.candidates_ = sdpInfo.media_descs_[0].candidates_;
   }
 }
-
 
 media_setting WaSdpInfo::get_media_settings(const std::string& mid) {
   auto found = std::find_if(media_descs_.begin(), media_descs_.end(), 

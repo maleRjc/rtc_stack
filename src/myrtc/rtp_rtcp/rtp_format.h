@@ -82,7 +82,7 @@ class RtpDepacketizer {
   virtual ~RtpDepacketizer() {}
 
   // Parses the RTP payload, parsed result will be saved in |parsed_payload|.
-  virtual bool Parse(ParsedPayload* parsed_payload,
+  virtual bool Parse(ParsedPayload& parsed_payload,
                      const uint8_t* payload_data,
                      size_t payload_data_length) = 0;
 };

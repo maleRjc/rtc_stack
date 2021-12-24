@@ -83,16 +83,16 @@ private:
   int deliverEvent_(erizo::MediaEventPtr event) override { return 0; }
   void close();
 
-  bool m_enabled{true};
-  uint32_t m_ssrc{0};
+  bool enable_{true};
+  uint32_t ssrc_{0};
 
-  erizo::MediaSource* m_transport{nullptr};
-  uint32_t m_pendingKeyFrameRequests{0};
+  erizo::MediaSource* transport_{nullptr};
+  uint32_t pendingKeyFrameRequests_{0};
 
-  VideoInfoListener* m_videoInfoListener;
+  VideoInfoListener* videoInfoListener_;
 
-  std::shared_ptr<rtc_adapter::RtcAdapter> m_rtcAdapter;
-  rtc_adapter::VideoReceiveAdapter* m_videoReceive{nullptr};
+  std::shared_ptr<rtc_adapter::RtcAdapter> rtcAdapter_;
+  rtc_adapter::VideoReceiveAdapter* videoReceive_{nullptr};
 
   wa::Worker* worker_;
 };

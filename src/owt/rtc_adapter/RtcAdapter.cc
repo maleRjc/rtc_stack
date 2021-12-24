@@ -24,7 +24,7 @@ class RtcAdapterImpl : public RtcAdapter,
                        public CallOwner {
 public:
   RtcAdapterImpl(webrtc::TaskQueueBase*);
-  virtual ~RtcAdapterImpl() { }
+  virtual ~RtcAdapterImpl();
 
   // Implement RtcAdapter
   VideoReceiveAdapter* createVideoReceiver(const Config&) override;
@@ -40,7 +40,7 @@ public:
   void destoryAudioSender(AudioSendAdapter*) override;
 
   // Implement CallOwner
-  std::shared_ptr<webrtc::Call> call() override { return m_call; }
+  std::shared_ptr<webrtc::Call> call() override { return call_; }
   std::shared_ptr<rtc::TaskQueue> taskQueue() override { return m_taskQueue; }
   std::shared_ptr<webrtc::RtcEventLog> eventLog() override { return m_eventLog; }
 
@@ -50,7 +50,7 @@ private:
   std::unique_ptr<webrtc::TaskQueueFactory> m_taskQueueFactory;
   std::shared_ptr<rtc::TaskQueue> m_taskQueue;
   std::shared_ptr<webrtc::RtcEventLog> m_eventLog;
-  std::shared_ptr<webrtc::Call> m_call;
+  std::shared_ptr<webrtc::Call> call_;
 };
 
 RtcAdapterImpl::RtcAdapterImpl(webrtc::TaskQueueBase* p)
@@ -61,20 +61,24 @@ RtcAdapterImpl::RtcAdapterImpl(webrtc::TaskQueueBase* p)
     m_eventLog(std::make_shared<webrtc::RtcEventLogNull>()) {
 }
 
-void RtcAdapterImpl::initCall() {
-  // Initialize call
-  if (!m_call) {
-    webrtc::Call::Config call_config(m_eventLog.get());
-    call_config.task_queue_factory = m_taskQueueFactory.get();
+RtcAdapterImpl::~RtcAdapterImpl() {
+}
 
-    std::unique_ptr<webrtc::ProcessThread> moduleThread =
-      std::make_unique<ProcessThreadMock>(m_taskQueue.get());
-      
-    m_call.reset(
-      webrtc::Call::Create(call_config, 
-                           webrtc::Clock::GetRealTimeClock(), 
-                           std::move(moduleThread)));
+void RtcAdapterImpl::initCall() {
+  if (call_) {
+    return;
   }
+  
+  webrtc::Call::Config call_config(m_eventLog.get());
+  call_config.task_queue_factory = m_taskQueueFactory.get();
+
+  std::unique_ptr<webrtc::ProcessThread> moduleThread =
+    std::make_unique<ProcessThreadMock>(m_taskQueue.get());
+    
+  call_.reset(
+    webrtc::Call::Create(call_config, 
+                         webrtc::Clock::GetRealTimeClock(), 
+                         std::move(moduleThread)));
 }
 
 VideoReceiveAdapter* RtcAdapterImpl::createVideoReceiver(const Config& config) {

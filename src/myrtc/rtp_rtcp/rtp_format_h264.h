@@ -94,7 +94,7 @@ class RtpDepacketizerH264 : public RtpDepacketizer {
   RtpDepacketizerH264();
   ~RtpDepacketizerH264() override;
 
-  bool Parse(ParsedPayload* parsed_payload,
+  bool Parse(ParsedPayload& parsed_payload,
              const uint8_t* payload_data,
              size_t payload_data_length) override;
 

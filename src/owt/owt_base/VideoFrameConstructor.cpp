@@ -19,45 +19,45 @@ DEFINE_LOGGER(VideoFrameConstructor, "owt.VideoFrameConstructor");
 VideoFrameConstructor::VideoFrameConstructor(
     VideoInfoListener* vil, const config& config)
   : config_{config},
-    m_videoInfoListener{vil},
-    m_rtcAdapter{std::move(config.factory->CreateRtcAdapter())},
+    videoInfoListener_{vil},
+    rtcAdapter_{std::move(config.factory->CreateRtcAdapter())},
     worker_{config.worker} {
 }
 
 VideoFrameConstructor::~VideoFrameConstructor() {
   unbindTransport();
-  if (m_videoReceive) {
-    m_rtcAdapter->destoryVideoReceiver(m_videoReceive);
-    m_videoReceive = nullptr;
+  if (videoReceive_) {
+    rtcAdapter_->destoryVideoReceiver(videoReceive_);
+    videoReceive_ = nullptr;
   }
 }
 
 void VideoFrameConstructor::bindTransport(
     erizo::MediaSource* source, erizo::FeedbackSink* fbSink) {
-  m_transport = source;
-  m_transport->setVideoSink(this);
-  m_transport->setEventSink(this);
+  transport_ = source;
+  transport_->setVideoSink(this);
+  transport_->setEventSink(this);
   setFeedbackSink(fbSink);
 }
 
 void VideoFrameConstructor::unbindTransport() {
-  if (m_transport) {
+  if (transport_) {
     setFeedbackSink(nullptr);
-    m_transport = nullptr;
+    transport_ = nullptr;
   }
 }
 
 void VideoFrameConstructor::enable(bool enabled) {
-  m_enabled = enabled;
+  enable_ = enabled;
   RequestKeyFrame();
 }
 
 int32_t VideoFrameConstructor::RequestKeyFrame() {
-  if (!m_enabled) {
+  if (!enable_) {
     return 0;
   }
-  if (m_videoReceive) {
-    m_videoReceive->requestKeyFrame();
+  if (videoReceive_) {
+    videoReceive_->requestKeyFrame();
   }
   return 0;
 }
@@ -68,20 +68,20 @@ bool VideoFrameConstructor::setBitrate(uint32_t kbps) {
 }
 
 void VideoFrameConstructor::onAdapterFrame(const Frame& frame) {
-  if (m_enabled) {
+  if (enable_) {
     deliverFrame(frame);
   }
 }
 
 void VideoFrameConstructor::onAdapterStats(const AdapterStats& stats) {
-  if (m_videoInfoListener) {
+  if (videoInfoListener_) {
     std::ostringstream json_str;
     json_str.str("");
     json_str << "{\"video\": {\"parameters\": {\"resolution\": {"
              << "\"width\":" << stats.width << ", "
              << "\"height\":" << stats.height
              << "}}}}";
-    m_videoInfoListener->onVideoInfo(json_str.str().c_str());
+    videoInfoListener_->onVideoInfo(json_str.str().c_str());
   }
 }
 
@@ -104,11 +104,11 @@ int VideoFrameConstructor::deliverVideoData_(
   assert(packetType != RTCP_Receiver_PT && 
          packetType != RTCP_PS_Feedback_PT && 
          packetType != RTCP_RTP_Feedback_PT);
-  if (m_videoReceive && 
+  if (videoReceive_ && 
       (packetType == RTCP_SDES_PT || 
        packetType == RTCP_Sender_PT || 
        packetType == RTCP_XR_PT) ) {
-    m_videoReceive->onRtpData(video_packet->data, video_packet->length);
+    videoReceive_->onRtpData(video_packet->data, video_packet->length);
     return video_packet->length;
   }
 
@@ -117,11 +117,11 @@ int VideoFrameConstructor::deliverVideoData_(
   }
 
   RTPHeader* head = reinterpret_cast<RTPHeader*>(video_packet->data);
-  if (!m_ssrc && head->getSSRC()) {
+  if (!ssrc_ && head->getSSRC()) {
     createReceiveVideo(head->getSSRC());
   }
-  if (m_videoReceive) {
-    m_videoReceive->onRtpData(video_packet->data, video_packet->length);
+  if (videoReceive_) {
+    videoReceive_->onRtpData(video_packet->data, video_packet->length);
   }
 
   return video_packet->length;
@@ -134,10 +134,10 @@ int VideoFrameConstructor::deliverAudioData_(
 }
 
 void VideoFrameConstructor::onTimeout() {
-  if (m_pendingKeyFrameRequests > 1) {
+  if (pendingKeyFrameRequests_ > 1) {
       RequestKeyFrame();
   }
-  m_pendingKeyFrameRequests = 0;
+  pendingKeyFrameRequests_ = 0;
 }
 
 void VideoFrameConstructor::onFeedback(const FeedbackMsg& msg) {
@@ -151,10 +151,10 @@ void VideoFrameConstructor::onFeedback(const FeedbackMsg& msg) {
   worker_->task([msg, weak_this, this]() {
     if (auto share_this = weak_this.lock()) {
       if (msg.cmd == REQUEST_KEY_FRAME) {
-        if (!m_pendingKeyFrameRequests) {
+        if (!pendingKeyFrameRequests_) {
           RequestKeyFrame();
         }
-        ++m_pendingKeyFrameRequests;
+        ++pendingKeyFrameRequests_;
       } else if (msg.cmd == SET_BITRATE) {
         setBitrate(msg.data.kbps);
       }      
@@ -167,7 +167,7 @@ void VideoFrameConstructor::close() {
 }
 
 void VideoFrameConstructor::createReceiveVideo(uint32_t ssrc) {
-  if (m_videoReceive) {
+  if (videoReceive_) {
     return;
   }
   
@@ -182,7 +182,7 @@ void VideoFrameConstructor::createReceiveVideo(uint32_t ssrc) {
     return false;
   }, std::chrono::seconds(1));
   
-  m_ssrc = config_.ssrc;
+  ssrc_ = config_.ssrc;
 
   // Create Receive Video Stream
   rtc_adapter::RtcAdapter::Config recvConfig;
@@ -199,7 +199,7 @@ void VideoFrameConstructor::createReceiveVideo(uint32_t ssrc) {
   recvConfig.stats_listener = this;
   recvConfig.frame_listener = this;
 
-  m_videoReceive = m_rtcAdapter->createVideoReceiver(recvConfig);
+  videoReceive_ = rtcAdapter_->createVideoReceiver(recvConfig);
 }
 
 }

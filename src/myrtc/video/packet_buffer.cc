@@ -124,8 +124,9 @@ bool PacketBuffer::InsertPacket(VCMPacket* packet) {
 
   auto found_frames = FindFrames(seq_num);
 
-  for (std::unique_ptr<RtpFrameObject>& frame : found_frames)
+  for (std::unique_ptr<RtpFrameObject>& frame : found_frames) {
     assembled_frame_callback_->OnAssembledFrame(std::move(frame));
+  }
 
   return true;
 }

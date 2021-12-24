@@ -10,7 +10,7 @@ namespace owt_base {
 DEFINE_LOGGER(AudioFramePacketizer, "owt.AudioFramePacketizer");
 
 AudioFramePacketizer::AudioFramePacketizer(AudioFramePacketizer::Config& config)
-    : m_rtcAdapter(std::move(config.factory->CreateRtcAdapter())) {
+    : rtcAdapter_(std::move(config.factory->CreateRtcAdapter())) {
   auto factory = rtc_adapter::createDummyTaskQueueFactory(config.task_queue);
   auto task_queue = factory->CreateTaskQueue(
       "deliver_frame", webrtc::TaskQueueFactory::Priority::NORMAL);
@@ -22,16 +22,16 @@ AudioFramePacketizer::AudioFramePacketizer(AudioFramePacketizer::Config& config)
 
 AudioFramePacketizer::~AudioFramePacketizer() {
   close();
-  if (m_audioSend) {
-    m_rtcAdapter->destoryAudioSender(m_audioSend);
-    m_rtcAdapter.reset();
-    m_audioSend = nullptr;
+  if (audioSend_) {
+    rtcAdapter_->destoryAudioSender(audioSend_);
+    rtcAdapter_.reset();
+    audioSend_ = nullptr;
   }
 }
 
 void AudioFramePacketizer::bindTransport(erizo::MediaSink* sink) {
   audio_sink_ = sink;
-  audio_sink_->setAudioSinkSSRC(m_audioSend->ssrc());
+  audio_sink_->setAudioSinkSSRC(audioSend_->ssrc());
   erizo::FeedbackSource* fbSource = audio_sink_->getFeedbackSource();
   if (fbSource)
       fbSource->setFeedbackSink(this);
@@ -43,8 +43,8 @@ void AudioFramePacketizer::unbindTransport() {
 
 int AudioFramePacketizer::deliverFeedback_(
     std::shared_ptr<erizo::DataPacket> data_packet) {
-  if (m_audioSend) {
-    m_audioSend->onRtcpData(data_packet->data, data_packet->length);
+  if (audioSend_) {
+    audioSend_->onRtcpData(data_packet->data, data_packet->length);
     return data_packet->length;
   }
   return 0;
@@ -68,27 +68,23 @@ void AudioFramePacketizer::onFrame(const Frame& frame) {
  
   task_queue_->PostTask([this, weak_ptr = weak_from_this(), frame] () {
     if (auto shared_this = weak_ptr.lock()) {
-      if (!m_enabled) {
+      if (!enable_) {
         return;
       }
 
       if (!audio_sink_) {
         return;
       }
-      
-      if (frame.format != m_frameFormat) {
-        m_frameFormat = frame.format;
-      }
 
-      if (m_audioSend) {
-          m_audioSend->onFrame(frame);
+      if (audioSend_) {
+          audioSend_->onFrame(frame);
       }
     }
   }); 
 }
 
 bool AudioFramePacketizer::init(AudioFramePacketizer::Config& config) {
-  if (!m_audioSend) {
+  if (!audioSend_) {
     // Create Send audio Stream
     rtc_adapter::RtcAdapter::Config sendConfig;
     sendConfig.rtp_listener = this;
@@ -97,8 +93,8 @@ bool AudioFramePacketizer::init(AudioFramePacketizer::Config& config) {
       strncpy(sendConfig.mid, config.mid.c_str(), sizeof(sendConfig.mid) - 1);
       sendConfig.mid_ext = config.midExtId;
     }
-    m_audioSend = m_rtcAdapter->createAudioSender(sendConfig);
-    m_ssrc = m_audioSend->ssrc();
+    audioSend_ = rtcAdapter_->createAudioSender(sendConfig);
+    ssrc_ = audioSend_->ssrc();
     return true;
   }
   return false;

@@ -346,10 +346,9 @@ void RtpPacketizerH264::NextFragmentPacket(RtpPacketToSend* rtp_packet) {
 RtpDepacketizerH264::RtpDepacketizerH264() : offset_(0), length_(0) {}
 RtpDepacketizerH264::~RtpDepacketizerH264() {}
 
-bool RtpDepacketizerH264::Parse(ParsedPayload* parsed_payload,
+bool RtpDepacketizerH264::Parse(ParsedPayload& parsed_payload,
                                 const uint8_t* payload_data,
                                 size_t payload_data_length) {
-  RTC_CHECK(parsed_payload != nullptr);
   if (payload_data_length == 0) {
     RTC_LOG(LS_ERROR) << "Empty payload.";
     return false;
@@ -360,25 +359,25 @@ bool RtpDepacketizerH264::Parse(ParsedPayload* parsed_payload,
   modified_buffer_.reset();
 
   uint8_t nal_type = payload_data[0] & kTypeMask;
-  parsed_payload->video_header()
+  parsed_payload.video_header()
       .video_type_header.emplace<RTPVideoHeaderH264>();
   if (nal_type == H264::NaluType::kFuA) {
     // Fragmented NAL units (FU-A).
-    if (!ParseFuaNalu(parsed_payload, payload_data))
+    if (!ParseFuaNalu(&parsed_payload, payload_data))
       return false;
   } else {
     // We handle STAP-A and single NALU's the same way here. The jitter buffer
     // will depacketize the STAP-A into NAL units later.
     // TODO(sprang): Parse STAP-A offsets here and store in fragmentation vec.
-    if (!ProcessStapAOrSingleNalu(parsed_payload, payload_data))
+    if (!ProcessStapAOrSingleNalu(&parsed_payload, payload_data))
       return false;
   }
 
   const uint8_t* payload =
       modified_buffer_ ? modified_buffer_->data() : payload_data;
 
-  parsed_payload->payload = payload + offset_;
-  parsed_payload->payload_length = length_;
+  parsed_payload.payload = payload + offset_;
+  parsed_payload.payload_length = length_;
   return true;
 }
 
@@ -551,6 +550,7 @@ bool RtpDepacketizerH264::ParseFuaNalu(
     RTC_LOG(LS_ERROR) << "FU-A NAL units truncated.";
     return false;
   }
+  
   uint8_t fnri = payload_data[0] & (kFBit | kNriMask);
   uint8_t original_nal_type = payload_data[1] & kTypeMask;
   bool first_fragment = (payload_data[1] & kSBit) > 0;

@@ -589,7 +589,7 @@ void RtpVideoStreamReceiver::ReceivePacket(const RtpPacketReceived& packet) {
     return;
   }
   RtpDepacketizer::ParsedPayload parsed_payload;
-  if (!depacketizer->Parse(&parsed_payload, packet.payload().data(),
+  if (!depacketizer->Parse(parsed_payload, packet.payload().data(),
                            packet.payload().size())) {
     RTC_LOG(LS_WARNING) << "Failed parsing payload.";
     return;

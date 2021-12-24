@@ -128,7 +128,8 @@ int AudioFrameConstructor::deliverAudioData_(
     createAudioReceiver();
   }
 
-  audioReceive_->onRtpData(audio_packet->data, audio_packet->length);
+  if (audioReceive_)
+    audioReceive_->onRtpData(audio_packet->data, audio_packet->length);
 
   FrameFormat frameFormat;
   Frame frame;
@@ -194,6 +195,10 @@ void AudioFrameConstructor::createAudioReceiver() {
   }
   ssrc_ = config_.ssrc;
 
+  //audio do not support twcc
+  if (-1 == config_.transportcc)
+    return;
+  
   // Create Receive audio Stream for transport-cc
   rtc_adapter::RtcAdapter::Config recvConfig;
 

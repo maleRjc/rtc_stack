@@ -68,7 +68,7 @@ class WrtcAgentPc final : public erizo::WebRtcConnectionEventListener,
                 int32_t request_kframe_s);
     ~WebrtcTrack();
     
-    void close() {}
+    void close();
     void onMediaUpdate() {}
     
     void addDestination(bool isAudio, 
