@@ -12,7 +12,6 @@
 namespace erizo {
 
   DEFINE_LOGGER(Stats, "Stats");
-
   Stats::Stats() : listener_{nullptr} {
   }
 

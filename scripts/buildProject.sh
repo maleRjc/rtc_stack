@@ -8,8 +8,6 @@ BIN_DIR=$ROOT_DIR/build
 
 OBJ_DIR="CMakeFiles"
 
-NIJIA_HOME=/home/owt/owt/owt-server/third_party/webrtc-m79/tools-owt/depot_tools
-
 buildAll() {
   if [ -d $BIN_DIR ]; then
     cd $BIN_DIR
@@ -77,9 +75,7 @@ if [[ "$OS" =~ .*centos.* ]];then
   source scl_source enable devtoolset-7
 fi
 
-export PATH=$PATH:/$(pwd)/build/libdeps/build/ninja
-
-export NIJIA_HOME
+export PATH=$PATH:$(pwd)/../build/libdeps/build/ninja
 
 DWARF_FLAG=
 #-gdwarf-2

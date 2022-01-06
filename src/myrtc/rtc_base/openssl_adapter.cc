@@ -9,15 +9,18 @@
  */
 
 #include "rtc_base/openssl_adapter.h"
-
 #include <errno.h>
-#include <openssl/bio.h>
+
 #include <openssl/err.h>
+#include <openssl/dh.h>
+#include <openssl/bio.h>
 #include <openssl/rand.h>
 #include <openssl/x509.h>
+#include <openssl/conf.h>
+#include <openssl/engine.h>
+
 #include <string.h>
 #include <time.h>
-
 #include <memory>
 
 #include "rtc_base/checks.h"
@@ -58,7 +61,7 @@ static BIO_METHOD* BIO_socket_method() {
 static BIO* BIO_new_socket(rtc::AsyncSocket* socket) {
   BIO* ret = BIO_new(BIO_socket_method());
   if (ret == nullptr) {
-    return nullptr;
+    return ret;
   }
   BIO_set_data(ret, socket);
   return ret;
@@ -152,10 +155,9 @@ namespace rtc {
 bool OpenSSLAdapter::InitializeSSL() {
   if (!SSL_library_init())
     return false;
-#if !defined(ADDRESS_SANITIZER) || !defined(WEBRTC_MAC) || defined(WEBRTC_IOS)
+  
   // Loading the error strings crashes mac_asan.  Omit this debugging aid there.
   SSL_load_error_strings();
-#endif
   ERR_load_BIO_strings();
   OpenSSL_add_all_algorithms();
   RAND_poll();
@@ -163,10 +165,18 @@ bool OpenSSLAdapter::InitializeSSL() {
 }
 
 bool OpenSSLAdapter::CleanupSSL() {
+  ENGINE_cleanup();
+  CONF_modules_unload(1);
+  ERR_free_strings();
+  EVP_cleanup();
+  sk_SSL_COMP_free(SSL_COMP_get_compression_methods());
+  CRYPTO_cleanup_all_ex_data();
+
   return true;
 }
 
 OpenSSLAdapter::OpenSSLAdapter(AsyncSocket* socket,
+                               bool listener,
                                OpenSSLSessionCache* ssl_session_cache,
                                SSLCertificateVerifier* ssl_cert_verifier)
     : SSLAdapter(socket),
@@ -191,10 +201,19 @@ OpenSSLAdapter::OpenSSLAdapter(AsyncSocket* socket,
     // Note: if using OpenSSL, requires version 1.1.0 or later.
     SSL_CTX_up_ref(ssl_ctx_);
   }
+
+#if 0 
+  if (!listener)
+    pfile_ = fopen("/tmp/test.ex", "wb");
+#endif
 }
 
 OpenSSLAdapter::~OpenSSLAdapter() {
   Cleanup();
+#if 0  
+  if (pfile_)
+    fclose(pfile_);
+#endif
 }
 
 void OpenSSLAdapter::SetIgnoreBadCert(bool ignore) {
@@ -337,12 +356,6 @@ int OpenSSLAdapter::BeginSSL() {
     }
   }
 
-#ifdef OPENSSL_IS_BORINGSSL
-  // Set a couple common TLS extensions; even though we don't use them yet.
-  SSL_enable_ocsp_stapling(ssl_);
-  SSL_enable_signed_cert_timestamps(ssl_);
-#endif
-
   if (!alpn_protocols_.empty()) {
     std::string tls_alpn_string = TransformAlpnProtocols(alpn_protocols_);
     if (!tls_alpn_string.empty()) {
@@ -395,16 +408,9 @@ int OpenSSLAdapter::ContinueSSL() {
         return -1;
       }
 
-      RTC_LOG(LS_INFO) << "SSL_ERROR_NONE stat=SSL_CONNECTED";
+      // handle shark done
       state_ = SSL_CONNECTED;
       AsyncSocketAdapter::OnConnectEvent(this);
-      // TODO(benwright): Refactor this code path.
-      // Don't let ourselves go away during the callbacks
-      // PRefPtr<OpenSSLAdapter> lock(this);
-      // RTC_LOG(LS_INFO) << " -- onStreamReadable";
-      // AsyncSocketAdapter::OnReadEvent(this);
-      // RTC_LOG(LS_INFO) << " -- onStreamWriteable";
-      // AsyncSocketAdapter::OnWriteEvent(this);
       break;
 
     case SSL_ERROR_WANT_READ:
@@ -465,68 +471,6 @@ void OpenSSLAdapter::Cleanup() {
   Thread::Current()->Clear(this, MSG_TIMEOUT);
 }
 
-#define LOOP_SSL_WRITE(ret, total_sent, pv, cb, error)        \
-  do {                                                        \
-   ret = DoSslWrite(static_cast<const void*>(pv),             \
-        static_cast<size_t>(cb), &error);                     \
-   if (error != SSL_ERROR_NONE)                               \
-     break;                                                   \
-   if (cb == ret) {                                           \
-     ret = total_sent;                                        \
-     break;                                                   \
-   }                                                          \
-   RTC_DCHECK_GE(cb, ret);                                    \
-   pv += ret;                                                 \
-   cb -= ret;                                                 \
-  } while(true);
-
-int OpenSSLAdapter::DoWriteWithBuffer(const uint8_t* pv, int cb, int& error) {
-
-  int total_sent = 0, ret;
-  if (!pending_data_.empty()) {
-    int pending_cb  = static_cast<int>(pending_data_.size());
-    const uint8_t* pending_pv = 
-        static_cast<const uint8_t*>(pending_data_.data());
-
-    LOOP_SSL_WRITE(ret, total_sent, pending_pv, pending_cb, error);
-
-    if (error == SSL_ERROR_WANT_WRITE || error == SSL_ERROR_WANT_READ) {
-      RTC_LOG(LS_WARNING) << 
-         "SSL_write couldn't write to the underlying socket on sending buffer.";
-      pending_data_.SetData(static_cast<const uint8_t*>(pending_pv), 
-                           static_cast<size_t>(pending_cb));
-      // We couldn't finish sending the pending data, so we definitely can't
-      // send any more data. Return with an EWOULDBLOCK error.
-      SetError(EWOULDBLOCK);
-      return SOCKET_ERROR;
-    }
-
-    // We completed sending the data previously passed into SSL_write! Now
-    // we're allowed to send more data.
-    pending_data_.Clear();
-  }
-
-  // OpenSSL will return an error if we try to write zero bytes
-  if (cb <= 0)
-    return 0;
-
-  total_sent = cb;
-  LOOP_SSL_WRITE(ret, total_sent, pv, cb, error);
-
-  if (error == SSL_ERROR_WANT_WRITE || error == SSL_ERROR_WANT_READ) {
-    RTC_DCHECK(pending_data_.empty());
-    RTC_LOG(LS_WARNING)
-        << "SSL_write couldn't write to the underlying socket; buffering data.";
-    pending_data_.SetData(static_cast<const uint8_t*>(pv), 
-                          static_cast<size_t>(cb));
-    // Since we're taking responsibility for sending this data, return its full
-    // size. The user of this class can consider it sent.
-    return total_sent;
-  }
-  
-  return ret;
-}
-
 int OpenSSLAdapter::DoSslWrite(const void* pv, size_t cb, int* error) {
   // If we have pending data (that was previously only partially written by
   // SSL_write), we shouldn't be attempting to write anything else.
@@ -541,17 +485,17 @@ int OpenSSLAdapter::DoSslWrite(const void* pv, size_t cb, int* error) {
       // Success!
       return ret;
     case SSL_ERROR_WANT_READ:
-      RTC_LOG(LS_INFO) << " -- error want read";
+      //RTC_LOG(LS_INFO) << " -- error want read";
       ssl_write_needs_read_ = true;
       SetError(EWOULDBLOCK);
       break;
     case SSL_ERROR_WANT_WRITE:
-      RTC_LOG(LS_INFO) << " -- error want write";
+      //RTC_LOG(LS_INFO) << " -- error want write";
       SetError(EWOULDBLOCK);
       break;
     case SSL_ERROR_ZERO_RETURN:
-      RTC_LOG(LS_INFO) << " -- error zero return";
       SetError(EWOULDBLOCK);
+      // do we need to signal closure?
       break;
     case SSL_ERROR_SSL:
       LogSslError();
@@ -568,7 +512,6 @@ int OpenSSLAdapter::DoSslWrite(const void* pv, size_t cb, int* error) {
 ///////////////////////////////////////////////////////////////////////////////
 // AsyncSocket Implementation
 ///////////////////////////////////////////////////////////////////////////////
-
 int OpenSSLAdapter::Send(const void* pv, size_t cb) {
   switch (state_) {
     case SSL_NONE:
@@ -584,13 +527,78 @@ int OpenSSLAdapter::Send(const void* pv, size_t cb) {
       return SOCKET_ERROR;
   }
 
-  int err;
-  return DoWriteWithBuffer((const uint8_t*)pv, cb, err);
+  RTC_DCHECK(cb <= 16*1024);
+
+  if (need_on_write_) {
+    SetError(EWOULDBLOCK);
+    return SOCKET_ERROR;
+  }
+
+#if 0
+  if (cb != 0 && pfile_) {
+    fwrite(pv, 1, cb, pfile_);
+  }
+#endif
+
+  int ret;
+  int error;
+
+  if (!pending_data_.empty()) {
+    ret = DoSslWrite(pending_data_.data(), pending_data_.size(), &error);
+    if (ret != static_cast<int>(pending_data_.size())) {
+      // We couldn't finish sending the pending data, so we definitely can't
+      // send any more data. Return with an EWOULDBLOCK error.
+      //RTC_LOG(LS_WARNING)
+      //  << "SSL_write couldn't write all pending data. sent:" << ret
+      //  << ", buffering data:" << pending_data_.size();
+
+      need_on_write_ = true;
+      SetError(EWOULDBLOCK);
+      return SOCKET_ERROR;
+    }
+    // We completed sending the data previously passed into SSL_write! Now
+    // we're allowed to send more data.
+    pending_data_.Clear();
+  }
+
+  // OpenSSL will return an error if we try to write zero bytes
+  if (cb == 0) {
+    return 0;
+  }
+
+  ret = DoSslWrite(pv, cb, &error);
+
+  // If SSL_write fails with SSL_ERROR_WANT_READ or SSL_ERROR_WANT_WRITE, this
+  // means the underlying socket is blocked on reading or (more typically)
+  // writing. When this happens, OpenSSL requires that the next call to
+  // SSL_write uses the same arguments (though, with
+  // SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER, the actual buffer pointer may be
+  // different).
+  //
+  // However, after Send exits, we will have lost access to data the user of
+  // this class is trying to send, and there's no guarantee that the user of
+  // this class will call Send with the same arguements when it fails. So, we
+  // buffer the data ourselves. When we know the underlying socket is writable
+  // again from OnWriteEvent (or if Send is called again before that happens),
+  // we'll retry sending this buffered data.
+  if (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE) {
+    // Shouldn't be able to get to this point if we already have pending data.
+    RTC_DCHECK(pending_data_.empty());
+    
+    pending_data_.SetData(static_cast<const uint8_t*>(pv), cb);
+    // Since we're taking responsibility for sending this data, return its full
+    // size. The user of this class can consider it sent.
+    need_on_write_ = true;
+    
+    return rtc::dchecked_cast<int>(cb);
+  }
+  return ret;
 }
 
 int OpenSSLAdapter::SendTo(const void* pv,
                            size_t cb,
                            const SocketAddress& addr) {
+  RTC_DCHECK(false);
   if (socket_->GetState() == Socket::CS_CONNECTED &&
       addr == socket_->GetRemoteAddress()) {
     return Send(pv, cb);
@@ -720,8 +728,6 @@ void OpenSSLAdapter::OnReadEvent(AsyncSocket* socket) {
     return;
   }
 
-  // Don't let ourselves go away during the callbacks
-  // PRefPtr<OpenSSLAdapter> lock(this); // TODO(benwright): fix this
   if (ssl_write_needs_read_) {
     AsyncSocketAdapter::OnWriteEvent(socket);
   }
@@ -750,19 +756,23 @@ void OpenSSLAdapter::OnWriteEvent(AsyncSocket* socket) {
     AsyncSocketAdapter::OnReadEvent(socket);
   }
 
+  need_on_write_ = false;
+
   // If a previous SSL_write failed due to the underlying socket being blocked,
   // this will attempt finishing the write operation.
   if (!pending_data_.empty()) {
-    int error = SSL_ERROR_NONE;
-    int ret = DoWriteWithBuffer(nullptr, 0, error);
-    if (ret < 0 || error != SSL_ERROR_NONE)
+    int ret = this->Send(nullptr, 0);
+    if (ret != 0) {
+      RTC_LOG(LS_WARNING) << "OpenSSLAdapter::OnWriteEvent block again " << ret << ")";
       return;
+    }
   }
-
+ 
   AsyncSocketAdapter::OnWriteEvent(socket);
 }
 
 void OpenSSLAdapter::OnCloseEvent(AsyncSocket* socket, int err) {
+  RTC_LOG(LS_INFO) << "OpenSSLAdapter::OnCloseEvent(" << err << ")";
   AsyncSocketAdapter::OnCloseEvent(socket, err);
 }
 
@@ -811,47 +821,6 @@ void OpenSSLAdapter::SSLInfoCallback(const SSL* s, int where, int ret) {
 #endif
 
 int OpenSSLAdapter::SSLVerifyCallback(int ok, X509_STORE_CTX* store) {
-#if !defined(NDEBUG)
-  if (!ok) {
-    char data[256];
-    X509* cert = X509_STORE_CTX_get_current_cert(store);
-    int depth = X509_STORE_CTX_get_error_depth(store);
-    int err = X509_STORE_CTX_get_error(store);
-
-    RTC_DLOG(LS_INFO) << "Error with certificate at depth: " << depth;
-    X509_NAME_oneline(X509_get_issuer_name(cert), data, sizeof(data));
-    RTC_DLOG(LS_INFO) << "  issuer  = " << data;
-    X509_NAME_oneline(X509_get_subject_name(cert), data, sizeof(data));
-    RTC_DLOG(LS_INFO) << "  subject = " << data;
-    RTC_DLOG(LS_INFO) << "  err     = " << err << ":"
-                      << X509_verify_cert_error_string(err);
-  }
-#endif
-  // Get our stream pointer from the store
-  SSL* ssl = reinterpret_cast<SSL*>(
-      X509_STORE_CTX_get_ex_data(store, SSL_get_ex_data_X509_STORE_CTX_idx()));
-
-  OpenSSLAdapter* stream =
-      reinterpret_cast<OpenSSLAdapter*>(SSL_get_app_data(ssl));
-
-  if (!ok && stream->ssl_cert_verifier_ != nullptr) {
-    RTC_LOG(LS_INFO) << "Invoking SSL Verify Callback.";
-    const OpenSSLCertificate cert(X509_STORE_CTX_get_current_cert(store));
-    if (stream->ssl_cert_verifier_->Verify(cert)) {
-      stream->custom_cert_verifier_status_ = true;
-      RTC_LOG(LS_INFO) << "Validated certificate using custom callback";
-      ok = true;
-    } else {
-      RTC_LOG(LS_INFO) << "Failed to verify certificate using custom callback";
-    }
-  }
-
-  // Should only be used for debugging and development.
-  if (!ok && stream->ignore_bad_cert_) {
-    RTC_DLOG(LS_WARNING) << "Ignoring cert error while verifying cert chain";
-    ok = 1;
-  }
-
   return ok;
 }
 
@@ -865,11 +834,8 @@ int OpenSSLAdapter::NewSSLSessionCallback(SSL* ssl, SSL_SESSION* session) {
 }
 
 SSL_CTX* OpenSSLAdapter::CreateContext(SSLMode mode, bool enable_cache) {
-  SSL_CTX* ctx = SSL_CTX_new(mode == SSL_MODE_DTLS ? 
-                             DTLS_method() : 
-                             TLS_method());
-
-
+  SSL_CTX* ctx =
+      SSL_CTX_new(mode == SSL_MODE_DTLS ? DTLS_method() : TLS_method());
   if (ctx == nullptr) {
     unsigned long error = ERR_get_error();  // NOLINT: type used by OpenSSL.
     RTC_LOG(LS_WARNING) << "SSL_CTX creation failed: " << '"'
@@ -936,7 +902,7 @@ std::string TransformAlpnProtocols(
 //////////////////////////////////////////////////////////////////////
 // OpenSSLAdapterFactory
 //////////////////////////////////////////////////////////////////////
-
+/*
 OpenSSLAdapterFactory::OpenSSLAdapterFactory() = default;
 
 OpenSSLAdapterFactory::~OpenSSLAdapterFactory() = default;
@@ -966,5 +932,5 @@ OpenSSLAdapter* OpenSSLAdapterFactory::CreateAdapter(AsyncSocket* socket) {
   return new OpenSSLAdapter(socket, ssl_session_cache_.get(),
                             ssl_cert_verifier_);
 }
-
+*/
 }  // namespace rtc

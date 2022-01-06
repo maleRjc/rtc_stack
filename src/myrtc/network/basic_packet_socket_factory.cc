@@ -96,12 +96,14 @@ AsyncPacketSocket* BasicPacketSocketFactory::CreateServerTcpSocket(
 
   if ((option.opts & PacketSocketFactory::OPT_TLS) ||
       (option.opts & PacketSocketFactory::OPT_TLS_INSECURE)) {
-    rtc::SSLAdapter* ssl_adapter = rtc::SSLAdapter::Create(socket);
+    rtc::SSLAdapter* ssl_adapter = rtc::SSLAdapter::Create(socket, true);
 
     if (NULL == ssl_adapter) {
       delete socket;
       return NULL;
     }
+
+    ssl_adapter->SetMode(SSL_MODE_TLS);
     
     ssl_adapter->SetRole(rtc::SSL_SERVER);
     
