@@ -25,8 +25,6 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid,
                                       erizo::MediaStream* ms,
                                       int32_t request_kframe_s)
   : pc_(pc), mid_(mid), request_kframe_period_(request_kframe_s) {
-  OLOG_TRACE_THIS("WebrtcTrack ctor mid:" << mid);
-  
   if (isPublish) {
     if (setting.is_audio) {
       audioFormat_ = setting.format;
@@ -96,10 +94,12 @@ WrtcAgentPc::WebrtcTrack::WebrtcTrack(const std::string& mid,
       name_ = "video";
     }
   }
+
+  OLOG_TRACE_THIS(pc_->id_ << ",WebrtcTrack ctor mid:" << mid << "," << name_);
 }
 
 WrtcAgentPc::WebrtcTrack::~WebrtcTrack() {
-  OLOG_TRACE_THIS("WebrtcTrack dtor mid:" << mid_);
+  OLOG_TRACE_THIS(pc_->id_ << ",WebrtcTrack dtor mid:" << mid_ << "," << name_);
 }
 
 void WrtcAgentPc::WebrtcTrack::close() {
@@ -135,7 +135,7 @@ uint32_t WrtcAgentPc::WebrtcTrack::ssrc(bool isAudio) {
 
 void WrtcAgentPc::WebrtcTrack::addDestination(
     bool isAudio, std::shared_ptr<owt_base::FrameDestination> dest) {
-  OLOG_TRACE_THIS((isAudio?"a":"v") << ", dest:" << dest);
+  OLOG_TRACE_THIS(pc_->id_ << "," << (isAudio?"a":"v") << ", dest:" << dest);
   if (isAudio && audioFrameConstructor_) {
     audioFrameConstructor_->addAudioDestination(std::move(dest));
   } else if (!isAudio && videoFrameConstructor_) {
@@ -155,7 +155,7 @@ void WrtcAgentPc::WebrtcTrack::addDestination(
 
 void WrtcAgentPc::WebrtcTrack::removeDestination(
     bool isAudio, owt_base::FrameDestination* dest) {
-  OLOG_TRACE_THIS((isAudio?"a":"v") << ", dest:" << dest);
+  OLOG_TRACE_THIS(pc_->id_ << "," << (isAudio?"a":"v") << ", dest:" << dest);
   if (isAudio && audioFrameConstructor_) {
     audioFrameConstructor_->removeAudioDestination(dest);
   } else if (!isAudio && videoFrameConstructor_) {
@@ -217,7 +217,7 @@ WrtcAgentPc::WrtcAgentPc(const TOption& config, WebrtcAgent& mgr)
     id_(config.connectId_), 
     mgr_(mgr),
     sink_(std::move(config_.call_back_)) {
-  OLOG_TRACE_THIS("WrtcAgentPc ctor " << id_);
+  OLOG_TRACE_THIS(id_ << ", ctor");
 }
 
 WrtcAgentPc::~WrtcAgentPc() {
@@ -227,7 +227,7 @@ WrtcAgentPc::~WrtcAgentPc() {
   if(local_sdp_)
     delete local_sdp_;
     
-  OLOG_TRACE_THIS("WrtcAgentPc dtor " << id_);
+  OLOG_TRACE_THIS(id_ << ", dtor");
 }
 
 int WrtcAgentPc::init(std::shared_ptr<Worker>& worker, 
@@ -351,8 +351,7 @@ void WrtcAgentPc::signalling(const std::string& signal,
 void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus, 
                               const std::string& message, 
                               const std::string& stream_id) {
-  WLOG_TRACE("message: WebRtcConnection status update, id:%s, status:%d", 
-      id_.c_str(), newStatus);
+  WLOG_TRACE("%s, update status:%d", id_.c_str(), newStatus);
   connection_state_ = newStatus;
   switch(newStatus) {
     case erizo::CONN_GATHERED:
@@ -360,19 +359,17 @@ void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus,
       break;
 
     case erizo::CONN_CANDIDATE:
-      //std::string mess = mess.replace(this.options.privateRegexp, this.options.publicIP);
       callBack(E_CANDIDATE, message);
-      WLOG_DEBUG("message: candidate, id::%s, c:%s", 
-          id_.c_str(), message.c_str());
+      WLOG_DEBUG("%s, CONN_CANDIDATE, c:%s", id_.c_str(), message.c_str());
       break;
 
     case erizo::CONN_FAILED:
-      WLOG_DEBUG("message: failed the ICE process, code:%s", id_.c_str());
+      WLOG_DEBUG("%s, CONN_FAILED, msg:%s", id_.c_str(), message.c_str());
       callBack(E_FAILED, message);
       break;
 
     case erizo::CONN_READY:
-      WLOG_DEBUG("message: connection ready, id:%s", id_.c_str());
+      WLOG_DEBUG("%s, CONN_READY", id_.c_str());
       if (!ready_) {
         ready_ = true;
         callBack(E_READY, "");
@@ -388,7 +385,7 @@ void WrtcAgentPc::notifyEvent(erizo::WebRTCEvent newStatus,
 
 void WrtcAgentPc::processSendAnswer(const std::string& streamId, 
                                     const std::string& sdpMsg) {
-  WLOG_TRACE("message: processSendAnswer streamId:%s", streamId.c_str());
+  WLOG_TRACE("%s, processSendAnswer streamId:%s", id_.c_str(),streamId.c_str());
   LOG_ASSERT(sdpMsg.length());
   
   if(!sdpMsg.empty()) {
@@ -402,12 +399,12 @@ void WrtcAgentPc::processSendAnswer(const std::string& streamId,
         local_sdp_->setCandidates(tempSdp); 
         local_sdp_->ice_lite_ = true;
       } else {
-        WLOG_ERROR("No mid in answer pcID:%s, streamId:%s, sdp:%s", 
+        WLOG_ERROR("%s, No mid in answer: streamId:%s, sdp:%s", 
                    id_.c_str(), streamId.c_str(), sdpMsg.c_str());
       }
     }
     catch(std::exception& ex){
-      OLOG_ERROR("exception catched :" << ex.what());
+      OLOG_ERROR(id_ << ", process sdp exception catched :" << ex.what());
       return;
     }
   }
@@ -497,7 +494,7 @@ srs_error_t WrtcAgentPc::removeRemoteCandidates(const std::string& candidates) {
 }
 
 srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media) {
-  OLOG_TRACE_THIS("t:" << media.type_ << ", mid:" << media.mid_);
+  OLOG_TRACE_THIS(id_ << ", t:" << media.type_ << ", mid:" << media.mid_);
   // Check Media MID with saved operation
   auto found = operation_map_.find(media.mid_);
   if (found == operation_map_.end()) {
@@ -531,8 +528,8 @@ srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media) {
   }
   
   if (op.enabled_ && (media.port_ == 0)) {
-    WLOG_WARNING("%s in offer has conflict port with operation %s disabled", 
-                 mid.c_str(), op.operation_id_.c_str());
+    WLOG_WARNING("%s, %s in offer has conflict port with operation %s disabled", 
+                 id_.c_str(), mid.c_str(), op.operation_id_.c_str());
     op.enabled_ = false;
   }
 
@@ -543,7 +540,7 @@ srs_error_t WrtcAgentPc::processOfferMedia(MediaDesc& media) {
 }
 
 srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
-  OLOG_TRACE_THIS("t:" << media.type_ << ", mid:" << media.mid_);
+  OLOG_TRACE_THIS(id_ << ", t:" << media.type_ << ", mid:" << media.mid_);
   srs_error_t result = srs_success;
   
   auto op_found = operation_map_.find(media.mid_);
@@ -569,8 +566,8 @@ srs_error_t WrtcAgentPc::setupTransport(MediaDesc& media) {
      
       uint32_t ssrc = track->ssrc(trackSetting.is_audio);
       if(ssrc){
-        ELOG_INFO("Add ssrc %u to %s in SDP for %s", 
-                  ssrc, media.mid_.c_str(), id_.c_str());
+        ELOG_INFO("%s, Add ssrc %u to %s in SDP for %s", 
+                  id_.c_str(), ssrc, media.mid_.c_str(), id_.c_str());
         
         const std::string& opId = opSettings.operation_id_;
         auto msid_found = msid_map_.find(opId);
@@ -694,8 +691,8 @@ void WrtcAgentPc::subscribe_i(
 WrtcAgentPc::WebrtcTrack* WrtcAgentPc::addTrack(
     const std::string& mid, const media_setting& trackSetting, 
     bool isPublish, int32_t kframe_s) {
-  OLOG_TRACE_THIS( (isPublish?"push": "sub") << 
-      " connectionId:" << id_ << ", mediaStreamId:" << mid);
+  OLOG_TRACE_THIS(id_ << "," << (isPublish?"push": "sub") << 
+                  ", mediaStreamId:" << mid);
   WebrtcTrack* result = nullptr;
 
   auto found = track_map_.find(mid);
@@ -717,7 +714,7 @@ WrtcAgentPc::WebrtcTrack* WrtcAgentPc::addTrack(
 }
 
 srs_error_t WrtcAgentPc::removeTrack(const std::string& mid) {
-  OLOG_TRACE_THIS("connectionId:" << id_ << ", mediaStreamId:%s" << mid);
+  OLOG_TRACE_THIS(id_ << ", mediaStreamId:%s" << mid);
 
   srs_error_t result = nullptr;
   
@@ -757,7 +754,7 @@ void WrtcAgentPc::onFrame(const owt_base::Frame& f) {
 }
 
 void WrtcAgentPc::onVideoInfo(const std::string& videoInfoJSON) {
-  OLOG_INFO_THIS("video info changed :" << videoInfoJSON);
+  OLOG_INFO_THIS(id_ << ", video info changed :" << videoInfoJSON);
 }
 
 void WrtcAgentPc::callBack(E_SINKID id, const std::string& message) {

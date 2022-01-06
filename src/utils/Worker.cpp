@@ -28,6 +28,7 @@ void Worker::task(Task f) {
 void Worker::start() {
   auto promise = std::make_shared<std::promise<void>>();
   start(promise);
+  promise->get_future().wait();
 }
 
 void Worker::start(std::shared_ptr<std::promise<void>> start_promise) {

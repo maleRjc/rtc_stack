@@ -18,7 +18,7 @@
 #include "erizo/SdpInfo.h"
 
 namespace erizo {
-DEFINE_LOGGER(WebRtcConnection, "wa.WebRtcConnection");
+DEFINE_LOGGER(WebRtcConnection, "WebRtcConnection");
 
 WebRtcConnection::WebRtcConnection(wa::Worker* worker, 
     wa::IOWorker* io_worker,

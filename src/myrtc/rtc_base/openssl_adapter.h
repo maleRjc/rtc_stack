@@ -45,6 +45,7 @@ class OpenSSLAdapter final : public SSLAdapter, public MessageHandler {
   // validate a peer certificate. The cache and verifier are effectively
   // immutable after the the SSL connection starts.
   explicit OpenSSLAdapter(AsyncSocket* socket,
+                          bool listener,
                           OpenSSLSessionCache* ssl_session_cache = nullptr,
                           SSLCertificateVerifier* ssl_cert_verifier = nullptr);
   ~OpenSSLAdapter() override;
@@ -99,8 +100,6 @@ class OpenSSLAdapter final : public SSLAdapter, public MessageHandler {
   void Error(const char* context, int err, bool signal = true);
   void Cleanup();
 
-  int DoWriteWithBuffer(const uint8_t* pv, int cb, int& error);
-
   // Return value and arguments have the same meanings as for Send; |error| is
   // an output parameter filled with the result of SSL_get_error.
   int DoSslWrite(const void* pv, size_t cb, int* error);
@@ -152,12 +151,17 @@ class OpenSSLAdapter final : public SSLAdapter, public MessageHandler {
   std::vector<std::string> elliptic_curves_;
   // Holds the result of the call to run of the ssl_cert_verify_->Verify()
   bool custom_cert_verifier_status_;
+  bool need_on_write_{false};
+#if 0
+  FILE* pfile_{nullptr};
+#endif
 };
 
 // The OpenSSLAdapterFactory is responsbile for creating multiple new
 // OpenSSLAdapters with a shared SSL_CTX and a shared SSL_SESSION cache. The
 // SSL_SESSION cache allows existing SSL_SESSIONS to be reused instead of
 // recreating them leading to a significant performance improvement.
+/*
 class OpenSSLAdapterFactory : public SSLAdapterFactory {
  public:
   OpenSSLAdapterFactory();
@@ -187,7 +191,7 @@ class OpenSSLAdapterFactory : public SSLAdapterFactory {
   // Hold a friend class to the OpenSSLAdapter to retrieve the context.
   friend class OpenSSLAdapter;
 };
-
+*/
 std::string TransformAlpnProtocols(const std::vector<std::string>& protos);
 
 }  // namespace rtc

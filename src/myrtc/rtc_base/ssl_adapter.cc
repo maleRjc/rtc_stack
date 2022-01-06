@@ -15,13 +15,13 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 namespace rtc {
-
+/*
 SSLAdapterFactory* SSLAdapterFactory::Create() {
   return new OpenSSLAdapterFactory();
 }
-
-SSLAdapter* SSLAdapter::Create(AsyncSocket* socket) {
-  return new OpenSSLAdapter(socket);
+*/
+SSLAdapter* SSLAdapter::Create(AsyncSocket* socket, bool listener) {
+  return new OpenSSLAdapter(socket, listener);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

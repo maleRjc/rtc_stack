@@ -58,14 +58,13 @@ class AsyncTCPSocketBase : public AsyncPacketSocket {
   static AsyncSocket* ConnectSocket(AsyncSocket* socket,
                                     const SocketAddress& bind_address,
                                     const SocketAddress& remote_address);
-  virtual int SendRaw(const void* pv, size_t cb);
   int FlushOutBuffer();
   // Add data to |outbuf_|.
   void AppendToOutBuffer(const void* pv, size_t cb);
 
   // Helper methods for |outpos_|.
-  bool IsOutBufferEmpty() const { return outbuf_.size() == 0; }
-  void ClearOutBuffer() { outbuf_.Clear(); }
+  inline bool IsOutBufferEmpty() const { return outbuf_.empty(); }
+  inline void ClearOutBuffer() { outbuf_.Clear(); }
 
  private:
   // Called by the underlying socket
@@ -97,7 +96,7 @@ class AsyncTCPSocket : public AsyncTCPSocketBase {
                                 const SocketAddress& bind_address,
                                 const SocketAddress& remote_address);
   AsyncTCPSocket(AsyncSocket* socket, bool listen);
-  ~AsyncTCPSocket() override {}
+  ~AsyncTCPSocket() override { }
 
   int Send(const void* pv,
            size_t cb,
@@ -109,7 +108,7 @@ class AsyncTCPSocket : public AsyncTCPSocketBase {
   RTC_DISALLOW_COPY_AND_ASSIGN(AsyncTCPSocket);
 };
 
-// Raw TCP. Send and Recv without packet sizes
+// Raw TCP stream
 class AsyncRawTCPSocket : public AsyncTCPSocketBase {
  public:
   // Binds and connects |socket| and creates AsyncRawTCPSocket for
@@ -119,7 +118,7 @@ class AsyncRawTCPSocket : public AsyncTCPSocketBase {
                                    const SocketAddress& bind_address,
                                    const SocketAddress& remote_address);
   AsyncRawTCPSocket(AsyncSocket* socket, bool listen);
-  ~AsyncRawTCPSocket() override {}
+  ~AsyncRawTCPSocket() override { }
 
   int Send(const void* pv,
            size_t cb,

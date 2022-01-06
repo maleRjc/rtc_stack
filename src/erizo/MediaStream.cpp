@@ -63,9 +63,10 @@ class PacketWriter : public OutboundHandler {
 };
 
 //MediaStream
-DEFINE_LOGGER(MediaStream, "wa.MediaStream");
+DEFINE_LOGGER(MediaStream, "MediaStream");
+
 log4cxx::LoggerPtr MediaStream::statsLogger = 
-    log4cxx::Logger::getLogger("wa.StreamStats");
+    log4cxx::Logger::getLogger("StreamStats");
 
 static constexpr auto kStreamStatsPeriod = std::chrono::seconds(30);
 

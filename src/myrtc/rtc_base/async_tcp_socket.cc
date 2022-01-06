@@ -12,7 +12,7 @@
 
 #include <stdint.h>
 #include <string.h>
-
+#include <iostream>
 #include <algorithm>
 #include <memory>
 
@@ -29,12 +29,10 @@
 
 namespace rtc {
 
-static const size_t kMaxPacketSize = 64 * 1024;
-
 typedef uint16_t PacketLength;
 static const size_t kPacketLenSize = sizeof(PacketLength);
 
-static const size_t kBufSize = kMaxPacketSize + kPacketLenSize;
+static const size_t kBufSize = 16 * 1024;
 
 // The input buffer will be resized so that at least kMinimumRecvSize bytes can
 // be received (but it will not grow above the maximum size passed to the
@@ -147,18 +145,6 @@ int AsyncTCPSocketBase::SendTo(const void* pv,
   return -1;
 }
 
-int AsyncTCPSocketBase::SendRaw(const void* pv, size_t cb) {
-  if (outbuf_.size() + cb > max_outsize_) {
-    socket_->SetError(EMSGSIZE);
-    return -1;
-  }
-
-  RTC_DCHECK(!listen_);
-  outbuf_.AppendData(static_cast<const uint8_t*>(pv), cb);
-
-  return FlushOutBuffer();
-}
-
 int AsyncTCPSocketBase::FlushOutBuffer() {
   RTC_DCHECK(!listen_);
   int res = socket_->Send(outbuf_.data(), outbuf_.size());
@@ -169,11 +155,13 @@ int AsyncTCPSocketBase::FlushOutBuffer() {
     RTC_NOTREACHED();
     return -1;
   }
+
   size_t new_size = outbuf_.size() - res;
   if (new_size > 0) {
     memmove(outbuf_.data(), outbuf_.data() + res, new_size);
   }
   outbuf_.SetSize(new_size);
+
   return res;
 }
 
@@ -347,11 +335,13 @@ AsyncRawTCPSocket* AsyncRawTCPSocket::Create(AsyncSocket* socket,
 }
 
 AsyncRawTCPSocket::AsyncRawTCPSocket(AsyncSocket* socket, bool listen)
-    : AsyncTCPSocketBase(socket, listen, kBufSize) {}
+    : AsyncTCPSocketBase(socket, listen, kBufSize) {
+}
+
 
 int AsyncRawTCPSocket::Send(const void* pv,
-                         size_t cb,
-                         const rtc::PacketOptions& options) {
+                            size_t cb,
+                            const rtc::PacketOptions& options) {
   if (cb > kBufSize) {
     SetError(EMSGSIZE);
     return -1;
@@ -365,11 +355,9 @@ int AsyncRawTCPSocket::Send(const void* pv,
 
   AppendToOutBuffer(pv, cb);
 
-  int res = FlushOutBuffer();
-  if (res <= 0) {
-    return res;
-  }
+  FlushOutBuffer();
   
+  // We claim to have sent the whole thing, data is in buffer.
   rtc::SentPacket sent_packet(options.packet_id, rtc::TimeMillis(),
                               options.info_signaled_after_sent);
   CopySocketInformationToPacketInfo(cb, *this, false, &sent_packet.info);

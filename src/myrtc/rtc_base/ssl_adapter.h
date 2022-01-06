@@ -29,6 +29,7 @@ class SSLAdapter;
 // Clients should create the factory using Create(), set up the factory as
 // needed using SetMode, and then call CreateAdapter to create adapters when
 // needed.
+/*
 class SSLAdapterFactory {
  public:
   virtual ~SSLAdapterFactory() {}
@@ -44,7 +45,7 @@ class SSLAdapterFactory {
 
   static SSLAdapterFactory* Create();
 };
-
+*/
 // Class that abstracts a client-to-server SSL session. It can be created
 // standalone, via SSLAdapter::Create, or through a factory as described above,
 // in which case it will share state with other SSLAdapters created from the
@@ -90,7 +91,7 @@ class SSLAdapter : public AsyncSocketAdapter {
   // Create the default SSL adapter for this platform. On failure, returns null
   // and deletes |socket|. Otherwise, the returned SSLAdapter takes ownership
   // of |socket|.
-  static SSLAdapter* Create(AsyncSocket* socket);
+  static SSLAdapter* Create(AsyncSocket* socket, bool listener = false);
 };
 
 ///////////////////////////////////////////////////////////////////////////////

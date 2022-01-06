@@ -34,12 +34,11 @@ check_meson(){
 }
 
 install_openssl(){
+  local SSL_VERSION="1.1.1m"
   local LIST_LIBS=`ls ${PREFIX_DIR}/lib/libssl* 2>/dev/null`
-  $INCR_INSTALL && [[ ! -z $LIST_LIBS ]] && echo "openssl already installed." && return 0
+  $INCR_INSTALL && [[ ! -z $LIST_LIBS ]] && echo "openssl ${SSL_VERSION} already installed." && return 0
 
   if [ -d $LIB_DIR ]; then
-    local SSL_BASE_VERSION="1.1.1"
-    local SSL_VERSION="1.1.1h"
     cd $LIB_DIR
     rm -f ./build/lib/libssl.*
     rm -f ./build/lib/libcrypto.*
@@ -58,33 +57,6 @@ install_openssl(){
   else
     mkdir -p $LIB_DIR
     install_openssl
-  fi
-}
-
-#libnice depends on zlib
-install_libnice014(){
-  local LIST_LIBS=`ls ${PREFIX_DIR}/lib/libnice* 2>/dev/null`
-  $INCR_INSTALL && [[ ! -z $LIST_LIBS ]] && echo "libnice already installed." && return 0
-
-  if [ -d $LIB_DIR ]; then
-    cd $LIB_DIR
-    rm -f ./build/lib/libnice.*
-    rm -rf libnice-0.1.*
-    #wget -c http://nice.freedesktop.org/releases/libnice-0.1.4.tar.gz
-    cp ${THIRD_PARTY_DEPTH}/libnice-0.1.4.tar.gz ./
-    tar -zxvf libnice-0.1.4.tar.gz
-    cd libnice-0.1.4
-    patch -p1 < $PATHNAME/patches/libnice014-agentlock.patch
-    patch -p1 < $PATHNAME/patches/libnice014-agentlock-plus.patch
-    patch -p1 < $PATHNAME/patches/libnice014-removecandidate.patch
-    patch -p1 < $PATHNAME/patches/libnice014-keepalive.patch
-    patch -p1 < $PATHNAME/patches/libnice014-startcheck.patch
-    patch -p1 < $PATHNAME/patches/libnice014-closelock.patch
-    PKG_CONFIG_PATH=$PREFIX_DIR"/lib/pkgconfig":$PREFIX_DIR"/lib64/pkgconfig":$PKG_CONFIG_PATH ./configure --prefix=$PREFIX_DIR && make -s V= && make install
-    cd $CURRENT_DIR
-  else
-    mkdir -p $LIB_DIR
-    install_libnice014
   fi
 }
 
@@ -168,7 +140,6 @@ instlall_ninja(){
 
 install_openssl
 install_libsrtp2
-#install_libnice014
 install_libnice0118 $1
 install_gtest
 instlall_ninja
