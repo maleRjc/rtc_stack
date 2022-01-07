@@ -16,8 +16,8 @@ buildAll() {
       then
         echo "Building $d - $*"
         cd $d
-        #make -j4 $*
-        ninja
+        make -j4 $*
+        #ninja
         cd ..
       fi
     done
@@ -75,7 +75,7 @@ if [[ "$OS" =~ .*centos.* ]];then
   source scl_source enable devtoolset-7
 fi
 
-export PATH=$PATH:$(pwd)/../build/libdeps/build/ninja
+#export PATH=$PATH:$(pwd)/../build/libdeps/build/ninja
 
 DWARF_FLAG=
 #-gdwarf-2

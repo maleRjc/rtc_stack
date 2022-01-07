@@ -28,8 +28,10 @@ check_meson(){
   if [[ "$installed" == meson* ]];then
     echo "$installed installed."
   else
-  	echo "install meson for libnice0118"
-    yum install meson.noarch -y
+    echo "install meson for libnice0118"
+    yum install python3.x86_64 -y
+    python3 -m pip install meson
+    python3 -m pip install ninja
   fi
 }
 
@@ -75,7 +77,7 @@ install_libnice0118(){
     tar -zxvf libnice-0.1.18.tar.gz
     cd libnice-0.1.18
     export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PREFIX_DIR"/lib/pkgconfig":$PREFIX_DIR"/lib64/pkgconfig"
-    meson builddir -Dprefix=$PREFIX_DIR -Drelease=true -Dc_args=$1 && ninja -C builddir && ninja -C builddir install
+    meson builddir -Dprefix=$PREFIX_DIR -Dc_args=$1 && ninja -C builddir && ninja -C builddir install
     cd $CURRENT_DIR
   else
     mkdir -p $LIB_DIR
@@ -142,6 +144,6 @@ install_openssl
 install_libsrtp2
 install_libnice0118 $1
 install_gtest
-instlall_ninja
+#instlall_ninja
 
 cd $ROOT_DIR

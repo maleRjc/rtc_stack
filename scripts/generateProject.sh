@@ -15,8 +15,8 @@ generateVersion() {
     mkdir -p $BIN_DIR
     cd $BIN_DIR
   fi
-  #cmake ../../src "-DWA_BUILD_TYPE=$1" -Wno-dev
-  cmake . ../../src -G "Ninja" "-DWA_BUILD_TYPE=$1" "-DWA_DWARF_TYPE=$2"-Wno-dev
+  cmake ../../src "-DWA_BUILD_TYPE=$1" -Wno-dev
+  #cmake . ../../src -G "Ninja" "-DWA_BUILD_TYPE=$1" "-DWA_DWARF_TYPE=$2"-Wno-dev
   cd $PATHNAME
 }
 
