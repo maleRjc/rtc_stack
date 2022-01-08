@@ -84,6 +84,7 @@ struct Frame {
   uint8_t*        payload;
   uint32_t        length;
   uint32_t        timeStamp;
+  int64_t         ntpTimeMs;
   MediaSpecInfo   additionalInfo;
 
   Frame() = default;
@@ -94,6 +95,7 @@ struct Frame {
     std::memcpy(payload, r.payload, r.length);
     length = r.length;
     timeStamp = r.timeStamp;
+    ntpTimeMs = r.ntpTimeMs;
     if (isVideoFrame(*this)) {
       additionalInfo.video = r.additionalInfo.video;
     } else {
@@ -108,6 +110,7 @@ struct Frame {
     r.payload = nullptr;
     length = r.length;
     timeStamp = r.timeStamp;
+    ntpTimeMs = r.ntpTimeMs;
     if (isVideoFrame(*this)) {
       additionalInfo.video = r.additionalInfo.video;
     } else {
