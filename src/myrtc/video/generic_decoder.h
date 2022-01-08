@@ -18,8 +18,6 @@
 #include "video/video_codec_interface.h"
 #include "video/timestamp_map.h"
 #include "video/timing.h"
-#include "rtc_base/critical_section.h"
-#include "rtc_base/field_trial_parser.h"
 #include "rtc_base/thread_checker.h"
 
 namespace webrtc {
@@ -69,11 +67,8 @@ class VCMDecodedFrameCallback : public DecodedImageCallback {
   // from the same thread, and therfore a lock is not required to access it.
   VCMReceiveCallback* _receiveCallback = nullptr;
   VCMTiming* _timing;
-  rtc::CriticalSection lock_;
-  VCMTimestampMap _timestampMap RTC_GUARDED_BY(lock_);
+  VCMTimestampMap _timestampMap;
   int64_t ntp_offset_;
-  // Set by the field trial WebRTC-SlowDownDecoder to simulate a slow decoder.
-  FieldTrialOptional<TimeDelta> _extra_decode_time;
 };
 
 class VCMGenericDecoder {

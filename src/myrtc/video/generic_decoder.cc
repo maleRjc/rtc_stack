@@ -30,13 +30,9 @@ VCMDecodedFrameCallback::VCMDecodedFrameCallback(VCMTiming* timing,
                                                  Clock* clock)
     : _clock(clock),
       _timing(timing),
-      _timestampMap(kDecoderFrameMemoryLength),
-      _extra_decode_time("t", std::nullopt) {
+      _timestampMap(kDecoderFrameMemoryLength) {
   ntp_offset_ =
       _clock->CurrentNtpInMilliseconds() - _clock->TimeInMilliseconds();
-
-  ParseFieldTrial({&_extra_decode_time},
-                  field_trial::FindFullName("WebRTC-SlowDownDecoder"));
 }
 
 VCMDecodedFrameCallback::~VCMDecodedFrameCallback() {}
@@ -72,21 +68,13 @@ int32_t VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
 void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
                                       std::optional<int32_t> decode_time_ms,
                                       std::optional<uint8_t> qp) {
-  // Wait some extra time to simulate a slow decoder.
-  if (_extra_decode_time) {
-    rtc::Thread::SleepMs(_extra_decode_time->ms());
-  }
-
   RTC_DCHECK(_receiveCallback) << "Callback must not be null at this point";
   TRACE_EVENT_INSTANT1("webrtc", "VCMDecodedFrameCallback::Decoded",
                        "timestamp", decodedImage.timestamp());
   // TODO(holmer): We should improve this so that we can handle multiple
   // callbacks from one call to Decode().
   VCMFrameInformation* frameInfo;
-  {
-    rtc::CritScope cs(&lock_);
-    frameInfo = _timestampMap.Pop(decodedImage.timestamp());
-  }
+  frameInfo = _timestampMap.Pop(decodedImage.timestamp());
 
   if (frameInfo == NULL) {
     RTC_LOG(LS_WARNING) << "Too many frames backed up in the decoder, dropping "
@@ -168,12 +156,10 @@ void VCMDecodedFrameCallback::OnDecoderImplementationName(
 
 void VCMDecodedFrameCallback::Map(uint32_t timestamp,
                                   VCMFrameInformation* frameInfo) {
-  rtc::CritScope cs(&lock_);
   _timestampMap.Add(timestamp, frameInfo);
 }
 
 int32_t VCMDecodedFrameCallback::Pop(uint32_t timestamp) {
-  rtc::CritScope cs(&lock_);
   if (_timestampMap.Pop(timestamp) == NULL) {
     return VCM_GENERAL_ERROR;
   }

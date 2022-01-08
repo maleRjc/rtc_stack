@@ -5,11 +5,13 @@
 #ifndef AudioFrameConstructor_h
 #define AudioFrameConstructor_h
 
+#include "rtc_base/rtp_to_ntp_estimator.h"
 #include "owt_base/MediaFramePipeline.h"
 #include "owt_base/MediaDefinitionExtra.h"
 #include "erizo/MediaDefinitions.h"
 #include "common/logger.h"
 #include "rtc_adapter/RtcAdapter.h"
+#include "erizo/rtp/RtpHeaders.h"
 
 namespace owt_base {
 
@@ -51,6 +53,9 @@ class AudioFrameConstructor final : public erizo::MediaSink,
   void onAdapterData(char* data, int len) override;
   void close();
   void createAudioReceiver();
+
+  void onSr(erizo::RtcpHeader *chead);
+  int64_t getNtpTimestamp(uint32_t ts);
  private:
   bool enabled_{true};
   uint32_t ssrc_{0};
@@ -58,6 +63,7 @@ class AudioFrameConstructor final : public erizo::MediaSink,
   config config_;
   std::shared_ptr<rtc_adapter::RtcAdapter> rtcAdapter_;
   rtc_adapter::AudioReceiveAdapter* audioReceive_{nullptr};
+  webrtc::RtpToNtpEstimator ntp_estimator_;
 };
 
 }
