@@ -85,6 +85,7 @@ int32_t VideoReceiveAdapterImpl::AdapterDecoder::Decode(
   frame.payload = frameBuffer_.get();
   frame.length = encodedImage.size();
   frame.timeStamp = encodedImage.Timestamp();
+  frame.ntpTimeMs = encodedImage.ntp_time_ms_;
   frame.additionalInfo.video.width = width_;
   frame.additionalInfo.video.height = height_;
   frame.additionalInfo.video.isKeyFrame = 
@@ -205,7 +206,6 @@ void VideoReceiveAdapterImpl::CreateReceiveVideo() {
   OLOG_INFO_THIS("Config add decoder:" << decoder.ToString());
   video_recv_config.decoders.push_back(decoder);
 
-  //OLOG_INFO_THIS("VideoReceiveStream::Config " << video_recv_config.ToString());
   videoRecvStream_ = call()->CreateVideoReceiveStream(std::move(video_recv_config));
   videoRecvStream_->Start();
   call()->SignalChannelNetworkState(webrtc::MediaType::VIDEO, webrtc::NetworkState::kNetworkUp);

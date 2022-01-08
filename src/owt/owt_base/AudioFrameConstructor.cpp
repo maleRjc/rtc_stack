@@ -1,8 +1,8 @@
 #include "owt_base/AudioFrameConstructor.h"
-#include "owt_base/AudioUtilitiesNew.h"
 
+#include "rtp_rtcp/byte_io.h"
+#include "owt_base/AudioUtilitiesNew.h"
 #include "common/rtputils.h"
-#include "erizo/rtp/RtpHeaders.h"
 
 namespace owt_base {
 
@@ -115,6 +115,7 @@ int AudioFrameConstructor::deliverAudioData_(
       (packetType == RTCP_SDES_PT || 
        packetType == RTCP_Sender_PT || 
        packetType == RTCP_XR_PT) ) {
+    onSr((erizo::RtcpHeader*)chead);
     audioReceive_->onRtpData(audio_packet->data, audio_packet->length);
     return audio_packet->length;
   }
@@ -148,6 +149,8 @@ int AudioFrameConstructor::deliverAudioData_(
   frame.payload = reinterpret_cast<uint8_t*>(audio_packet->data);
   frame.length = audio_packet->length;
   frame.timeStamp = head->getTimestamp();
+  
+  frame.ntpTimeMs = getNtpTimestamp(frame.timeStamp);
   frame.additionalInfo.audio.isRtpPacket = 1;
 
   std::unique_ptr<AudioLevel> audioLevel = parseAudioLevel(audio_packet);
@@ -209,6 +212,30 @@ void AudioFrameConstructor::createAudioReceiver() {
   recvConfig.rtp_listener = this;
 
   audioReceive_ = rtcAdapter_->createAudioReceiver(recvConfig);
+}
+
+void AudioFrameConstructor::onSr(erizo::RtcpHeader *chead) {
+  if(chead->getPacketType() != RTCP_Sender_PT)
+    return;
+
+  const uint8_t* const payload = reinterpret_cast<const uint8_t*>(&(chead->ssrc));
+  uint32_t ntp_secs = webrtc::ByteReader<uint32_t>::ReadBigEndian(&payload[4]);
+  uint32_t ntp_frac = webrtc::ByteReader<uint32_t>::ReadBigEndian(&payload[8]);
+  webrtc::NtpTime ntp;
+  ntp.Set(ntp_secs, ntp_frac);
+  
+  uint32_t rtp_timestamp = webrtc::ByteReader<uint32_t>::ReadBigEndian(&payload[12]);  
+  bool new_rtcp_sr = false;
+  ntp_estimator_.UpdateMeasurements(ntp_secs, ntp_frac, rtp_timestamp, &new_rtcp_sr);
+}
+
+int64_t AudioFrameConstructor::getNtpTimestamp(uint32_t ts) {
+  int64_t ntp = 0;
+
+  if(!ntp_estimator_.Estimate(ts, &ntp))
+    return -1;
+
+  return ntp;
 }
 
 }//namespace owt_base
