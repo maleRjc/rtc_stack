@@ -5,8 +5,15 @@ FILENAME=`basename $SCRIPT`
 PATHNAME=`dirname $SCRIPT`
 ROOT_DIR=$PATHNAME/..
 BIN_DIR=$ROOT_DIR/build
-
 OBJ_DIR="CMakeFiles"
+USE_NINJA=0
+
+CMAKE_VER=`cmake --version | awk '{print $3}'`
+CMAKE_MAJOR_VER=${CMAKE_VER:0:1}
+let "CMAKE_MAJOR_VER-=2"
+if [[ $CMAKE_MAJOR_VER -ne 0 ]]; then
+  USE_NINJA=1
+fi
 
 buildAll() {
   if [ -d $BIN_DIR ]; then
@@ -16,8 +23,11 @@ buildAll() {
       then
         echo "Building $d - $*"
         cd $d
-        make -j4 $*
-        #ninja
+        if [[ $USE_NINJA -eq "0" ]];then
+          make -j4 $*
+        else
+          ninja
+        fi
         cd ..
       fi
     done
@@ -75,14 +85,8 @@ if [[ "$OS" =~ .*centos.* ]];then
   source scl_source enable devtoolset-7
 fi
 
-#export PATH=$PATH:$(pwd)/../build/libdeps/build/ninja
-
-DWARF_FLAG=
-#-gdwarf-2
-
-./build_3rd.sh $DWARF_FLAG
-
-./generateProject.sh $DWARF_FLAG
+./build_3rd.sh
+./generateProject.sh $USE_NINJA
 
 buildAll $*
 

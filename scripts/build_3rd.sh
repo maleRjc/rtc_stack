@@ -63,7 +63,7 @@ install_openssl(){
 }
 
 #libnice depends on zlib
-install_libnice0118(){
+install_libnice(){
   check_meson
 
   local LIST_LIBS=`ls ${PREFIX_DIR}/lib64/libnice* 2>/dev/null`
@@ -77,11 +77,11 @@ install_libnice0118(){
     tar -zxvf libnice-0.1.18.tar.gz
     cd libnice-0.1.18
     export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$PREFIX_DIR"/lib/pkgconfig":$PREFIX_DIR"/lib64/pkgconfig"
-    meson builddir -Dprefix=$PREFIX_DIR -Dc_args=$1 && ninja -C builddir && ninja -C builddir install
+    meson builddir -Dprefix=$PREFIX_DIR && ninja -C builddir && ninja -C builddir install
     cd $CURRENT_DIR
   else
     mkdir -p $LIB_DIR
-    install_libnice0118
+    install_libnice
   fi
 }
 
@@ -125,25 +125,9 @@ install_gtest(){
   fi
 }
 
-instlall_ninja(){
-  local LIST_LIBS=`ls ${PREFIX_DIR}/ninja/*`
-  $INCR_INSTALL && [[ ! -z $LIST_LIBS ]] && echo "ninja already installed." && return 0
-
-  if [ -d PREFIX_DIR ]; then
-    cd $PREFIX_DIR
-    cp ${THIRD_PARTY_DEPTH}/ninja.tar.gz ./
-    tar -zxvf ninja.tar.gz
-    cd $CURRENT_DIR
-  else
-    mkdir -p PREFIX_DIR
-    instlall_ninja
-  fi
-}
-
 install_openssl
 install_libsrtp2
-install_libnice0118 $1
+install_libnice
 install_gtest
-#instlall_ninja
 
 cd $ROOT_DIR
