@@ -4,19 +4,11 @@ Webrtc compatible stack, used by linux server application, is writen with c++.
 
 ## Build:
 
-git clone https://github.com/anjisuan783/rtc_stack.git
+reference to https://github.com/anjisuan783/mia.git
 
-cd rtc_stack/script
-
-chmod +x ./*.sh
-
-./buildProject.sh
-
-CentOS 7 supported only now!
+Binary library file path at "./build/wa/libwa.a"
 
 ## Features
-
-The features of SRS.
 
 - [x] Support H264 OPUS.
 - [x] Chrome、Edge、Firefox supported.
